@@ -479,7 +479,7 @@ def get_recorder_counterfactual(
                     )
                     conn.commit()
                     return parsed.model_dump()
-        except (ImportError, AttributeError):
+        except (ImportError, AttributeError, TypeError):
             pass
 
         # 3. Check fixture fallback
