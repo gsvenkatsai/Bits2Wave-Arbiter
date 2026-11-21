@@ -380,17 +380,17 @@ def test_engine_exposes_configuration() -> None:
 
 
 def test_candidate_delta_payload() -> None:
-    command = CommandProposal(
-        command_id="c",
-        controller="ctrl",
-        controller_type="COVERAGE_CAPACITY",
-        target_cell="A",
-        timestamp_epoch_ms=0,
-        parameter="TX_POWER_DBM",
-        current_value=30.0,
-        requested_value=33.0,
-        created_tick=0,
-    )
+    command = CommandProposal.model_validate({
+        "command_id": "c",
+        "controller": "ctrl",
+        "controller_type": "COVERAGE_CAPACITY",
+        "target_cell": "A",
+        "timestamp_epoch_ms": 0,
+        "parameter": "TX_POWER_DBM",
+        "current_value": 30.0,
+        "requested_value": 33.0,
+        "created_tick": 0,
+    })
 
     assert build_candidate_delta(command, 31.0) == {
         "command_id": "c",
