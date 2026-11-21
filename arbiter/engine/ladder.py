@@ -42,6 +42,7 @@ component; undecided and delayed commands are not applied to the candidate.
 """
 from __future__ import annotations
 
+import threading
 import time
 import uuid
 from typing import Any, Callable, Mapping, Sequence
@@ -52,6 +53,8 @@ from arbiter.detector.cycle_detector import PingPongCycleDetector
 from arbiter.detector.graph import batch_order
 from arbiter.engine.bisection import BoundedBisectionSolver, EvaluationBudget
 from arbiter.engine.contracts import (
+    FLOOR_COVERAGE,
+    FLOOR_DROP_RATE,
     MAX_HOLD_TICKS,
     MAX_TWIN_EVALS,
     TWIN_TIMEOUT_MS,
@@ -63,6 +66,13 @@ from arbiter.engine.contracts import (
 )
 from arbiter.engine.mocks.mock_twin_client import TwinClient
 from arbiter.engine.utility import UtilityCalculator
+from arbiter.shared.constants import (
+    DEFAULT_WEIGHT_COVERAGE,
+    DEFAULT_WEIGHT_DROP_RATE,
+    DEFAULT_WEIGHT_ENERGY,
+    DEFAULT_WEIGHT_INTERFERENCE,
+)
+from arbiter.shared.v2_contracts import RiskDial, TwinPredictionV2
 
 __all__ = [
     "SafetyFloorEnforcer",
@@ -134,7 +144,7 @@ class SafetyFloorEnforcer:
 
 
 class UncertaintyGuard:
-    """Conservative handling of improvements too small to trust."""
+    """Conservative handling of improvements too small to trust and calibrated intervals."""
 
     def __init__(self, default_margin: float = 0.0) -> None:
         if default_margin < 0.0:
@@ -154,6 +164,116 @@ class UncertaintyGuard:
     def is_uncertain(self, delta_utility: float, margin: float) -> bool:
         """True when ``|dU|`` is inside the confidence band."""
         return abs(delta_utility) < margin
+
+    def check_intervals(
+        self,
+        prediction: TwinPredictionV2 | Mapping[str, Any] | None,
+        baseline_kpis: Mapping[str, float] | None = None,
+    ) -> tuple[bool, bool]:
+        """Check safety floors on mean and worst-case interval bounds.
+
+        Worst case:
+        - lower bound for coverage
+        - upper bound for drop rate
+        - upper bound for interference
+
+        If twin is uncalibrated, intervals are widened conservatively.
+
+        Returns:
+            (mean_passed, worst_case_passed)
+        """
+        if prediction is None:
+            return True, True
+
+        intervals: list[Any] = []
+        calibrated: bool = False
+        if isinstance(prediction, TwinPredictionV2):
+            intervals = list(prediction.intervals)
+            calibrated = bool(prediction.calibrated)
+        elif isinstance(prediction, Mapping):
+            raw_intervals = prediction.get("intervals", [])
+            if isinstance(raw_intervals, list):
+                intervals = list(raw_intervals)
+            calibrated = bool(prediction.get("calibrated", False))
+
+        if not intervals:
+            return True, True
+
+        cov_mean = 1.0
+        cov_worst = 1.0
+        drop_mean = 0.0
+        drop_worst = 0.0
+        interf_mean = 0.0
+        interf_worst = 0.0
+
+        for item in intervals:
+            kpi = str(
+                getattr(item, "kpi", "")
+                or (item.get("kpi") if isinstance(item, Mapping) else "")
+            ).lower()
+            mean = float(
+                getattr(item, "mean", 0.0)
+                or (item.get("mean", 0.0) if isinstance(item, Mapping) else 0.0)
+            )
+            lower = float(
+                getattr(item, "lower", 0.0)
+                or (item.get("lower", 0.0) if isinstance(item, Mapping) else 0.0)
+            )
+            upper = float(
+                getattr(item, "upper", 0.0)
+                or (item.get("upper", 0.0) if isinstance(item, Mapping) else 0.0)
+            )
+
+            # Be conservative if uncalibrated: widen the intervals
+            if not calibrated:
+                half_cov = abs(mean - lower)
+                lower = lower - 0.5 * half_cov
+                half_drop = abs(upper - mean)
+                upper = upper + 0.5 * half_drop
+                half_interf = abs(upper - mean)
+                upper = upper + 0.5 * half_interf
+
+            if "coverage" in kpi:
+                cov_mean = mean
+                cov_worst = lower
+            elif "drop" in kpi:
+                drop_mean = mean
+                drop_worst = upper
+            elif "interf" in kpi:
+                interf_mean = mean
+                interf_worst = upper
+
+        # Floors comparison
+        base_cov = (
+            float(baseline_kpis.get("coverage_ratio", 0.0))
+            if baseline_kpis
+            else 0.0
+        )
+        base_drop = (
+            float(baseline_kpis.get("drop_rate_ratio", 1.0))
+            if baseline_kpis
+            else 1.0
+        )
+
+        mean_passed = (
+            cov_mean >= FLOOR_COVERAGE
+            and drop_mean <= FLOOR_DROP_RATE
+            and interf_mean <= 1.0
+        )
+        if not mean_passed and baseline_kpis is not None:
+            if base_cov < FLOOR_COVERAGE or base_drop > FLOOR_DROP_RATE:
+                mean_passed = (cov_mean >= base_cov) and (drop_mean <= base_drop)
+
+        worst_passed = (
+            cov_worst >= FLOOR_COVERAGE
+            and drop_worst <= FLOOR_DROP_RATE
+            and interf_worst <= 1.0
+        )
+        if not worst_passed and baseline_kpis is not None:
+            if base_cov < FLOOR_COVERAGE or base_drop > FLOOR_DROP_RATE:
+                worst_passed = (cov_worst >= base_cov) and (drop_worst <= base_drop)
+
+        return mean_passed, worst_passed
 
 
 class DecisionLadderEngine:
@@ -187,6 +307,34 @@ class DecisionLadderEngine:
         self._id_factory: Callable[[], str] = id_factory or _default_id
         self._clock: Callable[[], int] = clock or _now_ms
         self._active_ho_seen = False
+        self._weights_lock = threading.RLock()
+        self._dial = RiskDial(
+            weight_coverage=DEFAULT_WEIGHT_COVERAGE,
+            weight_energy=DEFAULT_WEIGHT_ENERGY,
+            weight_interference=DEFAULT_WEIGHT_INTERFERENCE,
+            weight_drop_rate=DEFAULT_WEIGHT_DROP_RATE,
+            label="default",
+        )
+
+    # -- WeightSettable protocol -------------------------------------------
+    def set_weights(self, dial: RiskDial) -> None:
+        """Apply dynamic weights from a user-configured RiskDial (thread-safe)."""
+        with self._weights_lock:
+            self._dial = dial
+            self._calculator = UtilityCalculator(
+                UtilityWeights(
+                    w1=dial.weight_coverage,
+                    w2=dial.weight_energy,
+                    w3=dial.weight_interference,
+                    w4=dial.weight_drop_rate,
+                )
+            )
+            self._floors = SafetyFloorEnforcer(self._calculator)
+
+    def get_weights(self) -> RiskDial:
+        """Retrieve the currently active RiskDial weights (thread-safe)."""
+        with self._weights_lock:
+            return self._dial.model_copy()
 
     # -- configuration -----------------------------------------------------
     @property
@@ -209,13 +357,22 @@ class DecisionLadderEngine:
         component: Sequence[CommandProposal],
         graph: nx.Graph[Any, Any] | None,
         twin: TwinClient,
-        weights: UtilityWeights,
-        tick: int,
-        now_ms: int,
+        weights: Any | None = None,
+        tick: int = 0,
+        now_ms: int = 0,
     ) -> list[ArbitrationDecision]:
         """Decide one conflict-graph component; never raises."""
         try:
-            return self._evaluate(component, graph, twin, weights, tick, now_ms)
+            active_weights = weights
+            if active_weights is None:
+                with self._weights_lock:
+                    active_weights = UtilityWeights(
+                        w1=self._dial.weight_coverage,
+                        w2=self._dial.weight_energy,
+                        w3=self._dial.weight_interference,
+                        w4=self._dial.weight_drop_rate,
+                    )
+            return self._evaluate(component, graph, twin, active_weights, tick, now_ms)
         except Exception:
             return [
                 self._decision(
@@ -312,8 +469,24 @@ class DecisionLadderEngine:
             self._active_ho_seen = True
         evaluations = budget.used
 
-        if joint_floors and joint_du > 0.0 and not self._uncertainty.is_uncertain(
-            joint_du, margin
+        joint_pred_v2 = (
+            joint_response.get("prediction_v2") if joint_response else None
+        )
+        interval_uncertain = False
+        if joint_pred_v2 is not None:
+            m_ok, w_ok = self._uncertainty.check_intervals(
+                joint_pred_v2, baseline_kpis=baseline_kpis
+            )
+            if not m_ok:
+                joint_floors = False
+            elif not w_ok:
+                interval_uncertain = True
+
+        if (
+            joint_floors
+            and joint_du > 0.0
+            and not interval_uncertain
+            and not self._uncertainty.is_uncertain(joint_du, margin)
         ):
             for command in active:
                 decisions[command.command_id] = self._decision(
@@ -330,7 +503,10 @@ class DecisionLadderEngine:
             return [decisions[command.command_id] for command in ordered]
 
         # 2. Uncertainty guard on the joint prediction.
-        if joint_floors and self._uncertainty.is_uncertain(joint_du, margin):
+        if joint_floors and (
+            self._uncertainty.is_uncertain(joint_du, margin)
+            or interval_uncertain
+        ):
             for command in active:
                 decisions[command.command_id] = self._hold_or_reject(
                     command,
@@ -416,6 +592,15 @@ class DecisionLadderEngine:
                     self._twin_flag(response),
                     baseline_kpis=baseline_kpis,
                 )
+                pt_pred_v2 = (
+                    response.get("prediction_v2") if response else None
+                )
+                if pt_pred_v2 is not None:
+                    m_ok, w_ok = self._uncertainty.check_intervals(
+                        pt_pred_v2, baseline_kpis=baseline_kpis
+                    )
+                    if not m_ok or not w_ok:
+                        feasible = False
                 if abs(float(x) - command.requested_value) < 1e-12:
                     endpoint_feasible = feasible
                 return self._calculator.delta_utility(kpis, baseline_kpis, weights), feasible
@@ -445,7 +630,22 @@ class DecisionLadderEngine:
                 )
 
             if result.best_x is not None and result.best_delta_utility > 0.0:
-                if self._uncertainty.is_uncertain(result.best_delta_utility, margin):
+                best_resp = probes.get(result.best_x)
+                best_pred_v2 = (
+                    best_resp.get("prediction_v2") if best_resp else None
+                )
+                best_uncertain = False
+                if best_pred_v2 is not None:
+                    m_ok, w_ok = self._uncertainty.check_intervals(
+                        best_pred_v2, baseline_kpis=baseline_kpis
+                    )
+                    if m_ok and not w_ok:
+                        best_uncertain = True
+
+                if (
+                    self._uncertainty.is_uncertain(result.best_delta_utility, margin)
+                    or best_uncertain
+                ):
                     decisions[command.command_id] = self._hold_or_reject(
                         command,
                         component,
@@ -458,11 +658,12 @@ class DecisionLadderEngine:
                         evaluations_used,
                     )
                     continue
-                reason = (
-                    ReasonCode.ACTIVE_HO
-                    if self._response_has_active_ho(probes.get(result.best_x))
-                    else ReasonCode.HEADROOM
-                )
+                if interval_uncertain:
+                    reason = ReasonCode.UNCERTAINTY_GUARD
+                elif self._response_has_active_ho(best_resp):
+                    reason = ReasonCode.ACTIVE_HO
+                else:
+                    reason = ReasonCode.HEADROOM
                 decisions[command.command_id] = self._decision(
                     command,
                     tick,
@@ -477,9 +678,15 @@ class DecisionLadderEngine:
                 applied[command.command_id] = float(result.best_x)
                 continue
 
-            reason = ReasonCode.FLOOR_BREACH if (
-                not joint_floors or not endpoint_feasible
-            ) else ReasonCode.NONE
+            reason = (
+                ReasonCode.UNCERTAINTY_GUARD
+                if interval_uncertain
+                else (
+                    ReasonCode.FLOOR_BREACH
+                    if (not joint_floors or not endpoint_feasible)
+                    else ReasonCode.NONE
+                )
+            )
             decisions[command.command_id] = self._hold_or_reject(
                 command,
                 component,
@@ -689,7 +896,60 @@ class DecisionLadderEngine:
         kpis = self._kpis(response)
         if not kpis:
             return None, None
-        return kpis, dict(response)
+        resp_dict = dict(response)
+        pred_v2 = self._extract_prediction_v2(resp_dict, twin, deltas)
+        if pred_v2 is not None:
+            resp_dict["prediction_v2"] = pred_v2
+        return kpis, resp_dict
+
+    @staticmethod
+    def _extract_prediction_v2(
+        response: Mapping[str, Any],
+        twin: Any,
+        deltas: Sequence[Mapping[str, Any]],
+    ) -> TwinPredictionV2 | None:
+        raw = response.get("prediction_v2") or response.get("twin_prediction_v2")
+        if isinstance(raw, TwinPredictionV2):
+            return raw
+        if isinstance(raw, Mapping):
+            try:
+                return TwinPredictionV2.model_validate(raw)
+            except Exception:
+                pass
+        if "intervals" in response and isinstance(response.get("intervals"), list):
+            try:
+                cand_id = str(
+                    response.get("candidate_id")
+                    or response.get("evaluation_id")
+                    or "cand-auto"
+                )
+                return TwinPredictionV2.model_validate({
+                    "candidate_id": cand_id,
+                    "intervals": response["intervals"],
+                    "calibrated": bool(response.get("calibrated", False)),
+                    "n_calibration": int(response.get("n_calibration", 0)),
+                })
+            except Exception:
+                pass
+        if hasattr(twin, "predict_v2") and callable(getattr(twin, "predict_v2")):
+            try:
+                res = twin.predict_v2(deltas)
+                if isinstance(res, TwinPredictionV2):
+                    return res
+                if isinstance(res, Mapping):
+                    return TwinPredictionV2.model_validate(res)
+            except Exception:
+                pass
+        if hasattr(twin, "prediction_v2"):
+            attr = getattr(twin, "prediction_v2")
+            if isinstance(attr, TwinPredictionV2):
+                return attr
+            if isinstance(attr, Mapping):
+                try:
+                    return TwinPredictionV2.model_validate(attr)
+                except Exception:
+                    pass
+        return None
 
     @staticmethod
     def _kpis(response: Mapping[str, Any]) -> dict[str, float]:

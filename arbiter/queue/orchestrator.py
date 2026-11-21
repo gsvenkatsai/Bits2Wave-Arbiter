@@ -25,7 +25,10 @@ from arbiter.engine.contracts import (
 )
 from arbiter.engine.ladder import DecisionLadderEngine
 from arbiter.engine.mocks.mock_twin_client import MockDigitalTwinClient, TwinClient
+from arbiter.engine.plan_executor import PlanExecutor
+from arbiter.engine.planner import ArbitrationPlanner
 from arbiter.queue.proposal_queue import ProposalQueue
+from arbiter.shared.v2_contracts import RiskDial
 
 __all__ = [
     "DetectorProtocol",
@@ -86,6 +89,9 @@ class QueueOrchestrator:
         clock: Callable[[], int] | None = None,
         latency_window: int = 512,
         actuator: Any | None = None,
+        enable_plan_synthesis: bool = False,
+        planner: ArbitrationPlanner | None = None,
+        plan_executor: PlanExecutor | None = None,
     ) -> None:
         if max_workers < 1:
             raise ValueError("max_workers must be >= 1")
@@ -100,6 +106,39 @@ class QueueOrchestrator:
         self._max_workers = int(max_workers)
         self._clock: Callable[[], int] = clock or _now_ms
         self._latencies: Deque[float] = deque(maxlen=max(latency_window, 1))
+        self._enable_plan_synthesis = bool(enable_plan_synthesis)
+        self._planner = planner or ArbitrationPlanner()
+        self._plan_executor = plan_executor or PlanExecutor(
+            actuator=self._actuator, twin=self._twin
+        )
+
+    # -- WeightSettable protocol -------------------------------------------
+    def set_weights(self, dial: RiskDial) -> None:
+        """Apply dynamic weights from a user-configured RiskDial."""
+        self._weights = UtilityWeights(
+            w1=dial.weight_coverage,
+            w2=dial.weight_energy,
+            w3=dial.weight_interference,
+            w4=dial.weight_drop_rate,
+        )
+        if hasattr(self._engine, "set_weights"):
+            self._engine.set_weights(dial)
+
+    def get_weights(self) -> RiskDial:
+        """Retrieve the currently active RiskDial weights."""
+        if hasattr(self._engine, "get_weights"):
+            gw = getattr(self._engine, "get_weights")
+            if callable(gw):
+                res: Any = gw()
+                if isinstance(res, RiskDial):
+                    return res
+        return RiskDial(
+            weight_coverage=self._weights.w1,
+            weight_energy=self._weights.w2,
+            weight_interference=self._weights.w3,
+            weight_drop_rate=self._weights.w4,
+            label="active",
+        )
 
     # -- accessors ---------------------------------------------------------
     @property
@@ -121,6 +160,25 @@ class QueueOrchestrator:
     def actuator(self) -> Any | None:
         """Injected actuator enforcer or adapter."""
         return self._actuator
+
+    @property
+    def planner(self) -> ArbitrationPlanner:
+        """Injected plan synthesizer."""
+        return self._planner
+
+    @property
+    def plan_executor(self) -> PlanExecutor:
+        """Injected plan execution engine."""
+        return self._plan_executor
+
+    @property
+    def enable_plan_synthesis(self) -> bool:
+        """Whether plan synthesis is active."""
+        return self._enable_plan_synthesis
+
+    @enable_plan_synthesis.setter
+    def enable_plan_synthesis(self, value: bool) -> None:
+        self._enable_plan_synthesis = bool(value)
 
     def submit(self, cmd: CommandProposal) -> bool:
         """Accept a proposal (emergency ones bypass the queue)."""
@@ -185,6 +243,15 @@ class QueueOrchestrator:
                                 ),
                                 "timestamp_epoch_ms": timestamp_epoch_ms,
                             })
+
+            if self._enable_plan_synthesis and decisions:
+                if self._planner.should_synthesize(decisions):
+                    synthesized_plan = self._planner.build_plan(
+                        batch, decisions, current_tick, twin=self._twin
+                    )
+                    if synthesized_plan is not None:
+                        self._plan_executor.submit_plan(synthesized_plan)
+                self._plan_executor.advance(current_tick)
 
         return {
             "batch_tick": current_tick,
