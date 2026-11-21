@@ -34,8 +34,8 @@ _ASSUMPTIONS: dict[str, str] = {
         "Swap _get_cell_states() body only when Branch 3 integrates."
     ),
     "A3": (
-        "POST /api/v1/benchmarks/run returns {status: accepted} — STUB Module 2. "
-        "Wire BenchmarkRunner import in Module 3; one call to change."
+        "POST /api/v1/benchmarks/run executes Monte Carlo runs via BenchmarkRunner. "
+        "Returns status='accepted' along with benchmark run results."
     ),
     "A4": (
         "decisions/history returns raw DB dicts, NOT ArbitrationDecision model. "
