@@ -14,20 +14,21 @@ __all__ = ["ProposalQueueSink"]
 
 
 class ProposalQueueSink:
-    """Proposal sink implementation wrapping the real Branch 2 ProposalQueue."""
+    """Proposal sink wrapping the real Branch 2 ProposalQueue."""
 
     def __init__(self, queue: Optional[ProposalQueue] = None) -> None:
         self.queue: ProposalQueue = queue or ProposalQueue()
 
     def submit_proposal(self, proposal: Any) -> Dict[str, Any]:
-        """Submit proposal to real ProposalQueue (translates submit_proposal to submit)."""
+        """Submit proposal to real ProposalQueue (translates to submit)."""
         if not hasattr(proposal, "is_emergency"):
             if hasattr(proposal, "model_dump"):
                 engine_prop = EngineCommandProposal.model_validate(
                     proposal.model_dump()
                 )
             else:
-                engine_prop = EngineCommandProposal.model_validate(dict(proposal))
+                raw_dict = dict(proposal)
+                engine_prop = EngineCommandProposal.model_validate(raw_dict)
         else:
             engine_prop = proposal
 
