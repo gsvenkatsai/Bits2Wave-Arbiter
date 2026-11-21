@@ -12,6 +12,7 @@ import threading
 from typing import Optional
 
 from arbiter.shared.database import init_database
+from arbiter.shared.database_v2 import init_v2_tables
 
 __all__ = ["DatabaseConnectionFactory", "init_database"]
 
@@ -49,6 +50,7 @@ class DatabaseConnectionFactory:
                     conn.execute("PRAGMA foreign_keys=ON;")
                 else:
                     conn.execute("PRAGMA foreign_keys=OFF;")
+                init_v2_tables(conn)
                 conn.commit()
             finally:
                 conn.close()
