@@ -1,0 +1,9 @@
+{
+  "command": "python -m arbiter.simulator.engine --scenario 2am_collision --seed 42 --ticks 50 --record arbiter/dashboard/3d/data/counterfactual_2am.json",
+  "scenario": "2am_collision",
+  "seed": 42,
+  "git_commit": "a187901623c1f55ae2d6511df6c43a49943c521a",
+  "generated_at": "2026-11-21T17:44:00.516648+00:00",
+  "tick_count": 50,
+  "source": "real engine run"
+}

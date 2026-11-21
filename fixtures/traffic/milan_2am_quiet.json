@@ -1,0 +1,104 @@
+{
+  "scenario": "2_AM_COLLISION_QUIET_NIGHT",
+  "tick_duration_ms": 100,
+  "cluster_topology": "5_CELL_CORE",
+  "cells": [
+    {
+      "cell_id": "cell_A",
+      "x": 0.0,
+      "y": 0.0,
+      "tx_power_dbm": 43.0,
+      "tilt_deg": 6.0,
+      "is_sleeping": false,
+      "neighbors": [
+        "cell_B",
+        "cell_C",
+        "cell_D",
+        "cell_E"
+      ]
+    },
+    {
+      "cell_id": "cell_B",
+      "x": 500.0,
+      "y": 0.0,
+      "tx_power_dbm": 43.0,
+      "tilt_deg": 6.0,
+      "is_sleeping": false,
+      "neighbors": [
+        "cell_A",
+        "cell_C",
+        "cell_D",
+        "cell_E"
+      ]
+    },
+    {
+      "cell_id": "cell_C",
+      "x": 250.0,
+      "y": 433.01,
+      "tx_power_dbm": 43.0,
+      "tilt_deg": 6.0,
+      "is_sleeping": false,
+      "neighbors": [
+        "cell_A",
+        "cell_B",
+        "cell_D",
+        "cell_E"
+      ]
+    },
+    {
+      "cell_id": "cell_D",
+      "x": -250.0,
+      "y": 433.01,
+      "tx_power_dbm": 43.0,
+      "tilt_deg": 6.0,
+      "is_sleeping": false,
+      "neighbors": [
+        "cell_A",
+        "cell_C",
+        "cell_E"
+      ]
+    },
+    {
+      "cell_id": "cell_E",
+      "x": 0.0,
+      "y": -500.0,
+      "tx_power_dbm": 43.0,
+      "tilt_deg": 6.0,
+      "is_sleeping": false,
+      "neighbors": [
+        "cell_A",
+        "cell_B",
+        "cell_D"
+      ]
+    }
+  ],
+  "active_ue_count": 54,
+  "traffic_profile_scale": 0.7714285714285715,
+  "hotspots": [
+    {
+      "cell_id": "cell_A",
+      "weight": 0.64,
+      "sigma_m": 10.0
+    },
+    {
+      "cell_id": "cell_B",
+      "weight": 0.025,
+      "sigma_m": 10.0
+    },
+    {
+      "cell_id": "cell_C",
+      "weight": 0.045,
+      "sigma_m": 10.0
+    },
+    {
+      "cell_id": "cell_D",
+      "weight": 0.065,
+      "sigma_m": 10.0
+    },
+    {
+      "cell_id": "cell_E",
+      "weight": 0.225,
+      "sigma_m": 10.0
+    }
+  ]
+}

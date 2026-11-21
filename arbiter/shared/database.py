@@ -1,6 +1,7 @@
 """Database schemas and initial connection helpers for SQLite."""
 import sqlite3
 import os
+from arbiter.shared.database_v2 import init_v2_tables
 
 SCHEMA_DDL = """
 PRAGMA journal_mode=WAL;
@@ -53,6 +54,7 @@ def init_database(db_path: str = "./arbiter_production.db") -> None:
     conn = sqlite3.connect(db_path)
     try:
         conn.executescript(SCHEMA_DDL)
+        init_v2_tables(conn)
         conn.commit()
     finally:
         conn.close()

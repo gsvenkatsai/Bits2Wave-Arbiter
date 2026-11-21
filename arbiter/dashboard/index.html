@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARBITER • 2 AM Collision Monitor</title>
+
+  <!-- Typography: Inter (UI) & JetBrains Mono (Data & Numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Fixed 100vh layout — Zero page scroll */
+    html, body {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-root, #08090d);
+      color: var(--text-primary, #f8fafc);
+      font-family: var(--font-sans, 'Inter', sans-serif);
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+    .num {
+      font-family: var(--font-mono, monospace);
+      font-variant-numeric: tabular-nums;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top NOC Header Bar -->
+  <header class="noc-header">
+    <div class="brand-cluster">
+      <div class="brand-title">
+        <span>ARBITER</span>
+        <span class="brand-tag">2 AM COLLISION MONITOR</span>
+        <span id="mockBanner" class="mock-pill" style="display: none;">DEMO DATA</span>
+        <span id="provenanceBadge" class="badge badge-synthetic" style="display: none;">SYNTHETIC</span>
+      </div>
+    </div>
+
+    <div class="header-status-cluster">
+      <a id="btnToggle3D" href="/dashboard/3d" class="btn-switch-3d" title="Switch to 3D Digital Twin View [3D]">
+        <span>3D View</span> <span>&rarr;</span>
+      </a>
+      <button id="btnInjectDrift" class="btn-drift" title="Drift Hook: widen intervals & toggle uncalibrated">Inject Twin Drift</button>
+      <div id="connectionStatus" class="status-indicator status-disconnected">
+        <span class="status-dot"></span>
+        <span id="connectionText">Connecting...</span>
+      </div>
+      <div id="clockDisplay" class="clock-display num">00:00:00.000</div>
+    </div>
+  </header>
+
+  <!-- KPI Strip with Uncertainty Intervals -->
+  <section class="kpi-strip">
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Total Dropped Users</span>
+        <span id="trendDropped" class="delta-chip" style="display: none;"></span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiDroppedUsers" class="kpi-value num">—</div>
+        <canvas id="sparklineDrops" class="kpi-sparkline" width="60" height="18"></canvas>
+      </div>
+      <div id="kpiDropsInterval" class="kpi-interval num">[0.001 - 0.008]</div>
+    </div>
+
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Total Power (kW)</span>
+        <span id="trendPower" class="delta-chip" style="display: none;"></span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiTotalPower" class="kpi-value num">—</div>
+        <canvas id="sparklinePower" class="kpi-sparkline" width="60" height="18"></canvas>
+      </div>
+      <div id="kpiPowerInterval" class="kpi-interval num">[0.410 - 0.485]</div>
+    </div>
+
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Mean SINR (dB)</span>
+        <span id="trendSinr" class="delta-chip" style="display: none;"></span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiMeanSinr" class="kpi-value num">—</div>
+        <canvas id="sparklineSinr" class="kpi-sparkline" width="60" height="18"></canvas>
+      </div>
+      <div id="kpiSinrInterval" class="kpi-interval num">[0.915 - 0.965]</div>
+    </div>
+
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Twin MAPE (%)</span>
+        <span id="kpiTwinCalibratedBadge" class="badge-calibrated">CALIBRATED</span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiTwinMape" class="kpi-value num">—</div>
+        <div class="mape-track-wrapper">
+          <div class="mape-track">
+            <div id="mapeFillBar" class="mape-fill" style="width: 42%;"></div>
+            <div class="mape-tick-10"></div>
+            <div class="mape-tick-label">10%</div>
+          </div>
+        </div>
+      </div>
+      <div id="kpiMapeSubtext" class="kpi-interval num">Floor &lt; 10% • Conformal (n=50)</div>
+    </div>
+  </section>
+
+  <!-- Fixed 100vh Dense NOC Grid -->
+  <main class="noc-workspace">
+
+    <!-- Column Hero (Left ~60%): Live Ingress Stream & Audit Decisions -->
+    <div class="column-hero">
+
+      <!-- Panel 1: Live Ingress Stream -->
+      <section class="noc-panel hero-ingress" id="ingressPanelContainer">
+        <div class="panel-bar">
+          <div class="panel-title">
+            <span>Live Ingress &amp; Action Badges</span>
+            <span id="streamPausedPill" class="stream-paused-pill" style="display: none;">⏸ Stream paused</span>
+          </div>
+          <div class="panel-actions">
+            <span id="ingressTickCounter" class="panel-meta">Tick: —</span>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-strip">
+          <span class="filter-chip active" data-filter-type="ctrl" data-filter-val="ALL">ALL</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="ES">ES</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="LB">LB</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="CC">CC</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="PS">PS</span>
+          <div class="chip-divider"></div>
+          <span class="filter-chip active" data-filter-type="action" data-filter-val="ALL">ALL</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="APPROVE">APPROVE</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="MODIFY">MODIFY</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="DELAY">DELAY</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="REJECT">REJECT</span>
+          <button id="btnExportIngressCsv" class="btn-export">Export CSV</button>
+        </div>
+
+        <div class="table-viewport" id="ingressTableViewport">
+          <table class="noc-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Ctrl</th>
+                <th>Target</th>
+                <th>Param</th>
+                <th>Req</th>
+                <th>Verdict</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="ingressTableBody">
+              <tr>
+                <td colspan="7" class="empty-state">Waiting for live tick stream from ws://...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Panel 2: Arbitration Decisions Audit History (Click to open Flight Recorder) -->
+      <section class="noc-panel hero-decisions">
+        <div class="panel-bar">
+          <div class="panel-title">Arbitration Decisions History (Click to Inspect)</div>
+          <div class="panel-actions">
+            <button id="btnExportDecisionsJson" class="btn-export">Export JSON</button>
+            <span class="panel-meta">audit_decisions (50)</span>
+          </div>
+        </div>
+
+        <div class="table-viewport">
+          <table class="noc-table">
+            <thead>
+              <tr>
+                <th>Tick</th>
+                <th>Action</th>
+                <th>Approved</th>
+                <th>&Delta;U</th>
+                <th>Reason</th>
+                <th>Hold</th>
+                <th>Decided At</th>
+              </tr>
+            </thead>
+            <tbody id="decisionsTableBody">
+              <tr>
+                <td colspan="7" class="empty-state">Loading audit decisions...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Column Secondary (Right ~40%): Stacked Charts & Multi-Tabbed Operations -->
+    <div class="column-secondary">
+
+      <!-- Chart 1: Instantaneous Dropped Users -->
+      <section class="noc-panel chart-panel">
+        <div class="panel-bar">
+          <div class="panel-title">Instantaneous Dropped Users</div>
+          <span id="chartDroppedNote" class="panel-meta">ARBITER vs Baseline</span>
+        </div>
+        <div class="chart-container" id="chartDropsContainer">
+          <canvas id="chartDroppedUsers" class="chart-canvas" width="500" height="110"></canvas>
+          <div id="chartDropsTooltip" class="chart-crosshair-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 2: Cluster Power kW -->
+      <section class="noc-panel chart-panel">
+        <div class="panel-bar">
+          <div class="panel-title">Cluster Power Consumption (kW)</div>
+          <span id="chartPowerNote" class="panel-meta">Nocturnal energy curve</span>
+        </div>
+        <div class="chart-container" id="chartPowerContainer">
+          <canvas id="chartPowerKw" class="chart-canvas" width="500" height="110"></canvas>
+          <div id="chartPowerTooltip" class="chart-crosshair-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Multi-Tabbed Section: Preserves Topology + Adds RiskDial/Pareto, Optimality, Impact -->
+      <section class="noc-panel" style="flex: 1.2;">
+        <!-- Tab Header Bar -->
+        <div class="panel-tabs-bar">
+          <button class="tab-btn active" data-tab="tabTopology">Physical Topology</button>
+          <button class="tab-btn" data-tab="tabRiskDial">Risk Dial &amp; Pareto</button>
+          <button class="tab-btn" data-tab="tabOptimality">Optimality Gap</button>
+          <button class="tab-btn" data-tab="tabImpact">Impact &amp; ESG</button>
+        </div>
+
+        <!-- Tab 1: Physical Topology -->
+        <div id="tabTopology" class="tab-panel-view active">
+          <div class="topology-split">
+            <div class="topology-canvas-wrap">
+              <svg id="hexTopologySvg" viewBox="0 0 320 220" width="100%" height="100%"></svg>
+            </div>
+            <div class="cell-inspector" id="cellInspector">
+              <div class="inspector-title">
+                <span id="inspectCellId">Cell A (Core)</span>
+                <span id="inspectSleepBadge" class="badge badge-approve">ACTIVE</span>
+              </div>
+              <div class="inspector-row"><span>TX Power</span><span id="inspectTx" class="inspector-val">43.0 dBm</span></div>
+              <div class="inspector-row"><span>Tilt</span><span id="inspectTilt" class="inspector-val">6.0°</span></div>
+              <div class="inspector-row"><span>Load Ratio</span><span id="inspectLoad" class="inspector-val">88%</span></div>
+              <div class="inspector-row"><span>Users</span><span id="inspectUsers" class="inspector-val">35</span></div>
+              <div class="branch3-stub-note" id="cellStateContainer"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Feature #6 Risk Dial & Pareto Frontier -->
+        <div id="tabRiskDial" class="tab-panel-view">
+          <div class="risk-dial-controls">
+            <div class="risk-presets-cluster">
+              <button class="btn-preset active" data-preset="balanced">Balanced</button>
+              <button class="btn-preset" data-preset="night_saver">Night saver</button>
+              <button class="btn-preset" data-preset="rush_hour">Rush-hour safe</button>
+            </div>
+            <div class="weights-display-strip">
+              <div class="weight-card">
+                <span>Coverage (w1)</span>
+                <strong id="weightCovVal" class="num">0.30</strong>
+              </div>
+              <div class="weight-card">
+                <span>Energy (w2)</span>
+                <strong id="weightNrgVal" class="num">0.20</strong>
+              </div>
+              <div class="weight-card">
+                <span>Interference (w3)</span>
+                <strong id="weightIntVal" class="num">0.20</strong>
+              </div>
+              <div class="weight-card">
+                <span>Drop Penalty (w4)</span>
+                <strong id="weightDrpVal" class="num">0.30</strong>
+              </div>
+            </div>
+          </div>
+          <div class="pareto-chart-wrap">
+            <svg id="paretoFrontierSvg" viewBox="0 0 320 180" width="100%" height="160"></svg>
+          </div>
+        </div>
+
+        <!-- Tab 3: Feature #8 Offline Optimality Benchmark -->
+        <div id="tabOptimality" class="tab-panel-view">
+          <div class="optimality-metrics-grid">
+            <div class="opt-metric-card">
+              <div id="optGapPct" class="opt-metric-val">3.55%</div>
+              <div class="opt-metric-label">Optimality Gap</div>
+            </div>
+            <div class="opt-metric-card">
+              <div id="optArbiterMs" class="opt-metric-val">3.82 ms</div>
+              <div class="opt-metric-label">ARBITER Latency</div>
+            </div>
+            <div class="opt-metric-card">
+              <div id="optOptimumS" class="opt-metric-val">1.74 s</div>
+              <div class="opt-metric-label">Solver Runtime</div>
+            </div>
+            <div class="opt-metric-card">
+              <div id="optCombos" class="opt-metric-val">64</div>
+              <div class="opt-metric-label">States Explored</div>
+            </div>
+          </div>
+
+          <div class="opt-bars-container">
+            <div class="opt-bar-row">
+              <div class="opt-bar-label">
+                <span>Uncoordinated Baseline</span>
+                <span id="optValBaseline" class="num">0.352</span>
+              </div>
+              <div class="opt-bar-track">
+                <div id="optBarBaseline" class="opt-bar-fill opt-fill-baseline" style="width: 35.2%;"></div>
+              </div>
+            </div>
+
+            <div class="opt-bar-row">
+              <div class="opt-bar-label">
+                <span>ARBITER Online Coordination</span>
+                <span id="optValArbiter" class="num">0.815</span>
+              </div>
+              <div class="opt-bar-track">
+                <div id="optBarArbiter" class="opt-bar-fill opt-fill-arbiter" style="width: 81.5%;"></div>
+              </div>
+            </div>
+
+            <div class="opt-bar-row">
+              <div class="opt-bar-label">
+                <span>Offline Pareto Optimum</span>
+                <span id="optValOptimum" class="num">0.845</span>
+              </div>
+              <div class="opt-bar-track">
+                <div id="optBarOptimum" class="opt-bar-fill opt-fill-optimum" style="width: 84.5%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Feature #7 Environmental & Economic Impact -->
+        <div id="tabImpact" class="tab-panel-view">
+          <div class="impact-stats-grid">
+            <div class="impact-stat-card">
+              <div id="impactEnergySaved" class="impact-stat-val">0.155 kWh</div>
+              <div class="impact-stat-lbl">Energy Saved (Tick)</div>
+            </div>
+            <div class="impact-stat-card">
+              <div id="impactCostInr" class="impact-stat-val">₹ 1.09</div>
+              <div class="impact-stat-lbl">Cost Savings (INR)</div>
+            </div>
+            <div class="impact-stat-card">
+              <div id="impactCo2" class="impact-stat-val">127.1 gCO2</div>
+              <div class="impact-stat-lbl">CO2 Emissions Avoided</div>
+            </div>
+          </div>
+
+          <div class="extrapolation-card">
+            <div class="extrapolation-title">Fleet Extrapolation (1,000 Sites / Year)</div>
+            <div class="extrap-grid">
+              <div>
+                <div id="extrapKwh" class="extrap-num">176.4 MWh/yr</div>
+                <div class="extrap-lbl">Annual Energy Saved</div>
+              </div>
+              <div>
+                <div id="extrapCost" class="extrap-num">₹ 12.35 Lakhs/yr</div>
+                <div class="extrap-lbl">Annual Cost Savings</div>
+              </div>
+              <div>
+                <div id="extrapCo2" class="extrap-num">144.7 Tons/yr</div>
+                <div class="extrap-lbl">Annual Avoided CO2</div>
+              </div>
+            </div>
+            <div class="extrap-disclaimer">
+              * EXTRAPOLATION ONLY: Assumes continuous annual operational baseline across 1,000 radio base stations over 8,760 hours/yr based on CEA grid factor 820 gCO2/kWh and off-peak night tariff ₹7.00/kWh.
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Feature #4: Flight Recorder Modal / Side-by-Side Panel -->
+  <div id="flightRecorderModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog flight-recorder-dialog">
+      <div class="modal-header">
+        <div class="modal-title-cluster">
+          <span class="modal-title">Flight Recorder • Decision Audit &amp; Counterfactual Replay</span>
+          <span id="recorderDecisionBadge" class="badge badge-delay num">dec-2am-collision-06</span>
+          <span id="recorderTickBadge" class="panel-meta">Tick 6 (+10 tick horizon)</span>
+        </div>
+        <button id="btnCloseRecorder" class="btn-close-modal" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Side-by-Side Comparison -->
+        <div class="counterfactual-grid">
+          <div class="cf-column cf-with-arbiter">
+            <div class="cf-column-header">
+              <span class="status-dot" style="background: #10b981;"></span>
+              <span>With ARBITER Coordination</span>
+            </div>
+            <div class="cf-metric-row"><span>Dropped Users</span><span id="cfWithDrops" class="cf-val num">0</span></div>
+            <div class="cf-metric-row"><span>Mean SINR</span><span id="cfWithSinr" class="cf-val num">8.49 dB</span></div>
+            <div class="cf-metric-row"><span>Cluster Power</span><span id="cfWithPower" class="cf-val num">100.14 kW</span></div>
+            <div class="cf-metric-row"><span>Interference</span><span id="cfWithIntf" class="cf-val num">-104.2 dBm</span></div>
+            <div class="cf-metric-row"><span>Joint Utility</span><span id="cfWithUtility" class="cf-val num">0.815</span></div>
+          </div>
+
+          <div class="cf-column cf-without-arbiter">
+            <div class="cf-column-header">
+              <span class="status-dot" style="background: #ef4444;"></span>
+              <span>Without ARBITER (Uncoordinated)</span>
+            </div>
+            <div class="cf-metric-row"><span>Dropped Users</span><span id="cfWithoutDrops" class="cf-val num">14</span></div>
+            <div class="cf-metric-row"><span>Mean SINR</span><span id="cfWithoutSinr" class="cf-val num">4.12 dB</span></div>
+            <div class="cf-metric-row"><span>Cluster Power</span><span id="cfWithoutPower" class="cf-val num">80.00 kW</span></div>
+            <div class="cf-metric-row"><span>Interference</span><span id="cfWithoutIntf" class="cf-val num">-98.5 dBm</span></div>
+            <div class="cf-metric-row"><span>Joint Utility</span><span id="cfWithoutUtility" class="cf-val num">0.352</span></div>
+          </div>
+
+          <div class="cf-column cf-deltas">
+            <div class="cf-column-header">
+              <span>Arbitration Net Delta (&Delta;)</span>
+            </div>
+            <div class="cf-metric-row"><span>Dropped Delta</span><span id="cfDeltaDrops" class="delta-chip delta-good">-14 drops</span></div>
+            <div class="cf-metric-row"><span>SINR Delta</span><span id="cfDeltaSinr" class="delta-chip delta-good">+4.37 dB</span></div>
+            <div class="cf-metric-row"><span>Power Delta</span><span id="cfDeltaPower" class="delta-chip delta-neutral">+20.14 kW</span></div>
+            <div class="cf-metric-row"><span>Interference Delta</span><span id="cfDeltaIntf" class="delta-chip delta-good">-5.7 dBm</span></div>
+            <div class="cf-metric-row"><span>Utility Delta</span><span id="cfDeltaUtility" class="delta-chip delta-good">+0.463</span></div>
+          </div>
+        </div>
+
+        <!-- Causal Attribution Card -->
+        <div class="cf-explanation-card">
+          <div class="cf-card-label">Attribution &amp; Causal Rationale</div>
+          <p id="cfExplanationText" class="cf-explanation-text">
+            Uncoordinated execution triggered a blackout on Cell B (0 W) while receiving offloaded traffic from Cell A, causing 14 call drops. ARBITER delayed Cell B sleep and safely bounded offload, maintaining 0 dropped users.
+          </p>
+        </div>
+
+        <!-- Coordinated Plan Timeline -->
+        <div class="plan-timeline-card">
+          <div class="cf-card-label">Multi-Tick Sequential Plan Timeline (GET /api/v1/plans)</div>
+          <div id="planTimelineSteps" class="plan-steps-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

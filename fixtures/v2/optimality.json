@@ -1,0 +1,11 @@
+{
+  "scenario": "2_AM_COLLISION",
+  "seed": 42,
+  "utility_baseline": 0.352,
+  "utility_arbiter": 0.815,
+  "utility_optimum": 0.845,
+  "gap_pct": 3.55,
+  "arbiter_ms": 3.82,
+  "optimum_s": 1.74,
+  "combos_evaluated": 64
+}

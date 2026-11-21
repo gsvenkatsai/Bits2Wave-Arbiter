@@ -1,0 +1,390 @@
+{
+  "n_tested": 100,
+  "seed": 1,
+  "floor_breaches": 12,
+  "underperforming_cases": 24,
+  "worst_scenarios": [
+    {
+      "trial_index": 26,
+      "trial_seed": 27,
+      "proposals_count": 5,
+      "proposals": [
+        {
+          "command_id": "cmd-search-26-0",
+          "target_cell_id": "cell_D",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 36.2
+        },
+        {
+          "command_id": "cmd-search-26-1",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 31.3
+        },
+        {
+          "command_id": "cmd-search-26-2",
+          "target_cell_id": "cell_B",
+          "parameter": "TILT_DEG",
+          "requested_value": 6.9
+        },
+        {
+          "command_id": "cmd-search-26-3",
+          "target_cell_id": "cell_E",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.19
+        },
+        {
+          "command_id": "cmd-search-26-4",
+          "target_cell_id": "cell_A",
+          "parameter": "SLEEP_STATE",
+          "requested_value": 1.0
+        }
+      ],
+      "decisions": [
+        {
+          "command_id": "cmd-search-26-0",
+          "action": "REJECT",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-26-1",
+          "action": "MODIFY",
+          "approved_value": 31.3
+        },
+        {
+          "command_id": "cmd-search-26-2",
+          "action": "MODIFY",
+          "approved_value": 6.9
+        },
+        {
+          "command_id": "cmd-search-26-3",
+          "action": "MODIFY",
+          "approved_value": 0.19
+        },
+        {
+          "command_id": "cmd-search-26-4",
+          "action": "DELAY",
+          "approved_value": null
+        }
+      ],
+      "utility_arbiter": -0.175,
+      "utility_baseline": 0.103,
+      "utility_gap": 0.278,
+      "drop_rate_arbiter": 0.7037,
+      "coverage_arbiter": 0.2963,
+      "is_floor_breach": true,
+      "is_underperforming": true,
+      "severity_score": 7.3154
+    },
+    {
+      "trial_index": 76,
+      "trial_seed": 77,
+      "proposals_count": 6,
+      "proposals": [
+        {
+          "command_id": "cmd-search-76-0",
+          "target_cell_id": "cell_B",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 44.5
+        },
+        {
+          "command_id": "cmd-search-76-1",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 30.2
+        },
+        {
+          "command_id": "cmd-search-76-2",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.41
+        },
+        {
+          "command_id": "cmd-search-76-3",
+          "target_cell_id": "cell_E",
+          "parameter": "TILT_DEG",
+          "requested_value": 12.9
+        },
+        {
+          "command_id": "cmd-search-76-4",
+          "target_cell_id": "cell_B",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 33.0
+        },
+        {
+          "command_id": "cmd-search-76-5",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.41
+        }
+      ],
+      "decisions": [
+        {
+          "command_id": "cmd-search-76-0",
+          "action": "MODIFY",
+          "approved_value": 44.5
+        },
+        {
+          "command_id": "cmd-search-76-1",
+          "action": "MODIFY",
+          "approved_value": 30.2
+        },
+        {
+          "command_id": "cmd-search-76-2",
+          "action": "DELAY",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-76-3",
+          "action": "MODIFY",
+          "approved_value": 12.9
+        },
+        {
+          "command_id": "cmd-search-76-4",
+          "action": "DELAY",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-76-5",
+          "action": "DELAY",
+          "approved_value": null
+        }
+      ],
+      "utility_arbiter": -0.175,
+      "utility_baseline": 0.036,
+      "utility_gap": 0.212,
+      "drop_rate_arbiter": 0.7037,
+      "coverage_arbiter": 0.2963,
+      "is_floor_breach": true,
+      "is_underperforming": true,
+      "severity_score": 7.2486
+    },
+    {
+      "trial_index": 47,
+      "trial_seed": 48,
+      "proposals_count": 6,
+      "proposals": [
+        {
+          "command_id": "cmd-search-47-0",
+          "target_cell_id": "cell_D",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.15
+        },
+        {
+          "command_id": "cmd-search-47-1",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 32.5
+        },
+        {
+          "command_id": "cmd-search-47-2",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.19
+        },
+        {
+          "command_id": "cmd-search-47-3",
+          "target_cell_id": "cell_B",
+          "parameter": "TILT_DEG",
+          "requested_value": 13.9
+        },
+        {
+          "command_id": "cmd-search-47-4",
+          "target_cell_id": "cell_D",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 32.6
+        },
+        {
+          "command_id": "cmd-search-47-5",
+          "target_cell_id": "cell_D",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 34.6
+        }
+      ],
+      "decisions": [
+        {
+          "command_id": "cmd-search-47-0",
+          "action": "MODIFY",
+          "approved_value": 0.15
+        },
+        {
+          "command_id": "cmd-search-47-1",
+          "action": "MODIFY",
+          "approved_value": 32.5
+        },
+        {
+          "command_id": "cmd-search-47-2",
+          "action": "MODIFY",
+          "approved_value": 0.19
+        },
+        {
+          "command_id": "cmd-search-47-3",
+          "action": "MODIFY",
+          "approved_value": 13.9
+        },
+        {
+          "command_id": "cmd-search-47-4",
+          "action": "DELAY",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-47-5",
+          "action": "DELAY",
+          "approved_value": null
+        }
+      ],
+      "utility_arbiter": 0.069,
+      "utility_baseline": 0.158,
+      "utility_gap": 0.089,
+      "drop_rate_arbiter": 0.2963,
+      "coverage_arbiter": 0.7037,
+      "is_floor_breach": true,
+      "is_underperforming": true,
+      "severity_score": 3.0521
+    },
+    {
+      "trial_index": 46,
+      "trial_seed": 47,
+      "proposals_count": 6,
+      "proposals": [
+        {
+          "command_id": "cmd-search-46-0",
+          "target_cell_id": "cell_A",
+          "parameter": "SLEEP_STATE",
+          "requested_value": 0.0
+        },
+        {
+          "command_id": "cmd-search-46-1",
+          "target_cell_id": "cell_D",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.14
+        },
+        {
+          "command_id": "cmd-search-46-2",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 32.2
+        },
+        {
+          "command_id": "cmd-search-46-3",
+          "target_cell_id": "cell_E",
+          "parameter": "SLEEP_STATE",
+          "requested_value": 1.0
+        },
+        {
+          "command_id": "cmd-search-46-4",
+          "target_cell_id": "cell_C",
+          "parameter": "TX_POWER_DBM",
+          "requested_value": 41.5
+        },
+        {
+          "command_id": "cmd-search-46-5",
+          "target_cell_id": "cell_C",
+          "parameter": "SLEEP_STATE",
+          "requested_value": 0.0
+        }
+      ],
+      "decisions": [
+        {
+          "command_id": "cmd-search-46-0",
+          "action": "DELAY",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-46-1",
+          "action": "MODIFY",
+          "approved_value": 0.14
+        },
+        {
+          "command_id": "cmd-search-46-2",
+          "action": "MODIFY",
+          "approved_value": 32.2
+        },
+        {
+          "command_id": "cmd-search-46-3",
+          "action": "DELAY",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-46-4",
+          "action": "MODIFY",
+          "approved_value": 41.5
+        },
+        {
+          "command_id": "cmd-search-46-5",
+          "action": "DELAY",
+          "approved_value": null
+        }
+      ],
+      "utility_arbiter": 0.069,
+      "utility_baseline": 0.148,
+      "utility_gap": 0.078,
+      "drop_rate_arbiter": 0.2963,
+      "coverage_arbiter": 0.7037,
+      "is_floor_breach": true,
+      "is_underperforming": true,
+      "severity_score": 3.0414
+    },
+    {
+      "trial_index": 58,
+      "trial_seed": 59,
+      "proposals_count": 4,
+      "proposals": [
+        {
+          "command_id": "cmd-search-58-0",
+          "target_cell_id": "cell_C",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.22
+        },
+        {
+          "command_id": "cmd-search-58-1",
+          "target_cell_id": "cell_C",
+          "parameter": "TILT_DEG",
+          "requested_value": 3.5
+        },
+        {
+          "command_id": "cmd-search-58-2",
+          "target_cell_id": "cell_E",
+          "parameter": "SLEEP_STATE",
+          "requested_value": 0.0
+        },
+        {
+          "command_id": "cmd-search-58-3",
+          "target_cell_id": "cell_C",
+          "parameter": "OFFLOAD_RATIO",
+          "requested_value": 0.21
+        }
+      ],
+      "decisions": [
+        {
+          "command_id": "cmd-search-58-0",
+          "action": "APPROVE",
+          "approved_value": 0.22
+        },
+        {
+          "command_id": "cmd-search-58-1",
+          "action": "REJECT",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-58-2",
+          "action": "REJECT",
+          "approved_value": null
+        },
+        {
+          "command_id": "cmd-search-58-3",
+          "action": "APPROVE",
+          "approved_value": 0.21
+        }
+      ],
+      "utility_arbiter": 0.147,
+      "utility_baseline": 0.147,
+      "utility_gap": 0.0,
+      "drop_rate_arbiter": 0.1667,
+      "coverage_arbiter": 0.8333,
+      "is_floor_breach": true,
+      "is_underperforming": false,
+      "severity_score": 1.6667
+    }
+  ]
+}
