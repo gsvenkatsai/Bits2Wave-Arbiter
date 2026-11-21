@@ -110,8 +110,11 @@ class TwinClientAdapter:
                 f"{type(evaluator)!r}"
             )
         self._predict: Callable[..., Any] = predict
+        self._evaluator: Any = evaluator
         self._timeout_budget_ms = float(timeout_budget_ms)
-        self._delta_factory: Callable[[TwinDelta], Any] = delta_factory or (lambda d: d)
+        self._delta_factory: Callable[[TwinDelta], Any] = (
+            delta_factory or (lambda d: d)
+        )
         self._clock = clock
 
     # -- construction helpers ---------------------------------------------
@@ -131,7 +134,10 @@ class TwinClientAdapter:
         timeout_budget_ms: float | None = None,
     ) -> dict[str, Any]:
         """Evaluate one candidate set and return the Branch 2 response payload."""
-        deltas = [self._delta_factory(self._to_delta(raw)) for raw in candidate_deltas]
+        deltas = [
+            self._delta_factory(self._to_delta(raw))
+            for raw in candidate_deltas
+        ]
         budget = (
             self._timeout_budget_ms
             if timeout_budget_ms is None
@@ -140,7 +146,36 @@ class TwinClientAdapter:
         started = self._clock()
         response = self._predict(deltas, timeout_budget_ms=budget)
         elapsed_ms = (self._clock() - started) * 1000.0
-        return self._normalise(response, elapsed_ms)
+        norm = self._normalise(response, elapsed_ms)
+        predict_v2_fn = getattr(self._evaluator, "predict_v2", None)
+        if callable(predict_v2_fn):
+            try:
+                norm["prediction_v2"] = predict_v2_fn(
+                    deltas, timeout_budget_ms=budget
+                )
+            except Exception:
+                pass
+        return norm
+
+    def predict_v2(
+        self,
+        candidate_deltas: Sequence[Mapping[str, Any]],
+        timeout_budget_ms: float | None = None,
+    ) -> Any:
+        """Predict conformal intervals using real v2 predictor."""
+        predict_v2_fn = getattr(self._evaluator, "predict_v2", None)
+        if callable(predict_v2_fn):
+            deltas = [
+                self._delta_factory(self._to_delta(raw))
+                for raw in candidate_deltas
+            ]
+            budget = (
+                self._timeout_budget_ms
+                if timeout_budget_ms is None
+                else float(timeout_budget_ms)
+            )
+            return predict_v2_fn(deltas, timeout_budget_ms=budget)
+        return None
 
     # -- conversions -------------------------------------------------------
     @staticmethod
