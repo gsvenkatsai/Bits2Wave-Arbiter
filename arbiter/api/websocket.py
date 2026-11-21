@@ -102,6 +102,7 @@ def build_tick_update(
     timestamp_epoch_ms: int | None = None,
     uncoord_dropped_users: int | None = None,
     uncoord_power_kw: float | None = None,
+    twin_prediction: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Build a TICK_UPDATE message conforming to spec §4.2 pages 5-6.
@@ -134,7 +135,10 @@ def build_tick_update(
     if uncoord_power_kw is not None:
         agg_kpis["uncoord_power_kw"] = uncoord_power_kw
 
-    return {
+    if twin_prediction is not None:
+        agg_kpis["twin_prediction"] = twin_prediction
+
+    out: dict[str, Any] = {
         "type":               "TICK_UPDATE",
         "batch_tick":         batch_tick,
         "timestamp":          ts_str,
@@ -142,6 +146,9 @@ def build_tick_update(
         "arbitration_badges": arbitration_badges or [],
         "aggregate_kpis":     agg_kpis,
     }
+    if twin_prediction is not None:
+        out["twin_prediction"] = twin_prediction
+    return out
 
 
 # ---------------------------------------------------------------------------
