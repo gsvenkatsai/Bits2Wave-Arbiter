@@ -11,11 +11,14 @@ On a positive detection the engine must REJECT with ``CYCLIC_PINGPONG``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List
 
 import networkx as nx
 
-from arbiter.engine.contracts import PINGPONG_WINDOW, CommandProposal
+if TYPE_CHECKING:
+    from arbiter.engine.contracts import CommandProposal
+
+PINGPONG_WINDOW: int = 5
 
 __all__ = ["HandoverEdge", "PingPongCycleDetector"]
 

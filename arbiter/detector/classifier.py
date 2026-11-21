@@ -24,7 +24,10 @@ from typing import TYPE_CHECKING, Any, Callable, FrozenSet, Iterable, Mapping, S
 
 import networkx as nx
 
-from arbiter.engine.contracts import CommandProposal, ConflictType
+from arbiter.shared.models import ConflictType
+
+if TYPE_CHECKING:
+    from arbiter.engine.contracts import CommandProposal
 
 __all__ = [
     "AdjacencyLike",
@@ -194,7 +197,15 @@ def _fingerprint(adjacency: AdjacencyLike) -> tuple[frozenset[tuple[str, str]], 
 
 
 # -- rule matchers ----------------------------------------------------------
-Matcher = Callable[["ConflictClassifier", CommandProposal, CommandProposal, _AdjacencyIndex], bool]
+Matcher = Callable[
+    [
+        "ConflictClassifier",
+        "CommandProposal",
+        "CommandProposal",
+        "_AdjacencyIndex",
+    ],
+    bool,
+]
 
 
 def _match_sleep_vs_inbound_offload(

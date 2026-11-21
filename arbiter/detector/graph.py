@@ -7,12 +7,14 @@ of the whole batch.
 """
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import networkx as nx
 
 from arbiter.detector.classifier import AdjacencyLike, ConflictClassifier
-from arbiter.engine.contracts import CommandProposal
+
+if TYPE_CHECKING:
+    from arbiter.engine.contracts import CommandProposal
 
 __all__ = ["ConflictGraphBuilder", "batch_order"]
 
