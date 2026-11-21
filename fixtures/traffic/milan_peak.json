@@ -1,0 +1,14 @@
+{
+  "scenario": "PEAK_HOUR",
+  "tick_duration_ms": 100,
+  "cluster_topology": "19_CELL",
+  "active_ue_count": 350,
+  "traffic_profile_scale": 0.85,
+  "hotspots": [
+    {"cell_id": "cell_0", "weight": 0.2, "sigma_m": 150.0},
+    {"cell_id": "cell_1", "weight": 0.2, "sigma_m": 150.0},
+    {"cell_id": "cell_2", "weight": 0.2, "sigma_m": 150.0},
+    {"cell_id": "cell_3", "weight": 0.2, "sigma_m": 150.0},
+    {"cell_id": "cell_4", "weight": 0.2, "sigma_m": 150.0}
+  ]
+}
