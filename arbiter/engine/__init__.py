@@ -17,6 +17,12 @@ from arbiter.engine.contracts import (
     ReasonCode,
     UtilityWeights,
 )
+from arbiter.engine.bisection import (
+    BisectionResult,
+    BoundedBisectionSolver,
+    BudgetExceeded,
+    EvaluationBudget,
+)
 from arbiter.engine.mocks.mock_actuator_client import AppliedChange, MockActuatorClient
 from arbiter.engine.mocks.mock_twin_client import (
     MockDigitalTwinClient,
@@ -24,6 +30,7 @@ from arbiter.engine.mocks.mock_twin_client import (
     TwinClient,
     TwinTimeoutError,
 )
+from arbiter.engine.utility import UtilityCalculator
 
 __all__ = [
     "CommandProposal",
@@ -39,6 +46,11 @@ __all__ = [
     "TwinTimeoutError",
     "MockActuatorClient",
     "AppliedChange",
+    "UtilityCalculator",
+    "BoundedBisectionSolver",
+    "BisectionResult",
+    "EvaluationBudget",
+    "BudgetExceeded",
     "FLOOR_COVERAGE",
     "FLOOR_DROP_RATE",
     "MAX_HOLD_TICKS",
