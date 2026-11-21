@@ -1,10 +1,6 @@
-"""Branch 2 100 ms arbitration proposal queue."""
+"""Branch 2 100 ms arbitration proposal queue (populated in a later task)."""
 from __future__ import annotations
 
-from arbiter.queue.proposal_queue import (
-    HoldBudgetExceeded,
-    ProposalQueue,
-    QueueBatch,
-)
+from arbiter.engine.contracts import MAX_HOLD_TICKS, TICK_MS
 
-__all__ = ["ProposalQueue", "QueueBatch", "HoldBudgetExceeded"]
+__all__ = ["TICK_MS", "MAX_HOLD_TICKS"]

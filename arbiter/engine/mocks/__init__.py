@@ -1,18 +1,23 @@
-"""Branch 2 mock implementations (digital-twin stand-in)."""
+"""Branch 2 mock clients (digital twin and actuator doubles)."""
 from __future__ import annotations
 
+from arbiter.engine.mocks.mock_actuator_client import AppliedChange, MockActuatorClient
 from arbiter.engine.mocks.mock_twin_client import (
     DEFAULT_KPIS,
-    PARAMETER_SENSITIVITY,
-    MockTwinClient,
+    MockDigitalTwinClient,
+    ScriptedTwin,
     TwinClient,
-    TwinEvaluationError,
+    TwinTimeoutError,
+    floors_satisfied_by,
 )
 
 __all__ = [
-    "MockTwinClient",
     "TwinClient",
-    "TwinEvaluationError",
+    "MockDigitalTwinClient",
+    "ScriptedTwin",
+    "TwinTimeoutError",
     "DEFAULT_KPIS",
-    "PARAMETER_SENSITIVITY",
+    "floors_satisfied_by",
+    "MockActuatorClient",
+    "AppliedChange",
 ]

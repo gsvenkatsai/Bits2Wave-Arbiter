@@ -1,159 +1,142 @@
-"""Mock twin tests: determinism, scripting and fault injection."""
+"""Mock twin tests: determinism, configuration and the scripted curve."""
 from __future__ import annotations
 
 import time
 
 import pytest
 
-from arbiter.engine.mocks.mock_twin_client import (
+from arbiter.engine.mocks import (
     DEFAULT_KPIS,
-    MockTwinClient,
+    MockDigitalTwinClient,
+    ScriptedTwin,
     TwinClient,
-    TwinEvaluationError,
+    TwinTimeoutError,
+    floors_satisfied_by,
 )
 
 
-def test_mock_is_a_twin_client() -> None:
-    assert isinstance(MockTwinClient(), TwinClient)
+def test_both_mocks_satisfy_the_protocol() -> None:
+    assert isinstance(MockDigitalTwinClient(), TwinClient)
+    assert isinstance(ScriptedTwin(lambda candidate: DEFAULT_KPIS), TwinClient)
 
 
-def test_default_forecast_is_healthy() -> None:
-    response = MockTwinClient().evaluate([])
+def test_mock_returns_configured_kpis() -> None:
+    twin = MockDigitalTwinClient({"coverage_ratio": 0.97})
+    response = twin.evaluate([])
     assert response["evaluation_id"] == "mock-eval-0001"
-    assert response["predicted_kpis"] == pytest.approx(DEFAULT_KPIS)
+    assert response["predicted_kpis"]["coverage_ratio"] == pytest.approx(0.97)
+    # Unspecified KPIs fall back to the healthy defaults.
+    assert response["predicted_kpis"]["normalized_energy"] == pytest.approx(
+        DEFAULT_KPIS["normalized_energy"]
+    )
     assert response["safety_floors_satisfied"] is True
     assert response["confidence_margin"] == pytest.approx(0.0)
 
 
 def test_mock_is_deterministic() -> None:
-    deltas = [
+    candidate = [
         {
             "command_id": "c1",
-            "cell_id": "cell-a",
+            "cell_id": "A",
             "parameter": "TX_POWER_DBM",
             "from_value": 30.0,
             "to_value": 34.0,
         }
     ]
-    first = MockTwinClient().evaluate(deltas)
-    second = MockTwinClient().evaluate(deltas)
+    first = MockDigitalTwinClient().evaluate(candidate)
+    second = MockDigitalTwinClient().evaluate(candidate)
     assert first == second
 
 
-def test_power_increase_raises_coverage_and_energy() -> None:
-    deltas = [
-        {
-            "command_id": "c1",
-            "cell_id": "cell-a",
-            "parameter": "TX_POWER_DBM",
-            "from_value": 30.0,
-            "to_value": 40.0,
-        }
-    ]
-    kpis = MockTwinClient().evaluate(deltas)["predicted_kpis"]
-    assert kpis["coverage_ratio"] > DEFAULT_KPIS["coverage_ratio"]
-    assert kpis["normalized_energy"] > DEFAULT_KPIS["normalized_energy"]
+def test_mock_derives_floor_breach_from_kpis() -> None:
+    twin = MockDigitalTwinClient({"coverage_ratio": 0.85})
+    assert twin.evaluate([])["safety_floors_satisfied"] is False
 
 
-def test_cell_off_breaches_coverage_floor() -> None:
-    deltas = [
-        {
-            "command_id": "c1",
-            "cell_id": "cell-a",
-            "parameter": "SLEEP_STATE",
-            "from_value": 0.0,
-            "to_value": 1.0,
-        }
-    ]
-    response = MockTwinClient().evaluate(deltas)
-    assert response["safety_floors_satisfied"] is False
-    assert response["predicted_kpis"]["coverage_ratio"] < 0.90
-
-
-def test_scripted_responses_are_consumed_in_order() -> None:
-    twin = MockTwinClient(
-        scripted_responses=[
-            {"predicted_kpis": {"coverage_ratio": 0.99}},
-            {"predicted_kpis": {"coverage_ratio": 0.91}, "confidence_margin": 0.2},
-        ]
-    )
-    first = twin.evaluate([])
-    second = twin.evaluate([])
-    assert first["evaluation_id"] == "mock-eval-0001"
-    assert first["confidence_margin"] == pytest.approx(0.0)
-    assert second["predicted_kpis"]["coverage_ratio"] == pytest.approx(0.91)
-    assert second["confidence_margin"] == pytest.approx(0.2)
-
-
-def test_floor_breach_injection() -> None:
-    twin = MockTwinClient(floor_breach_at_calls=[2])
+def test_mock_floors_flag_can_be_overridden() -> None:
+    twin = MockDigitalTwinClient({"coverage_ratio": 0.85}, floors_satisfied=True)
     assert twin.evaluate([])["safety_floors_satisfied"] is True
-    breached = twin.evaluate([])
-    assert breached["safety_floors_satisfied"] is False
-    assert breached["predicted_kpis"]["drop_rate_ratio"] == pytest.approx(0.05)
 
 
-def test_raise_injection() -> None:
-    twin = MockTwinClient(raise_at_calls=[1])
-    with pytest.raises(TwinEvaluationError):
-        twin.evaluate([])
+def test_mock_reports_configured_margin() -> None:
+    twin = MockDigitalTwinClient(confidence_margin=0.05)
+    assert twin.evaluate([])["confidence_margin"] == pytest.approx(0.05)
 
 
-def test_timeout_injection_sleeps_past_budget() -> None:
-    twin = MockTwinClient(timeout_at_calls=[1], timeout_overshoot_s=0.01)
-    started = time.perf_counter()
-    twin.evaluate([], timeout_budget_ms=10.0)
-    assert (time.perf_counter() - started) >= 0.02
-
-
-def test_response_factory_overrides_forecast() -> None:
-    twin = MockTwinClient(
-        response_factory=lambda deltas: {
-            "predicted_kpis": {"coverage_ratio": 0.5, "drop_rate_ratio": 0.5},
-            "safety_floors_satisfied": False,
-        }
-    )
-    response = twin.evaluate([])
-    assert response["safety_floors_satisfied"] is False
-    assert response["predicted_kpis"]["coverage_ratio"] == pytest.approx(0.5)
-    assert response["evaluation_id"] == "mock-eval-0001"
-
-
-def test_call_history_and_reset() -> None:
-    twin = MockTwinClient()
-    assert twin.last_deltas == []
-    twin.evaluate([{"command_id": "c1", "parameter": "TILT_DEG"}])
-    assert twin.call_count == 1
-    assert len(twin.calls) == 1
-    assert twin.last_deltas[0]["command_id"] == "c1"
+def test_mock_counts_calls_and_candidates() -> None:
+    twin = MockDigitalTwinClient()
+    assert twin.last_candidate == []
+    twin.evaluate([{"command_id": "c1"}])
+    twin.evaluate([{"command_id": "c2"}])
+    assert twin.call_count == 2
+    assert len(twin.candidates) == 2
+    assert twin.last_candidate == [{"command_id": "c2"}]
     twin.reset()
     assert twin.call_count == 0
-    assert twin.calls == []
+    assert twin.candidates == []
 
 
-def test_latency_knob_sleeps() -> None:
-    twin = MockTwinClient(latency_s=0.01)
+def test_mock_records_candidate_copy() -> None:
+    twin = MockDigitalTwinClient()
+    candidate = [{"command_id": "c1", "to_value": 33.0}]
+    twin.evaluate(candidate)
+    candidate[0]["to_value"] = 99.0
+    assert twin.last_candidate[0]["to_value"] == pytest.approx(33.0)
+
+
+def test_mock_latency_is_simulated() -> None:
+    twin = MockDigitalTwinClient(latency_ms=10.0)
     started = time.perf_counter()
-    twin.evaluate([])
+    twin.evaluate([], timeout_budget_ms=50.0)
     assert (time.perf_counter() - started) >= 0.01
 
 
-def test_clamps_kpis_into_unit_interval() -> None:
-    deltas = [
-        {
-            "command_id": "c1",
-            "cell_id": "cell-a",
-            "parameter": "TX_POWER_DBM",
-            "from_value": 0.0,
-            "to_value": 1000.0,
+def test_mock_raises_on_timeout_when_configured() -> None:
+    twin = MockDigitalTwinClient(latency_ms=50.0, raise_on_timeout=True)
+    with pytest.raises(TwinTimeoutError, match="overran"):
+        twin.evaluate([], timeout_budget_ms=10.0)
+
+
+def test_mock_does_not_raise_when_within_budget() -> None:
+    twin = MockDigitalTwinClient(latency_ms=1.0, raise_on_timeout=True)
+    assert twin.evaluate([], timeout_budget_ms=10.0)["evaluation_id"] == "mock-eval-0001"
+
+
+def test_scripted_twin_models_a_utility_curve() -> None:
+    def curve(candidate: list[dict[str, object]]) -> dict[str, float]:
+        # Coverage peaks at a requested value of 36 dBm, then degrades.
+        value = float(candidate[0]["to_value"])  # type: ignore[arg-type]
+        distance = abs(value - 36.0)
+        return {
+            "coverage_ratio": 0.98 - distance * 0.01,
+            "drop_rate_ratio": 0.01,
         }
-    ]
-    kpis = MockTwinClient().evaluate(deltas)["predicted_kpis"]
-    assert 0.0 <= kpis["coverage_ratio"] <= 1.0
-    assert 0.0 <= kpis["normalized_energy"] <= 1.0
+
+    twin = ScriptedTwin(curve)
+    peak = twin.evaluate([{"to_value": 36.0}])
+    off_peak = twin.evaluate([{"to_value": 46.0}])
+
+    assert peak["predicted_kpis"]["coverage_ratio"] == pytest.approx(0.98)
+    assert off_peak["predicted_kpis"]["coverage_ratio"] == pytest.approx(0.88)
+    assert peak["safety_floors_satisfied"] is True
+    assert off_peak["safety_floors_satisfied"] is False
+    assert twin.call_count == 2
+    assert twin.candidates[1] == [{"to_value": 46.0}]
 
 
-def test_unknown_parameter_has_no_effect() -> None:
-    deltas = [{"command_id": "c1", "parameter": "UNKNOWN", "to_value": 99.0}]
-    response = MockTwinClient().evaluate(deltas)
-    assert response["predicted_kpis"] == pytest.approx(DEFAULT_KPIS)
+def test_scripted_twin_floors_override_and_margin() -> None:
+    twin = ScriptedTwin(
+        lambda candidate: {"coverage_ratio": 0.99},
+        floors_satisfied=False,
+        confidence_margin=0.1,
+    )
+    response = twin.evaluate([])
+    assert response["safety_floors_satisfied"] is False
+    assert response["confidence_margin"] == pytest.approx(0.1)
+
+
+def test_floors_helper_boundaries() -> None:
+    assert floors_satisfied_by({"coverage_ratio": 0.90, "drop_rate_ratio": 0.02}) is True
+    assert floors_satisfied_by({"coverage_ratio": 0.89, "drop_rate_ratio": 0.0}) is False
+    assert floors_satisfied_by({"coverage_ratio": 1.0, "drop_rate_ratio": 0.03}) is False
+    assert floors_satisfied_by({}) is False

@@ -1,20 +1,6 @@
-"""Branch 2 conflict graph and detector."""
+"""Branch 2 conflict detector and graph (populated in a later task)."""
 from __future__ import annotations
 
-from arbiter.detector.conflict_detector import (
-    MAX_INDIRECT_HOPS,
-    ConflictDetector,
-    ConflictEdge,
-    ConflictGraph,
-    PingPongTracker,
-    parameter_key,
-)
+from arbiter.engine.contracts import PINGPONG_WINDOW
 
-__all__ = [
-    "ConflictDetector",
-    "ConflictGraph",
-    "ConflictEdge",
-    "PingPongTracker",
-    "parameter_key",
-    "MAX_INDIRECT_HOPS",
-]
+__all__ = ["PINGPONG_WINDOW"]

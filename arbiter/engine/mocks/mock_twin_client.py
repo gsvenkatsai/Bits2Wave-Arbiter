@@ -1,52 +1,46 @@
-"""Deterministic digital-twin stand-ins for Branch 2 tests and local runs.
+"""Digital-twin stand-ins for Branch 2.
 
-Branch 3 owns the real analytical twin.  Branch 2 codes against the
-``TwinClient`` protocol so the integration swap is a one-line constructor
-change.  The mock is deliberately deterministic: identical inputs produce
-identical KPI forecasts and evaluation ids.
+Branch 3 owns the real analytical twin. Branch 2 codes against the
+:class:`TwinClient` protocol so the integration swap is a constructor change.
+Both mocks are deterministic: identical candidates produce identical responses.
 """
 from __future__ import annotations
 
 import time
-from typing import Any, Callable, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Callable, Mapping, Protocol, runtime_checkable
+
+from arbiter.engine.contracts import FLOOR_COVERAGE, FLOOR_DROP_RATE
 
 __all__ = [
     "TwinClient",
-    "MockTwinClient",
-    "TwinEvaluationError",
+    "MockDigitalTwinClient",
+    "ScriptedTwin",
+    "TwinTimeoutError",
     "DEFAULT_KPIS",
-    "PARAMETER_SENSITIVITY",
+    "floors_satisfied_by",
 ]
 
+#: KPI dict returned by every twin evaluation.
 KPIDict = dict[str, Any]
 
-#: Deterministic healthy baseline used when a test does not override it.
+#: Healthy deterministic baseline used when a test does not override it.
 DEFAULT_KPIS: dict[str, float] = {
     "coverage_ratio": 0.95,
     "normalized_energy": 0.50,
     "normalized_interference": 0.30,
-    "drop_rate_ratio": 0.010,
+    "drop_rate_ratio": 0.01,
 }
 
-#: Per-parameter first-order KPI sensitivity to a unit change of the value:
-#: (coverage, energy, interference, drop_rate).
-PARAMETER_SENSITIVITY: dict[str, tuple[float, float, float, float]] = {
-    "TX_POWER_DBM": (0.020, 0.030, 0.030, -0.0010),
-    "TILT_DEG": (-0.010, -0.005, -0.010, 0.0005),
-    "SLEEP_STATE": (-0.200, -0.200, -0.100, 0.0200),
-    "OFFLOAD_RATIO": (0.005, -0.010, 0.020, 0.0100),
-}
 
-KPI_KEYS: tuple[str, str, str, str] = (
-    "coverage_ratio",
-    "normalized_energy",
-    "normalized_interference",
-    "drop_rate_ratio",
-)
+class TwinTimeoutError(RuntimeError):
+    """Raised when a twin evaluation overruns its timeout budget."""
 
 
-class TwinEvaluationError(RuntimeError):
-    """Raised by the mock (and by real twins) when a forecast cannot be made."""
+def floors_satisfied_by(kpis: Mapping[str, float]) -> bool:
+    """Apply the spec's safety floors to a KPI snapshot."""
+    coverage = float(kpis.get("coverage_ratio", 0.0))
+    drop_rate = float(kpis.get("drop_rate_ratio", 1.0))
+    return coverage >= FLOOR_COVERAGE and drop_rate <= FLOOR_DROP_RATE
 
 
 @runtime_checkable
@@ -68,142 +62,123 @@ class TwinClient(Protocol):
         ...
 
 
-def _number(value: Any, default: float = 0.0) -> float:
-    """Coerce a delta field to float, treating missing/None as ``default``."""
-    if value is None:
-        return default
-    return float(value)
+def _response(
+    call: int,
+    kpis: Mapping[str, float],
+    floors_satisfied: bool | None,
+    margin: float,
+) -> KPIDict:
+    predicted = {str(key): float(value) for key, value in kpis.items()}
+    floors = floors_satisfied_by(predicted) if floors_satisfied is None else floors_satisfied
+    return {
+        "evaluation_id": f"mock-eval-{call:04d}",
+        "predicted_kpis": predicted,
+        "safety_floors_satisfied": floors,
+        "confidence_margin": float(margin),
+    }
 
 
-def _clamp01(value: float) -> float:
-    return 0.0 if value < 0.0 else 1.0 if value > 1.0 else value
+class MockDigitalTwinClient:
+    """Deterministic twin returning fixed KPIs with optional fault injection.
 
-
-class MockTwinClient:
-    """Configurable, deterministic :class:`TwinClient` implementation.
-
-    Per-test knobs:
-
-    * ``scripted_responses`` – FIFO of raw responses returned verbatim.
-    * ``response_factory`` – callable computing a full response per call.
-    * ``raise_at_calls`` – 1-based call numbers that raise.
-    * ``timeout_at_calls`` – 1-based call numbers that sleep past the budget.
-    * ``floor_breach_at_calls`` – 1-based calls that forecast a floor breach.
-
-    Everything else is a fixed first-order KPI model, so results are stable.
+    Knobs: ``kpis`` (predicted KPIs), ``confidence_margin``,
+    ``floors_satisfied`` (override the derived floor verdict), ``latency_ms``
+    (simulated work) and ``raise_on_timeout`` (raise :class:`TwinTimeoutError`
+    instead of returning when the simulated latency exceeds the budget).
     """
 
     def __init__(
         self,
-        baseline_kpis: Mapping[str, float] | None = None,
+        kpis: Mapping[str, float] | None = None,
         *,
         confidence_margin: float = 0.0,
-        scripted_responses: Sequence[Mapping[str, Any]] | None = None,
-        response_factory: Callable[[list[dict[str, Any]]], Mapping[str, Any]] | None = None,
-        raise_at_calls: Sequence[int] = (),
-        timeout_at_calls: Sequence[int] = (),
-        floor_breach_at_calls: Sequence[int] = (),
-        timeout_overshoot_s: float = 0.05,
-        sleep_scale: float = 1.0,
-        latency_s: float = 0.0,
+        floors_satisfied: bool | None = None,
+        latency_ms: float = 0.0,
+        raise_on_timeout: bool = False,
     ) -> None:
-        baseline = dict(DEFAULT_KPIS)
-        if baseline_kpis is not None:
-            baseline.update(baseline_kpis)
-        self.baseline_kpis = baseline
+        merged = dict(DEFAULT_KPIS)
+        if kpis is not None:
+            merged.update(kpis)
+        self.kpis = merged
         self.confidence_margin = confidence_margin
-        self._scripted: list[Mapping[str, Any]] = list(scripted_responses or ())
-        self._factory = response_factory
-        self._raise_at = frozenset(raise_at_calls)
-        self._timeout_at = frozenset(timeout_at_calls)
-        self._breach_at = frozenset(floor_breach_at_calls)
-        self._timeout_overshoot_s = timeout_overshoot_s
-        self._sleep_scale = sleep_scale
-        self._latency_s = latency_s
+        self.floors_satisfied = floors_satisfied
+        self.latency_ms = latency_ms
+        self.raise_on_timeout = raise_on_timeout
         self.call_count = 0
-        self.calls: list[list[dict[str, Any]]] = []
+        self.candidates: list[list[dict[str, Any]]] = []
 
-    # -- introspection helpers used by tests -------------------------------
     @property
-    def last_deltas(self) -> list[dict[str, Any]]:
-        """Deltas passed to the most recent evaluation (empty if none)."""
-        return self.calls[-1] if self.calls else []
+    def last_candidate(self) -> list[dict[str, Any]]:
+        """Candidate deltas passed to the most recent evaluation."""
+        return self.candidates[-1] if self.candidates else []
 
     def reset(self) -> None:
-        """Forget call history without discarding scripting."""
+        """Forget call history (configuration is kept)."""
         self.call_count = 0
-        self.calls.clear()
+        self.candidates.clear()
 
-    # -- TwinClient --------------------------------------------------------
     def evaluate(
         self,
         candidate_deltas: list[dict[str, Any]],
         timeout_budget_ms: float = 15.0,
     ) -> dict[str, Any]:
         self.call_count += 1
-        call = self.call_count
-        deltas = [dict(delta) for delta in candidate_deltas]
-        self.calls.append(deltas)
+        self.candidates.append([dict(delta) for delta in candidate_deltas])
 
-        if call in self._raise_at:
-            raise TwinEvaluationError(f"mock twin failure on call {call}")
+        if self.latency_ms > timeout_budget_ms:
+            if self.raise_on_timeout:
+                raise TwinTimeoutError(
+                    f"twin overran {timeout_budget_ms:.1f} ms "
+                    f"(simulated latency {self.latency_ms:.1f} ms)"
+                )
+            time.sleep(max(timeout_budget_ms, 0.0) / 1000.0)
+        elif self.latency_ms > 0.0:
+            time.sleep(self.latency_ms / 1000.0)
 
-        if self._latency_s:
-            time.sleep(self._latency_s)
-
-        if call in self._timeout_at:
-            time.sleep(max(timeout_budget_ms, 0.0) / 1000.0 + self._timeout_overshoot_s)
-
-        response = self._build_response(call, deltas)
-        return response
-
-    # -- internals ---------------------------------------------------------
-    def _build_response(self, call: int, deltas: list[dict[str, Any]]) -> KPIDict:
-        if self._factory is not None:
-            response: dict[str, Any] = dict(self._factory(deltas))
-            response.setdefault("evaluation_id", f"mock-eval-{call:04d}")
-            response.setdefault("confidence_margin", self.confidence_margin)
-            return response
-
-        if self._scripted:
-            scripted = dict(self._scripted.pop(0))
-            scripted.setdefault("evaluation_id", f"mock-eval-{call:04d}")
-            scripted.setdefault("confidence_margin", self.confidence_margin)
-            return scripted
-
-        kpis = dict(self.baseline_kpis)
-        coverage = kpis["coverage_ratio"]
-        energy = kpis["normalized_energy"]
-        interference = kpis["normalized_interference"]
-        drop_rate = kpis["drop_rate_ratio"]
-
-        for delta in deltas:
-            parameter = str(delta.get("parameter", ""))
-            sensitivity = PARAMETER_SENSITIVITY.get(parameter)
-            if sensitivity is None:
-                continue
-            change = _number(delta.get("to_value")) - _number(delta.get("from_value"))
-            coverage += sensitivity[0] * change
-            energy += sensitivity[1] * change
-            interference += sensitivity[2] * change
-            drop_rate += sensitivity[3] * change
-
-        if call in self._breach_at:
-            coverage = 0.85
-            drop_rate = 0.05
-
-        predicted = {
-            "coverage_ratio": _clamp01(coverage),
-            "normalized_energy": _clamp01(energy),
-            "normalized_interference": _clamp01(interference),
-            "drop_rate_ratio": _clamp01(drop_rate),
-        }
-        floors_ok = (
-            predicted["coverage_ratio"] >= 0.90 and predicted["drop_rate_ratio"] <= 0.02
+        return _response(
+            self.call_count, self.kpis, self.floors_satisfied, self.confidence_margin
         )
-        return {
-            "evaluation_id": f"mock-eval-{call:04d}",
-            "predicted_kpis": predicted,
-            "safety_floors_satisfied": floors_ok,
-            "confidence_margin": self.confidence_margin,
-        }
+
+
+class ScriptedTwin:
+    """Twin whose KPIs are computed from the candidate by a test-supplied curve.
+
+    ``kpi_fn`` maps the candidate delta list to a KPI mapping, which lets tests
+    model an arbitrary utility curve (e.g. a peak at a specific value) without
+    scripting every response.
+    """
+
+    def __init__(
+        self,
+        kpi_fn: Callable[[list[dict[str, Any]]], Mapping[str, float]],
+        *,
+        confidence_margin: float = 0.0,
+        floors_satisfied: bool | None = None,
+        latency_ms: float = 0.0,
+    ) -> None:
+        self.kpi_fn = kpi_fn
+        self.confidence_margin = confidence_margin
+        self.floors_satisfied = floors_satisfied
+        self.latency_ms = latency_ms
+        self.call_count = 0
+        self.candidates: list[list[dict[str, Any]]] = []
+
+    @property
+    def last_candidate(self) -> list[dict[str, Any]]:
+        """Candidate deltas passed to the most recent evaluation."""
+        return self.candidates[-1] if self.candidates else []
+
+    def evaluate(
+        self,
+        candidate_deltas: list[dict[str, Any]],
+        timeout_budget_ms: float = 15.0,
+    ) -> dict[str, Any]:
+        self.call_count += 1
+        candidate = [dict(delta) for delta in candidate_deltas]
+        self.candidates.append(candidate)
+        if self.latency_ms > 0.0:
+            time.sleep(self.latency_ms / 1000.0)
+        kpis = self.kpi_fn(candidate)
+        return _response(
+            self.call_count, kpis, self.floors_satisfied, self.confidence_margin
+        )
