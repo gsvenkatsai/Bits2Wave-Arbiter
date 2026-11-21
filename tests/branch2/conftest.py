@@ -52,7 +52,9 @@ def make_proposal() -> ProposalFactory:
         payload: dict[str, Any] = {
             "command_id": f"cmd-{next(counter):03d}",
             "controller": "ctrl-energy",
+            "controller_type": "ENERGY_SAVING",
             "target_cell": "A",
+            "timestamp_epoch_ms": 0,
             "parameter": "TX_POWER_DBM",
             "requested_value": 40.0,
             "current_value": 30.0,

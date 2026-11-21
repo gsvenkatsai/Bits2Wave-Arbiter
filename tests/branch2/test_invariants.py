@@ -95,7 +95,9 @@ def _random_command(rng: random.Random, ids: Iterable[int]) -> CommandProposal:
     return CommandProposal(
         command_id=f"fuzz-{next(ids)}",
         controller=f"ctrl-{parameter.lower()}",
+        controller_type="ENERGY_SAVING",
         target_cell=cell,
+        timestamp_epoch_ms=0,
         parameter=parameter,
         current_value=current,
         requested_value=value,
@@ -189,7 +191,9 @@ def test_emergency_only_batches_never_call_the_twin() -> None:
         orchestrator = QueueOrchestrator(twin=twin, adjacency=HEX)
         commands = []
         for _ in range(rng.randint(1, 4)):
-            command = _random_command(rng, ids).model_copy(update={"is_emergency": True})
+            command = _random_command(rng, ids).model_copy(
+                update={"emergency_flag": True}
+            )
             commands.append(command)
             orchestrator.submit(command)
 

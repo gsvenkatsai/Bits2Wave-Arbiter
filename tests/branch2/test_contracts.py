@@ -5,6 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from arbiter.engine import contracts
+from arbiter.shared import models as shared_models
 from arbiter.engine.contracts import (
     FLOOR_COVERAGE,
     FLOOR_DROP_RATE,
@@ -67,7 +68,9 @@ def test_command_proposal_shape() -> None:
     proposal = CommandProposal(
         command_id="c1",
         controller="ctrl-energy",
+        controller_type="ENERGY_SAVING",
         target_cell="A",
+        timestamp_epoch_ms=0,
         parameter="SLEEP_STATE",
         requested_value=0.0,
         current_value=1.0,
@@ -84,7 +87,9 @@ def test_command_proposal_accepts_handover_and_binary_flags() -> None:
     proposal = CommandProposal(
         command_id="c2",
         controller="ctrl-lb",
+        controller_type="LOAD_BALANCING",
         target_cell="B",
+        timestamp_epoch_ms=0,
         parameter="OFFLOAD_RATIO",
         requested_value=0.4,
         current_value=0.2,
@@ -186,21 +191,65 @@ def test_contract_summary_reports_source() -> None:
         "night_energy_saver",
         "coverage_first",
     }
-    assert summary["shared_available"] in (["True"], ["False"])
+    assert summary["shared_available"] == ["True"]
+    assert summary["contracts_source"] == ["arbiter.shared.models"]
 
 
-def test_shared_compatibility_guard_rejects_incompatible_module() -> None:
-    class FakeShared:
-        ActionType = ActionType
-        ConflictType = ConflictType
-        ReasonCode = ReasonCode
-        CommandProposal = CommandProposal
-        ArbitrationDecision = ArbitrationDecision
-        UtilityWeights = UtilityWeights
+def test_contracts_are_the_shared_models() -> None:
+    assert contracts.SHARED_CONTRACTS_AVAILABLE is True
+    assert contracts.ActionType is shared_models.ActionType
+    assert contracts.ConflictType is shared_models.ConflictType
+    assert contracts.ReasonCode is shared_models.ReasonCode
+    assert contracts.ArbitrationDecision is shared_models.ArbitrationDecision
+    assert issubclass(contracts.CommandProposal, shared_models.CommandProposal)
 
-    assert contracts._is_spec_compatible(FakeShared) is True
 
-    class MissingField(FakeShared):
-        CommandProposal = object
+def test_proposal_accepts_shared_and_branch2_vocabulary() -> None:
+    shared_style = CommandProposal(
+        command_id="c4",
+        controller_id="ctrl-energy",
+        controller_type="ENERGY_SAVING",
+        target_cell_id="A",
+        parameter="TX_POWER_DBM",
+        requested_value=33.0,
+        timestamp_epoch_ms=250,
+        emergency_flag=True,
+    )
+    branch2_style = CommandProposal(
+        command_id="c5",
+        controller="ctrl-energy",
+        controller_type="ENERGY_SAVING",
+        target_cell="A",
+        parameter="TX_POWER_DBM",
+        requested_value=33.0,
+        timestamp_epoch_ms=0,
+        is_emergency=True,
+    )
 
-    assert contracts._is_spec_compatible(MissingField) is False
+    assert shared_style.target_cell == "A"
+    assert shared_style.controller == "ctrl-energy"
+    assert shared_style.is_emergency is True
+    assert shared_style.created_tick == 2  # 250 ms // TICK_MS
+    assert branch2_style.target_cell_id == "A"
+    assert branch2_style.controller_id == "ctrl-energy"
+    assert branch2_style.emergency_flag is True
+    assert branch2_style.created_tick == 0
+
+
+def test_proposal_serialises_as_the_shared_model() -> None:
+    proposal = CommandProposal(
+        command_id="c6",
+        controller="ctrl-energy",
+        controller_type="ENERGY_SAVING",
+        target_cell="B",
+        parameter="SLEEP_STATE",
+        requested_value=1.0,
+        current_value=0.0,
+        timestamp_epoch_ms=0,
+        is_binary=True,
+    )
+
+    dumped = proposal.model_dump()
+    assert dumped["target_cell_id"] == "B"
+    assert dumped["emergency_flag"] is False
+    assert shared_models.CommandProposal.model_validate(dumped).target_cell_id == "B"

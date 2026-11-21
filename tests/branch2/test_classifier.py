@@ -153,7 +153,7 @@ def test_inbound_offload_without_destination_uses_neighbour_radius(
         command_id="offload",
         controller="ctrl-lb",
         target_cell="A",
-        parameter="HANDOVER_SHARE",
+        parameter="OFFLOAD_RATIO",
         current_value=0.1,
         requested_value=0.5,
     )

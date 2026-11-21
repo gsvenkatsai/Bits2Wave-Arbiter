@@ -1,176 +1,151 @@
 # Branch 2 integration guide (Arbitration & Decision Engine)
 
-Everything Branch 2 needs from another branch enters through three seams:
-`arbiter/engine/contracts.py`, the `TwinClient` protocol, and
-`QueueOrchestrator.on_tick`. This file records the exact swaps, the assumed
-shapes, and the open questions so the integrations are mechanical.
+Branch 2 now runs on the real shared models and has an adapter for the real
+digital twin. Three seams remain relevant to other branches:
+
+1. `arbiter/engine/contracts.py` — re-exports `arbiter.shared.models` and extends
+   it with the arbitration-only fields.
+2. `arbiter/engine/twin_adapter.py` — `TwinClientAdapter`, the `TwinClient`
+   implementation over Branch 3's `DigitalTwinEvaluator` (the mock is kept for
+   tests only).
+3. `arbiter/queue/orchestrator.py` — `QueueOrchestrator.on_tick(...)`, the single
+   call Dev 4's API route makes per tick.
 
 Owner: Branch 2 (SW-31). Folders owned: `arbiter/queue/`, `arbiter/detector/`,
 `arbiter/engine/` (including `arbiter/engine/mocks/`), `tests/branch2/`.
 
 ---
 
-## 1. TODO(INTEGRATION) sites
+## 1. Integration markers
 
-`grep -rn "TODO(INTEGRATION)" arbiter/queue arbiter/detector arbiter/engine` returns
-exactly one site:
+Marker audit: `grep -rn "TODO(" arbiter/queue arbiter/detector arbiter/engine`
+returns no matches in code (the only hits are this guide). The single historic
+integration marker in `arbiter/engine/contracts.py` ("drop these local contracts
+once shared publishes them") is resolved:
 
-| Location | Marker | What to do |
-| --- | --- | --- |
-| `arbiter/engine/contracts.py:64` | `# TODO(INTEGRATION): drop these once arbiter.shared.models publishes the Branch 2 shapes.` | Delete the local contract block (`ActionType`, `ConflictType`, `ReasonCode`, `UtilityWeights`, `CommandProposal`, `ArbitrationDecision`) once `arbiter/shared/models.py` carries the Branch 2 shapes. Adoption is automatic: `_adopt_shared_contracts()` rebinds the module globals when `_is_spec_compatible()` passes. |
+* `ActionType`, `ConflictType`, `ReasonCode` and `ArbitrationDecision` are
+  imported verbatim from `arbiter.shared.models`;
+* `CommandProposal` subclasses the shared model (superset, see §4);
+* `SHARED_CONTRACTS_AVAILABLE` is `True` and `CONTRACTS_SOURCE` is
+  `"arbiter.shared.models"`.
 
-There are no other `TODO(INTEGRATION)` markers. Two seams deliberately need no
-marker because they are constructor-injected rather than stubbed:
+Two seams are constructor-injected and need no marker:
 
-* `arbiter/queue/orchestrator.py` — `QueueOrchestrator(twin=...)`; the default is
-  `MockDigitalTwinClient`.
+* `arbiter/queue/orchestrator.py` — `QueueOrchestrator(twin=...)`; the default
+  is still `MockDigitalTwinClient`, production passes `TwinClientAdapter`.
 * `arbiter/detector/classifier.py` — `hop_radius=2` (SRS Q17).
 
-`SHARED_CONTRACTS_AVAILABLE` is currently `False`: adoption is all-or-nothing and
-`arbiter/shared/models.py` does not publish the Branch 2 `CommandProposal` shape
-(see §4). Branch 2 therefore runs on its own spec-identical definitions, which is
-why every module imports contracts from `arbiter/engine/contracts.py` only.
+The only deliberately local contract left is `UtilityWeights` (no shared
+counterpart; see §4).
 
 ---
 
-## 2. Swapping `MockDigitalTwinClient` for Branch 3's real client
+## 2. The real twin and its adapter
 
-Branch 2 codes against this protocol (`arbiter/engine/mocks/mock_twin_client.py`):
-
-```python
-@runtime_checkable
-class TwinClient(Protocol):
-    def evaluate(
-        self,
-        candidate_deltas: list[dict[str, Any]],
-        timeout_budget_ms: float = 15.0,
-    ) -> dict[str, Any]: ...
-```
-
-### Candidate payload Branch 2 sends
-
-One dict per applied change (`DecisionLadderEngine` /`build_candidate_delta`):
-
-```json
-{
-  "command_id": "cmd-001",
-  "cell_id": "B",
-  "parameter": "OFFLOAD_RATIO",
-  "from_value": 0.0,
-  "to_value": 0.1528
-}
-```
-
-`parameter` is upper-cased and stripped. An empty list means "do nothing" — that
-is the shared baseline prediction.
-
-### Response Branch 2 requires
-
-```json
-{
-  "predicted_kpis": {
-    "coverage_ratio": 0.94,
-    "normalized_energy": 0.45,
-    "normalized_interference": 0.305,
-    "drop_rate_ratio": 0.0135
-  },
-  "safety_floors_satisfied": true,
-  "confidence_margin": 0.0
-}
-```
-
-Optional keys Branch 2 reads when present:
-
-| Key | Effect |
-| --- | --- |
-| `computation_time_ms` | `> TWIN_TIMEOUT_MS` (100 ms) → no approval, `REJECT/TWIN_TIMEOUT`. |
-| `confidence_margin` | Widens the uncertainty band (`|dU| < margin` blocks approval). |
-| `limiting_factor: "active_ho"` | MODIFY reason becomes `ACTIVE_HO` instead of `HEADROOM`. |
-| `active_handover_users: <number>` | `> 0` behaves exactly like `limiting_factor: "active_ho"`. |
-| `evaluation_id` | Ignored (kept by mocks for traceability). |
-
-Unknown keys are ignored. Missing KPI keys are treated pessimistically by
-`UtilityCalculator` (the term is scored as its worst value), so a shape mismatch
-degrades the decision rather than crashing.
-
-### If `POST /api/v1/twin/evaluate` differs
-
-Write an adapter that satisfies `TwinClient`; nothing else in Branch 2 changes.
-Only this file then knows the HTTP contract:
+Branch 3 (`arbiter/twin/`, branch `feat/digital-twin-actuator`) exposes:
 
 ```python
-# arbiter/engine/adapters/twin_http.py  (new file, Branch 2-owned folder)
-from typing import Any
-import httpx
+DigitalTwinEvaluator(state_provider, calibrator=None, fail_safe_manager=None,
+                     propagation_chain=None)
+    .predict(candidate_deltas: List[CandidateDelta],
+             timeout_budget_ms: Optional[float] = None,
+             evaluation_id: Optional[str] = None) -> TwinEvaluationResponse
 
-
-class TwinHttpClient:
-    """Adapter from the Branch 2 TwinClient protocol to /api/v1/twin/evaluate."""
-
-    def __init__(self, base_url: str, timeout_s: float = 0.2) -> None:
-        self._base_url = base_url.rstrip("/")
-        self._client = httpx.Client(timeout=timeout_s)
-
-    def evaluate(
-        self, candidate_deltas: list[dict[str, Any]], timeout_budget_ms: float = 15.0
-    ) -> dict[str, Any]:
-        body = {
-            "candidate_deltas": candidate_deltas,
-            "timeout_ms": timeout_budget_ms,
-        }
-        payload = self._client.post(
-            f"{self._base_url}/api/v1/twin/evaluate", json=body
-        ).json()
-        kpis = payload.get("predicted_kpis") or payload["kpis"]
-        return {
-            "predicted_kpis": kpis,
-            "safety_floors_satisfied": payload.get("safety_floors_satisfied"),
-            "confidence_margin": payload.get("confidence_margin", 0.0),
-            "computation_time_ms": payload.get("computation_time_ms"),
-            "limiting_factor": payload.get("limiting_factor"),
-            "active_handover_users": payload.get("active_handover_users"),
-        }
+handle_twin_evaluate(payload: dict) -> dict      # POST /api/v1/twin/evaluate
 ```
 
-Wiring is a constructor argument, in Dev 4's route or in a factory:
+Branch 3 schemas:
 
 ```python
+CandidateDelta(cell_id: str, parameter: str, proposed_value: float)
+
+PredictedKPIs(coverage_ratio, normalized_energy, normalized_interference,
+              drop_rate_ratio, predicted_sinr_avg_db, affected_cell_ids)
+
+TwinEvaluationResponse(evaluation_id, computation_time_ms,
+                       predicted_kpis, safety_floors_satisfied,
+                       confidence_margin)
+
+TwinEvaluationRequest(evaluation_id, candidate_deltas, timeout_budget_ms=None)
+```
+
+`TwinClientAdapter` (`arbiter/engine/twin_adapter.py`) converts in both
+directions. Wiring:
+
+```python
+from arbiter.engine.twin_adapter import TwinClientAdapter
 from arbiter.queue import QueueOrchestrator
+from arbiter.twin.evaluator import DigitalTwinEvaluator
 
-orchestrator = QueueOrchestrator(twin=TwinHttpClient("http://twin:8000"))
-# tests keep using the mock:
-# queue_orchestrator = QueueOrchestrator(twin=MockDigitalTwinClient())
+evaluator = DigitalTwinEvaluator(state_provider=telemetry_snapshot_provider)
+orchestrator = QueueOrchestrator(
+    twin=TwinClientAdapter(evaluator),      # or TwinClientAdapter.from_handler(handle_twin_evaluate)
+    adjacency=cell_adjacency,
+)
 ```
 
-Rules if the real client's names or payloads differ:
+What the adapter does:
 
-1. Map method names in the adapter (`predict`, `simulate`, `post_evaluate`, … →
-   `evaluate`). Branch 2 only ever calls `evaluate(candidate_deltas)`.
-2. Map KPI names in the adapter to `coverage_ratio`, `normalized_energy`,
-   `normalized_interference`, `drop_rate_ratio`. Those four keys are load-bearing
-   (`UtilityCalculator` and `SafetyFloorEnforcer`).
-3. Map candidate field names both ways. If Branch 3 wants `cell`/`param`/`value`
-   instead of `cell_id`/`parameter`/`to_value`, translate in the adapter and
-   leave `build_candidate_delta` untouched.
-4. Never let the client swallow a timeout: raise `TimeoutError` (or return
-   `computation_time_ms` above the budget). The ladder converts that into
-   `REJECT/TWIN_TIMEOUT` and keeps the last known good state.
-5. If Branch 3's floors are stricter or use different units, put the conversion
-   in `SafetyFloorEnforcer`/`UtilityCalculator`, not in the ladder.
+| Branch 2 sends | Branch 3 receives |
+| --- | --- |
+| `{"command_id", "cell_id", "parameter", "from_value", "to_value"}` | `TwinDelta(cell_id, parameter.upper(), proposed_value=to_value)` — `command_id` and `from_value` are dropped |
+| `evaluate(deltas)` | `predict(deltas, timeout_budget_ms=100.0)` (the default budget; pass a different one to `TwinClientAdapter`) |
+
+| Branch 3 returns | Branch 2 receives |
+| --- | --- |
+| `TwinEvaluationResponse` (pydantic) or the handler's dict | plain dict with `evaluation_id`, `predicted_kpis` (only the four contract KPIs), `safety_floors_satisfied`, `confidence_margin`, `computation_time_ms` |
+| `predicted_sinr_avg_db`, `affected_cell_ids` | dropped (not part of the utility function) |
+| missing `computation_time_ms` | adapter's own measured wall time |
+
+Behaviour that matters:
+
+* `TwinDelta` is duck-type compatible with `CandidateDelta` (Branch 3 only reads
+  `.cell_id`, `.parameter`, `.proposed_value`), so no import of `arbiter.twin`
+  happens at module import time — Branch 2 keeps working before Branch 3 merges.
+  If Branch 3 ever validates strictly, pass
+  `TwinClientAdapter(evaluator, delta_factory=CandidateDelta)`.
+* The default 100 ms budget keeps Branch 3 on its fast path (`predict` takes the
+  analytical fast path when the budget is `None` or `>= 50`). The ladder still
+  enforces its own 100 ms wall-clock guard and treats `computation_time_ms >
+  100` as a timeout.
+* Branch 3's fail-safe returns a last-known-good response instead of raising; the
+  ladder treats that as a normal prediction (it cannot tell it apart). If Branch 2
+  must distinguish it, Branch 3 has to flag the response and the adapter must
+  forward the flag.
+* Branch 3 reports no `limiting_factor` and no `active_handover_users`, so with
+  the real twin every MODIFY is labelled `HEADROOM`. If those keys are added,
+  forward them from `_normalise` to get `ACTIVE_HO` again (one line).
+* A raising `predict` (e.g. `TimeoutError`) propagates out of
+  `TwinClientAdapter.evaluate` and the ladder converts it to
+  `REJECT/TWIN_TIMEOUT`.
+
+If `POST /api/v1/twin/evaluate` changes shape, only `TwinClientAdapter` changes:
+
+1. Method name (`predict`/`simulate`/…): adapt in the adapter; Branch 2 only
+   calls `evaluate(candidate_deltas, timeout_budget_ms=None)`.
+2. KPI names: map them onto `coverage_ratio`, `normalized_energy`,
+   `normalized_interference`, `drop_rate_ratio` (`KPI_KEYS`). All four are
+   load-bearing for `UtilityCalculator` and `SafetyFloorEnforcer`.
+3. Candidate field names: translate in `TwinClientAdapter._to_delta`; leave
+   `build_candidate_delta` untouched.
+4. Never swallow a timeout: raise `TimeoutError` or report
+   `computation_time_ms` above the budget.
+5. Different floor units/thresholds: change `SafetyFloorEnforcer` /
+   `UtilityCalculator`, never the ladder.
 
 ---
 
 ## 3. What Dev 4's API route must call
 
 One orchestrator instance per process (it owns the queue, the ping-pong window
-and the latency buffer). Per tick:
+and the latency buffer).
 
 ```python
 from arbiter.engine.contracts import CommandProposal, UtilityWeights
 from arbiter.queue import QueueOrchestrator
 
 orchestrator = QueueOrchestrator(
-    twin=TwinHttpClient("http://twin:8000"),
+    twin=TwinClientAdapter(DigitalTwinEvaluator(state_provider=provider)),
     adjacency=cell_adjacency,          # {"A": ["B"], ...} or a networkx.Graph
     weights=UtilityWeights(),          # or UtilityWeights.from_preset("night_energy_saver")
 )
@@ -179,97 +154,86 @@ orchestrator = QueueOrchestrator(
 accepted: bool = orchestrator.submit(
     CommandProposal(
         command_id="cmd-001",
-        controller="ctrl-energy",
-        target_cell="B",
+        controller_id="ctrl-energy",        # or controller="ctrl-energy"
+        controller_type="ENERGY_SAVING",
+        target_cell_id="B",                 # or target_cell="B"
         parameter="SLEEP_STATE",
         requested_value=1.0,
         current_value=0.0,
-        is_emergency=False,
+        timestamp_epoch_ms=1_700_000_000_000,
+        created_tick=42,                    # optional; derived from the timestamp if 0
         is_binary=True,
-        created_tick=42,
+        emergency_flag=False,               # or is_emergency=False
     )
 )
 
 # 2) One arbitration tick.
 result = orchestrator.on_tick(current_tick=42, timestamp_epoch_ms=1_700_000_000_000)
-# {
-#   "batch_tick": 42,
-#   "decisions_count": 3,
-#   "decisions": [ArbitrationDecision, ...],
-# }
+# {"batch_tick": 42, "decisions_count": 3, "decisions": [ArbitrationDecision, ...]}
 ```
 
-`on_tick` performs, in order: `queue.flush_batch(tick)` → detector
-`build(batch, adjacency)` → `GraphPartitioner.components(graph)` →
-parallel `DecisionLadderEngine.evaluate(...)` per component → `queue.hold(...)`
-for every DELAY → `engine.record_handover(...)` for every APPROVE/MODIFY.
+`on_tick` performs: `queue.flush_batch(tick)` → detector
+`build(batch, adjacency)` → `GraphPartitioner.components(graph)` → parallel
+`DecisionLadderEngine.evaluate(...)` per component → `queue.hold(...)` for every
+DELAY → `engine.record_handover(...)` for every APPROVE/MODIFY.
 
 Contract details the route must honour:
 
 * The ladder never raises: twin faults become `REJECT/TWIN_TIMEOUT`. An empty
   queue returns `decisions_count == 0` without calling the detector or the twin.
-* Decisions are returned as the actual `ArbitrationDecision` models (not
-  serialised); serialise with `d.model_dump(mode="json")` for the HTTP response.
+* Decisions are `ArbitrationDecision` models (the shared ones); serialise with
+  `d.model_dump(mode="json")`.
 * `orchestrator.latency_p95_ms()` exposes per-decision latency (NFR-1 < 100 ms);
-  `latency_samples()` and `reset_latency()` support the dashboard.
-* Emergency proposals produce a decision only in the bypass-lane audit:
-  `orchestrator.queue.emergency_lane.audit_count` /
-  `peek_audit()`; they never appear in `on_tick()["decisions"]`.
-* `current_tick` must advance monotonically per tick; `queue.flush_batch`
-  releases parked commands whose due tick has arrived.
+  `latency_samples()` / `reset_latency()` support the dashboard.
+* Emergency proposals produce only an audit record:
+  `orchestrator.queue.emergency_lane.audit_count` / `peek_audit()`; they never
+  appear in `on_tick()["decisions"]`.
+* `current_tick` must advance monotonically; `flush_batch` releases parked
+  commands when their due tick arrives.
 
 ---
 
-## 4. Model fields assumed in `contracts.py` vs `arbiter/shared/models.py`
-
-`arbiter/shared/models.py` has the same `ActionType`, `ConflictType` and
-`ReasonCode` members, and `ArbitrationDecision` is field-for-field identical.
-`CommandProposal` is not: it uses different names and omits six fields Branch 2
-needs, plus there is no `UtilityWeights`. That single mismatch is why
-`SHARED_CONTRACTS_AVAILABLE` is `False`.
+## 4. Models: `contracts.py` on top of `arbiter/shared/models.py`
 
 | Branch 2 (`arbiter/engine/contracts.py`) | `arbiter/shared/models.py` | Status |
 | --- | --- | --- |
-| `command_id: str` | `command_id: str` | match |
-| `controller: str` | `controller_id: str` | renamed |
-| — | `controller_type: ControllerType` | **missing in Branch 2** (see below) |
-| `target_cell: str` | `target_cell_id: str` | renamed |
-| `parameter: str` | `parameter: ParameterType` | str vs enum |
-| `requested_value: float` | `requested_value: float` | match |
-| `current_value: float` | — | **missing in shared** |
-| `is_emergency: bool` | `emergency_flag: bool` | renamed |
-| `is_binary: bool` | — | **missing in shared** |
-| `created_tick: int` | — (has `timestamp_epoch_ms`) | **missing in shared** |
-| `hold_count: int` | `hold_count: int` | match |
-| `handover_from: str \| None` | — | **missing in shared** |
-| `handover_to: str \| None` | — | **missing in shared** |
-| `must_decide: bool` | — | **missing in shared** |
-| `UtilityWeights(w1..w4, from_preset)` | — | **missing in shared** |
-| `ArbitrationDecision` (10 fields) | `ArbitrationDecision` (10 fields) | match |
+| `ActionType`, `ConflictType`, `ReasonCode` | same members | **imported verbatim** |
+| `ArbitrationDecision` (10 fields) | identical (10 fields) | **imported verbatim** |
+| `command_id` | `command_id` | inherited |
+| `controller` (property) / `controller_id` (field) | `controller_id` | inherited field, both spellings accepted |
+| `controller_type: ControllerType` | `controller_type: ControllerType` | inherited, required, unused by Branch 2 |
+| `target_cell` (property) / `target_cell_id` (field) | `target_cell_id` | inherited field, both spellings accepted |
+| `parameter: ParameterType` | `parameter: ParameterType` | inherited (closed enum, see below) |
+| `requested_value: float` | `requested_value: float` | inherited |
+| `timestamp_epoch_ms: int` | `timestamp_epoch_ms: int` | inherited, required |
+| `hold_count: int` | `hold_count: int` | inherited |
+| `is_emergency` (property) / `emergency_flag` (field) | `emergency_flag` | inherited field, both spellings accepted |
+| `current_value: float` | — | **Branch 2 extra** (needed by `direction()`) |
+| `is_binary: bool` | — | **Branch 2 extra** (skips MODIFY) |
+| `created_tick: int` | — | **Branch 2 extra** (`timestamp_epoch_ms // TICK_MS` when 0) |
+| `handover_from`, `handover_to` | — | **Branch 2 extra** (ping-pong detection) |
+| `must_decide: bool` | — | **Branch 2 extra** (starvation latch) |
+| `UtilityWeights(w1..w4, from_preset)` | — | **local to Branch 2** |
 
 Notes:
 
-* `controller_type` is not needed by the ladder: controller class is implied by
-  the parameter/behaviour rules in `arbiter/detector/classifier.py`. If shared
-  models become authoritative, either add `controller_type` to Branch 2 or derive
-  it at ingestion in Dev 4's route.
-* `parameter` is compared case-insensitively after `.strip().upper()`, so a
-  `ParameterType` enum (`str`-valued) is accepted by the classifier/ladder
-  without changes — but it would have to keep the same spellings
-  (`TX_POWER_DBM`, `TILT_DEG`, `SLEEP_STATE`, `OFFLOAD_RATIO`).
-* `created_tick` is required for the starvation guard and batch ordering; the
-  shared model's `timestamp_epoch_ms` is not a tick index. A route that only has
-  the timestamp must derive the tick (`timestamp // TICK_MS`).
-
-### Making adoption flip
-
-Add to `arbiter/shared/models.py` (owner of that file, not Branch 2):
-`current_value`, `is_binary`, `created_tick`, `handover_from`, `handover_to`,
-`must_decide`; rename `controller_id`→`controller`, `target_cell_id`→`target_cell`
-(or add aliases), `emergency_flag`→`is_emergency`; and add `UtilityWeights` with
-`w1..w4` and a `from_preset` classmethod. `_is_spec_compatible()` then passes,
-`SHARED_CONTRACTS_AVAILABLE` becomes `True`, and the local block plus its
-`TODO(INTEGRATION)` can be deleted — no other file changes.
+* `CommandProposal` is a superset: `model_dump()` produces a dict that validates
+  as `arbiter.shared.models.CommandProposal`, so a Branch 2 proposal can cross
+  the shared boundary unchanged.
+* `created_tick` is the arbitration clock. Instantiate with `created_tick` or let
+  the model derive it from `timestamp_epoch_ms // TICK_MS` (100 ms tick).
+* `parameter` is the shared `ParameterType` enum — a **closed set** of
+  `TX_POWER_DBM`, `TILT_DEG`, `SLEEP_STATE`, `OFFLOAD_RATIO`. The detector's rule
+  table also knows aliases (`TX_POWER`, `CELL_STATE`, `HANDOVER_SHARE`,
+  `LOAD_SHARE`, …), but they cannot be constructed through the shared enum. An
+  ingestion route that receives an alias must map it to the enum (or the shared
+  owner must widen `ParameterType`).
+* `controller_type` is required by the shared model and unused by the ladder: the
+  controller class is implied by the parameter/behaviour rules. Supply it at
+  ingestion.
+* If shared later adds `current_value`/`is_binary`/`created_tick`/handover
+  fields/`must_decide` or a `UtilityWeights`, drop the duplicate declarations
+  here — the subclass then only keeps the alias properties.
 
 ---
 
@@ -277,35 +241,37 @@ Add to `arbiter/shared/models.py` (owner of that file, not Branch 2):
 
 1. **Hold semantics.** A DELAY decision reports `hold_count = previous + 1`; the
    orchestrator then calls `ProposalQueue.hold(command, tick)`, which re-latches
-   the same counter (so the decision and the queue agree), parks the command for
-   `tick + 1`, and sets `must_decide` once the counter reaches
+   the same counter, parks the command for `tick + 1`, and sets `must_decide` at
    `MAX_HOLD_TICKS = 3`. After three holds the command must be APPROVEd or
-   REJECTed on the next tick — the ladder refuses a fourth DELAY and the queue
-   refuses to park it again (`is_holdable` returns `False` for exhausted ids and
-   for already parked ids). `queue.check_invariants()` enforces this and the 500
-   batch fuzz asserts it. Emergency commands are never holdable.
+   REJECTed on the next tick; the ladder refuses a fourth DELAY and the queue
+   refuses to park it again. `queue.check_invariants()` enforces this and the
+   500-batch fuzz asserts it. Emergency commands are never holdable.
 2. **Baseline evaluation accounting.** The "do nothing" baseline costs one of the
    six twin evaluations of the component and is shared by every command in it;
-   the joint APPROVE probe costs the second. A single-command component therefore
-   searches with at most four evaluations, and a two-command component with two
-   each (documented in `ladder.py`; `BASELINE_EVALUATIONS = 1` in `bisection.py`
-   records the cost). If Branch 3 exposes a cached baseline, the ladder can skip
-   that probe in `_evaluate` and gain one evaluation per component.
+   the joint APPROVE probe costs the second. A single-command component searches
+   with at most four evaluations, a two-command component with two each. If
+   Branch 3 exposes a cached baseline, `_evaluate` can skip that probe and gain
+   one evaluation per component (`BASELINE_EVALUATIONS = 1` in `bisection.py`
+   records the cost).
 3. **Hop radius.** `ConflictClassifier` defaults to `hop_radius = 2` (SRS Q17),
-   breadth-first over the adjacency map, so an INDIRECT clash exists for cells
-   1–2 hops apart. Branch 2 needs a symmetric adjacency map of direct neighbours
-   (or a `networkx.Graph`); with an empty map every command becomes its own
-   component and no conflict is ever detected. If the real topology has cells
-   further apart, raise the radius in the constructor rather than in the ladder.
+   breadth-first over the adjacency map. Branch 2 needs a symmetric adjacency map
+   of direct neighbours (or a `networkx.Graph`); with an empty map every command
+   becomes its own component and no conflict is ever detected. Branch 3's twin
+   uses its own `max_hops=2` neighbourhood, which matches.
 4. **Weights** default to `(0.3, 0.2, 0.2, 0.3)` (coverage, energy, interference,
-   drop) and are per-orchestrator, not per-command. Presets:
-   `default`, `night_energy_saver`, `coverage_first`.
-5. **Priority order inside a component.** Commands are ranked by standalone
-   `dU` only when the remaining budget can pay for one probe per command and four
+   drop), per orchestrator, not per command. Presets: `default`,
+   `night_energy_saver`, `coverage_first`.
+5. **Priority order inside a component.** Commands are ranked by standalone `dU`
+   only when the remaining budget can pay for one probe per command and four
    evaluations per search; otherwise the documented fallback is non-binary first,
    then `(created_tick, command_id)`. With the default budget of six the fallback
-   always applies, so ranking is dormant in production configuration.
+   always applies.
 6. **Uncertainty margin.** The ladder uses
    `max(UncertaintyGuard.default_margin, twin confidence_margin)`; the guard
-   defaults to `0.0`, so today only a margin reported by the twin can block an
-   approval. A non-zero default is a one-argument change on `DecisionLadderEngine`.
+   defaults to `0.0`, so only a margin reported by the twin can block an
+   approval. Branch 3 reports its calibrated margin, which therefore takes effect
+   automatically through the adapter.
+7. **Twin fail-safe is invisible to Branch 2.** `LKGReversionManager` returns a
+   last-known-good prediction instead of raising, and the adapter cannot tell it
+   apart from a fresh prediction; the ladder's own wall-clock guard still
+   applies, but a stale LKG response will be treated as current.

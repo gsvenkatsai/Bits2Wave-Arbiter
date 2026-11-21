@@ -382,8 +382,10 @@ def test_candidate_delta_payload() -> None:
     command = CommandProposal(
         command_id="c",
         controller="ctrl",
+        controller_type="COVERAGE_CAPACITY",
         target_cell="A",
-        parameter=" tx_power_dbm ",
+        timestamp_epoch_ms=0,
+        parameter="TX_POWER_DBM",
         current_value=30.0,
         requested_value=33.0,
         created_tick=0,

@@ -1,23 +1,39 @@
 """Single integration point for the Branch 2 contracts.
 
-Every Branch 2 module (queue, detector, engine) imports its shared types from
-this file only, so aligning with `arbiter.shared.models` is a one-file change.
+Branch 2 now sits directly on the real shared models from
+``arbiter.shared.models``:
 
-At import time the module tries to adopt `arbiter.shared.models`. A shared
-symbol is adopted only when the *whole* contract set is compatible with the
-Branch 2 spec shape (all required enums members, all required model fields);
-otherwise the spec-identical local definitions below are used. They are kept
-as an all-or-nothing set so enums referenced by the local models can never be
-mixed with shared ones.
+* ``ActionType``, ``ConflictType`` and ``ReasonCode`` are imported verbatim, so
+  a decision produced here is comparable with any other branch's decision;
+* ``ArbitrationDecision`` is imported verbatim (the Branch 2 spec shape and the
+  shared shape are field-for-field identical);
+* ``CommandProposal`` is a *superset* subclass of the shared model: it keeps the
+  shared field names/aliases and adds the six fields arbitration needs
+  (``current_value``, ``is_binary``, ``created_tick``, ``handover_from``,
+  ``handover_to``, ``must_decide``). Legacy Branch 2 attribute names
+  (``controller``, ``target_cell``, ``is_emergency``) are read-only properties
+  over the shared fields, so call sites do not care which name is authoritative.
+
+``UtilityWeights`` has no shared counterpart yet, so it stays local (see
+``INTEGRATION.md`` §4).
 
 The frozen spec constants also live here.
 """
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, List
+from typing import List
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+
+from arbiter.shared.models import (
+    ActionType,
+    ArbitrationDecision,
+    CommandProposal as SharedCommandProposal,
+    ConflictType,
+    ControllerType,
+    ParameterType,
+    ReasonCode,
+)
 
 __all__ = [
     # constants
@@ -28,16 +44,20 @@ __all__ = [
     "TWIN_TIMEOUT_MS",
     "TICK_MS",
     "MAX_TWIN_EVALS",
-    # enums
+    # enums (re-exported from arbiter.shared.models)
     "ActionType",
     "ConflictType",
+    "ControllerType",
+    "ParameterType",
     "ReasonCode",
     # models
     "ArbitrationDecision",
     "UtilityWeights",
     "CommandProposal",
+    "SharedCommandProposal",
     "WEIGHT_PRESETS",
     "SHARED_CONTRACTS_AVAILABLE",
+    "CONTRACTS_SOURCE",
     "contract_summary",
 ]
 
@@ -59,43 +79,92 @@ TICK_MS: int = 100
 #: Hard cap on twin evaluations for one MODIFY search (NFR-3).
 MAX_TWIN_EVALS: int = 6
 
+#: Contract source in effect; the shared models are the single source of truth.
+CONTRACTS_SOURCE: str = "arbiter.shared.models"
+SHARED_CONTRACTS_AVAILABLE: bool = True
+
+
 # ---------------------------------------------------------------------------
-# Local spec definitions (used when the shared contracts are unavailable or
-# incompatible). TODO(INTEGRATION): drop these once arbiter.shared.models
-# publishes the Branch 2 shapes.
+# Branch 2 proposal: the shared proposal plus the arbitration-only fields
 # ---------------------------------------------------------------------------
+class CommandProposal(SharedCommandProposal):
+    """A controller request to change one radio parameter of one cell.
+
+    The shared fields keep their shared names (``controller_id``,
+    ``target_cell_id``, ``emergency_flag``, ``parameter``, ``requested_value``,
+    ``timestamp_epoch_ms``, ``hold_count``) and also accept the Branch 2
+    spellings (``controller``, ``target_cell``, ``is_emergency``) as validation
+    aliases, so an ingestion route can use either vocabulary.
+
+    ``created_tick`` is the arbitration clock. When it is left at its default
+    and ``timestamp_epoch_ms`` is supplied, it is derived as
+    ``timestamp_epoch_ms // TICK_MS``.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    controller_id: str = Field(
+        ...,
+        validation_alias=AliasChoices("controller_id", "controller"),
+        description="Originating controller identifier",
+    )
+    target_cell_id: str = Field(
+        ...,
+        validation_alias=AliasChoices("target_cell_id", "target_cell"),
+        description="Cell the change applies to",
+    )
+    emergency_flag: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("emergency_flag", "is_emergency"),
+        description="Bypass arbitration; audited post-hoc",
+    )
+
+    current_value: float = Field(
+        default=0.0, description="Value currently in effect on the target"
+    )
+    is_binary: bool = Field(
+        default=False, description="Binary parameter (e.g. cell OFF) skips MODIFY"
+    )
+    created_tick: int = Field(
+        default=0, description="Arbitration tick the proposal was created"
+    )
+    handover_from: str | None = Field(
+        default=None, description="Source cell for a handover-style action"
+    )
+    handover_to: str | None = Field(
+        default=None, description="Destination cell for a handover-style action"
+    )
+    must_decide: bool = Field(
+        default=False,
+        description="Latched by the queue once the hold budget is exhausted",
+    )
+
+    @model_validator(mode="after")
+    def _derive_created_tick(self) -> "CommandProposal":
+        """Derive the tick index when only the shared timestamp is available."""
+        if self.created_tick == 0 and self.timestamp_epoch_ms > 0:
+            self.created_tick = int(self.timestamp_epoch_ms) // TICK_MS
+        return self
+
+    @property
+    def controller(self) -> str:
+        """Branch 2 alias for the shared ``controller_id``."""
+        return self.controller_id
+
+    @property
+    def target_cell(self) -> str:
+        """Branch 2 alias for the shared ``target_cell_id``."""
+        return self.target_cell_id
+
+    @property
+    def is_emergency(self) -> bool:
+        """Branch 2 alias for the shared ``emergency_flag``."""
+        return self.emergency_flag
 
 
-class ActionType(str, Enum):
-    """Decision-ladder rungs."""
-
-    APPROVE = "APPROVE"
-    MODIFY = "MODIFY"
-    DELAY = "DELAY"
-    REJECT = "REJECT"
-
-
-class ConflictType(str, Enum):
-    """Clash taxonomy carried by conflict-graph edges."""
-
-    DIRECT = "DIRECT"
-    INDIRECT = "INDIRECT"
-    IMPLICIT_PINGPONG = "IMPLICIT_PINGPONG"
-
-
-class ReasonCode(str, Enum):
-    """Audit rationale attached to every decision."""
-
-    NONE = "NONE"
-    ACTIVE_HO = "ACTIVE_HO"
-    HEADROOM = "HEADROOM"
-    CYCLIC_PINGPONG = "CYCLIC_PINGPONG"
-    TWIN_TIMEOUT = "TWIN_TIMEOUT"
-    UNCERTAINTY_GUARD = "UNCERTAINTY_GUARD"
-    FLOOR_BREACH = "FLOOR_BREACH"
-    EMERGENCY_OVERRIDE = "EMERGENCY_OVERRIDE"
-
-
+# ---------------------------------------------------------------------------
+# Weights (no shared counterpart yet)
+# ---------------------------------------------------------------------------
 #: Named weight presets: (w1 coverage, w2 energy, w3 interference, w4 drop).
 WEIGHT_PRESETS: dict[str, tuple[float, float, float, float]] = {
     "default": (0.3, 0.2, 0.2, 0.3),
@@ -144,158 +213,10 @@ class UtilityWeights(BaseModel):
         return cls(w1=w1, w2=w2, w3=w3, w4=w4)
 
 
-class CommandProposal(BaseModel):
-    """A controller's request to change one radio parameter of one cell."""
-
-    command_id: str = Field(..., description="Unique id for this proposal")
-    controller: str = Field(..., description="Originating controller identifier")
-    target_cell: str = Field(..., description="Cell the change applies to")
-    parameter: str = Field(..., description="Radio parameter to change")
-    requested_value: float = Field(..., description="Value the controller wants")
-    current_value: float = Field(..., description="Value currently in effect")
-    is_emergency: bool = Field(
-        default=False, description="Bypass arbitration; audited post-hoc"
-    )
-    is_binary: bool = Field(
-        default=False, description="Binary parameter (e.g. cell OFF) skips MODIFY"
-    )
-    created_tick: int = Field(..., description="Tick the proposal was created")
-    hold_count: int = Field(default=0, description="Ticks this command was delayed")
-    handover_from: str | None = Field(
-        default=None, description="Source cell for a handover-style action"
-    )
-    handover_to: str | None = Field(
-        default=None, description="Destination cell for a handover-style action"
-    )
-    must_decide: bool = Field(
-        default=False,
-        description="Latched by the queue once the hold budget is exhausted",
-    )
-
-
-class ArbitrationDecision(BaseModel):
-    """The referee's verdict for one command in one tick batch."""
-
-    decision_id: str = Field(..., description="Unique id for this decision")
-    command_id: str = Field(..., description="Reference to the CommandProposal")
-    batch_tick: int = Field(..., description="Simulation tick index")
-    action: ActionType = Field(..., description="APPROVE, MODIFY, DELAY or REJECT")
-    approved_value: float | None = Field(
-        default=None, description="Enforced parameter value (None if not applied)"
-    )
-    delta_utility: float = Field(..., description="Predicted joint utility change")
-    reason_code: ReasonCode = Field(..., description="Audit rationale")
-    hold_count: int = Field(default=0, description="Hold counter after the decision")
-    twin_eval_count: int = Field(
-        default=0, description="Twin evaluations consumed (<= MAX_TWIN_EVALS)"
-    )
-    decided_at_epoch_ms: int = Field(..., description="Decision timestamp (epoch ms)")
-
-
-# ---------------------------------------------------------------------------
-# Shared-contract adoption
-# ---------------------------------------------------------------------------
-CONTRACT_NAMES: tuple[str, ...] = (
-    "ActionType",
-    "ConflictType",
-    "ReasonCode",
-    "UtilityWeights",
-    "CommandProposal",
-    "ArbitrationDecision",
-)
-
-_REQUIRED_ENUM_MEMBERS: dict[str, frozenset[str]] = {
-    "ActionType": frozenset({"APPROVE", "MODIFY", "DELAY", "REJECT"}),
-    "ConflictType": frozenset({"DIRECT", "INDIRECT", "IMPLICIT_PINGPONG"}),
-    "ReasonCode": frozenset(
-        {
-            "NONE",
-            "ACTIVE_HO",
-            "HEADROOM",
-            "CYCLIC_PINGPONG",
-            "TWIN_TIMEOUT",
-            "UNCERTAINTY_GUARD",
-            "FLOOR_BREACH",
-            "EMERGENCY_OVERRIDE",
-        }
-    ),
-}
-
-_REQUIRED_MODEL_FIELDS: dict[str, frozenset[str]] = {
-    "CommandProposal": frozenset(
-        {
-            "command_id",
-            "controller",
-            "target_cell",
-            "parameter",
-            "requested_value",
-            "current_value",
-            "is_emergency",
-            "is_binary",
-            "created_tick",
-            "hold_count",
-            "handover_from",
-            "handover_to",
-            "must_decide",
-        }
-    ),
-    "ArbitrationDecision": frozenset(
-        {
-            "decision_id",
-            "command_id",
-            "batch_tick",
-            "action",
-            "approved_value",
-            "delta_utility",
-            "reason_code",
-            "hold_count",
-            "twin_eval_count",
-            "decided_at_epoch_ms",
-        }
-    ),
-    "UtilityWeights": frozenset({"w1", "w2", "w3", "w4"}),
-}
-
-SHARED_CONTRACTS_AVAILABLE: bool = False
-
-
-def _is_spec_compatible(shared: Any) -> bool:
-    """True when the shared module publishes every Branch 2 shape unchanged."""
-    for name, members in _REQUIRED_ENUM_MEMBERS.items():
-        candidate = getattr(shared, name, None)
-        if not (isinstance(candidate, type) and issubclass(candidate, Enum)):
-            return False
-        if not members <= {member.value for member in candidate}:
-            return False
-    for name, fields in _REQUIRED_MODEL_FIELDS.items():
-        candidate = getattr(shared, name, None)
-        if not (isinstance(candidate, type) and issubclass(candidate, BaseModel)):
-            return False
-        if not fields <= set(candidate.model_fields):
-            return False
-    return callable(getattr(getattr(shared, "UtilityWeights", None), "from_preset", None))
-
-
-def _adopt_shared_contracts() -> None:
-    """Rebind the module contracts to `arbiter.shared.models` when compatible."""
-    global SHARED_CONTRACTS_AVAILABLE
-    try:
-        from arbiter.shared import models as shared
-    except Exception:  # pragma: no cover - shared module always present today
-        return
-    if not _is_spec_compatible(shared):
-        return
-    for name in CONTRACT_NAMES:  # pragma: no cover - integration path only
-        globals()[name] = getattr(shared, name)
-    SHARED_CONTRACTS_AVAILABLE = True
-
-
-_adopt_shared_contracts()
-
-
 def contract_summary() -> dict[str, List[str]]:
     """Diagnostic helper proving which contract source is in use."""
     return {
+        "contracts_source": [CONTRACTS_SOURCE],
         "shared_available": [str(SHARED_CONTRACTS_AVAILABLE)],
         "actions": [action.value for action in ActionType],
         "conflicts": [conflict.value for conflict in ConflictType],
