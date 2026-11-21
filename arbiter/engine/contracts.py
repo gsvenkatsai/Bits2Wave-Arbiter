@@ -167,6 +167,10 @@ class CommandProposal(BaseModel):
     handover_to: str | None = Field(
         default=None, description="Destination cell for a handover-style action"
     )
+    must_decide: bool = Field(
+        default=False,
+        description="Latched by the queue once the hold budget is exhausted",
+    )
 
 
 class ArbitrationDecision(BaseModel):
@@ -232,6 +236,7 @@ _REQUIRED_MODEL_FIELDS: dict[str, frozenset[str]] = {
             "hold_count",
             "handover_from",
             "handover_to",
+            "must_decide",
         }
     ),
     "ArbitrationDecision": frozenset(
