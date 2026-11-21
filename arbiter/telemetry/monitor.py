@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from typing import Any
 import uuid
 from collections import deque
 from typing import Optional
@@ -214,7 +215,7 @@ class KPITelemetryMonitor:
         )
         return (total / len(self._mape_window)) * 100.0
 
-    def get_recent_events(self, limit: int = 50) -> list[dict]:
+    def get_recent_events(self, limit: int = 50) -> list[dict[str, Any]]:
         """
         Return the ``limit`` most-recent rows from event_stream,
         ordered by recorded_at_epoch_ms DESC (newest first).

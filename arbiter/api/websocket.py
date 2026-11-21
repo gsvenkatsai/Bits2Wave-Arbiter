@@ -13,7 +13,10 @@ Responsibility (confirmed by user):
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
+import json
+import os
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -108,14 +111,14 @@ def build_tick_update(
     Build a TICK_UPDATE message conforming to spec §4.2 pages 5-6.
     """
     if samples:
-        total_dropped: int    = sum(s.dropped_users for s in samples)
+        total_dropped: int = sum(s.dropped_users for s in samples)
         # energy_consumption_w (shared/models.py:69) → kW (÷ 1000)
         total_power_kw: float = sum(s.energy_consumption_w for s in samples) / 1000.0
-        mean_sinr: float      = sum(s.sinr_db for s in samples) / len(samples)
+        mean_sinr: float = sum(s.sinr_db for s in samples) / len(samples)
     else:
-        total_dropped  = 0
+        total_dropped = 0
         total_power_kw = 0.0
-        mean_sinr      = 0.0
+        mean_sinr = 0.0
 
     if timestamp_epoch_ms is not None:
         ts_str = format_simulated_time(timestamp_epoch_ms)
@@ -245,9 +248,144 @@ async def ws_live(websocket: WebSocket) -> None:
 # Public broadcast helper (called from routes.py after ingest)
 # ---------------------------------------------------------------------------
 
+_latest_frame: dict[str, Any] | None = None
+
+
+def set_latest_frame(frame: dict[str, Any]) -> None:
+    """Store the latest validated frame message."""
+    global _latest_frame
+    _latest_frame = frame
+
+
+def get_latest_frame() -> dict[str, Any]:
+    """
+    Return the latest broadcast frame or load initial frame from recorded replay.
+    Guarantees GET /api/v1/frame/latest returns a valid frame.
+    """
+    global _latest_frame
+    if _latest_frame is not None:
+        return _latest_frame
+
+    # Attempt to load tick 0 from recorded fixture
+    candidate_paths = [
+        os.path.abspath("fixtures/v3/frames_2am.jsonl"),
+        os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__), "..", "..", "fixtures", "v3", "frames_2am.jsonl"
+            )
+        ),
+    ]
+    for p in candidate_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    first_line = f.readline().strip()
+                    if first_line:
+                        _latest_frame = json.loads(first_line)
+                        return _latest_frame
+            except Exception:
+                pass
+
+    # Fallback to generating tick 0 frame from simulator engine
+    from arbiter.simulator.engine import SimulationEngine
+    from arbiter.telemetry.frame import build_frame_message
+
+    eng = SimulationEngine(auto_snapshot=False)
+    frame_msg = build_frame_message(engine=eng)
+    _latest_frame = frame_msg.model_dump()
+    return _latest_frame
+
+
 async def broadcast_tick_update(payload: dict[str, Any]) -> None:
     """
     Broadcast a prepared TICK_UPDATE payload to all connected WS clients.
     Called by routes.ingest_telemetry() after persisting.
     """
     await manager.broadcast(payload)
+
+
+async def broadcast_frame(frame: dict[str, Any]) -> None:
+    """
+    Broadcast a unified v3 'frame' message conforming to the frame message contract
+    to all active live WebSocket connections. Also updates the latest frame cache.
+    """
+    set_latest_frame(frame)
+    await manager.broadcast(frame)
+
+
+# ---------------------------------------------------------------------------
+# Replay WebSocket Endpoint (/ws/replay and /api/v1/ws/replay)
+# ---------------------------------------------------------------------------
+
+async def _stream_replay_file(
+    websocket: WebSocket,
+    file_path: str,
+    loop: bool,
+    speed: float,
+) -> None:
+    """Stream recorded jsonl frames to a client at 10 Hz (default 100 ms interval)."""
+    await websocket.accept()
+
+    resolved_path = file_path
+    if not os.path.isabs(resolved_path):
+        candidates = [
+            os.path.abspath(resolved_path),
+            os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..", resolved_path)
+            ),
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                resolved_path = c
+                break
+
+    if not os.path.exists(resolved_path):
+        await websocket.close(code=1008, reason=f"Recording file not found: {file_path}")
+        return
+
+    interval = 0.10 / max(0.01, speed)  # 10 Hz nominal
+
+    try:
+        while True:
+            with open(resolved_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    frame_data = json.loads(stripped)
+                    await websocket.send_json(frame_data)
+                    await asyncio.sleep(interval)
+
+            if not loop:
+                # After streaming all lines in order, keep connection open until client closes
+                while True:
+                    await websocket.receive_text()
+    except (WebSocketDisconnect, asyncio.CancelledError):
+        pass
+
+
+@router.websocket("/ws/replay")
+async def ws_replay_root(websocket: WebSocket) -> None:
+    """
+    Replay WebSocket endpoint: ws://localhost:8000/ws/replay
+    Streams frames from recorded replay file (fixtures/v3/frames_2am.jsonl) at 10 Hz.
+    Query params:
+      - file: path to .jsonl file (default: fixtures/v3/frames_2am.jsonl)
+      - loop: bool (default: false)
+      - speed: float multiplier (default: 1.0)
+    """
+    params = websocket.query_params
+    file_path = params.get("file", "fixtures/v3/frames_2am.jsonl")
+    loop = params.get("loop", "false").lower() in ("true", "1", "yes")
+    try:
+        speed = float(params.get("speed", "1.0"))
+    except ValueError:
+        speed = 1.0
+
+    await _stream_replay_file(websocket, file_path, loop, speed)
+
+
+@router.websocket("/api/v1/ws/replay")
+async def ws_replay_api(websocket: WebSocket) -> None:
+    """Replay WebSocket endpoint alias mounted at /api/v1/ws/replay."""
+    await ws_replay_root(websocket)

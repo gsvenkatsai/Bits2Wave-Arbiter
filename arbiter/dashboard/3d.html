@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARBITER • 3D RAN Visualizer</title>
+  <link rel="stylesheet" href="3d.css">
+</head>
+<body>
+
+  <!-- Top NOC Header Bar -->
+  <header class="noc-header">
+    <div class="brand-cluster">
+      <div class="brand-title">
+        <span class="logo">✦</span>
+        <span>ARBITER</span>
+        <span class="brand-tag">3D RAN VISUALIZER</span>
+      </div>
+      <a href="/dashboard" class="nav-link">← 2D NOC Monitor</a>
+    </div>
+
+    <!-- Center Interactive Controls -->
+    <div class="center-controls">
+      <select id="streamSource" class="ctrl-select" title="Telemetry Feed Mode">
+        <option value="replay">Recorded Replay (/ws/replay)</option>
+        <option value="live">Live WebSocket (/api/v1/ws/live)</option>
+        <option value="cf_split">Counterfactual Split Comparison</option>
+      </select>
+
+      <button id="btnPlayPause" class="ctrl-btn" title="Toggle Simulation Replay">
+        <span id="playIcon">⏸</span> Pause
+      </button>
+
+      <div class="timeline-cluster">
+        <span style="font-size: 11px; color: var(--text-muted);">TICK</span>
+        <input type="range" id="tickScrubber" class="scrub-slider" min="0" max="79" value="0">
+        <span id="tickDisplay" class="num" style="font-size: 12px; font-weight: 700; width: 28px;">0</span>
+      </div>
+
+      <select id="worldToggle" class="ctrl-select" title="Rollout Path">
+        <option value="arbiter">World: ARBITER</option>
+        <option value="counterfactual">World: COUNTERFACTUAL</option>
+      </select>
+    </div>
+
+    <!-- Status & Clock -->
+    <div class="header-status-cluster">
+      <span id="worldPill" class="world-pill arbiter">ARBITER</span>
+      <div id="connectionStatus" class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="connectionText">Replay</span>
+      </div>
+      <div id="clockDisplay" class="clock-display num">02:00:00.000</div>
+    </div>
+  </header>
+
+  <!-- Fullscreen 3D WebGL Canvas -->
+  <div id="glContainer">
+    <canvas id="glCanvas"></canvas>
+  </div>
+
+  <!-- Floating HUD: Left Panel (KPIs, Proposals, Decisions, Conflicts) -->
+  <aside class="hud-panel hud-panel-left">
+    <!-- Cluster KPIs -->
+    <div>
+      <div class="panel-header">Cluster KPIs</div>
+      <div class="kpi-mini-grid" style="margin-top: 8px;">
+        <div id="kpiBoxDrops" class="kpi-mini-box">
+          <div class="kpi-mini-label">Drops</div>
+          <div id="kpiDroppedUsers" class="kpi-mini-value num">0</div>
+        </div>
+        <div class="kpi-mini-box">
+          <div class="kpi-mini-label">Power (kW)</div>
+          <div id="kpiTotalPower" class="kpi-mini-value num">—</div>
+        </div>
+        <div class="kpi-mini-box">
+          <div class="kpi-mini-label">Mean SINR</div>
+          <div id="kpiMeanSinr" class="kpi-mini-value num">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ingress Proposals -->
+    <div>
+      <div class="panel-header">
+        <span>Ingress Proposals</span>
+        <span id="proposalCount" class="num" style="color: var(--accent-cyan);">0</span>
+      </div>
+      <div id="proposalsList" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="empty-state">No proposals on this tick</div>
+      </div>
+    </div>
+
+    <!-- Referee Decisions -->
+    <div>
+      <div class="panel-header">
+        <span>ARBITER Decisions</span>
+        <span id="decisionCount" class="num" style="color: var(--badge-green);">0</span>
+      </div>
+      <div id="decisionsList" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="empty-state">No decisions evaluated</div>
+      </div>
+    </div>
+
+    <!-- Conflict Graph Clashes -->
+    <div>
+      <div class="panel-header">
+        <span>Conflict Graph Edges</span>
+        <span id="conflictCount" class="num" style="color: #ec4899;">0</span>
+      </div>
+      <div id="conflictsList" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="empty-state">No conflict edges active</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Floating HUD: Right Panel (Cell Inspector, Plans, Twin Uncertainty) -->
+  <aside class="hud-panel hud-panel-right">
+    <!-- Cell Inspector -->
+    <div>
+      <div class="panel-header">
+        <span>Cell Inspector</span>
+        <span id="selectedCellId" class="num" style="color: var(--accent-cyan);">cell_A</span>
+      </div>
+      <div id="cellDetails" style="margin-top: 6px;">
+        <div class="item-row">
+          <span class="item-label">Position</span>
+          <span id="cellPos" class="item-val num">X: 0.0m, Y: 0.0m</span>
+        </div>
+        <div class="item-row">
+          <span class="item-label">Tx Power / Tilt</span>
+          <span id="cellPowerTilt" class="item-val num">43.0 dBm / 6.0°</span>
+        </div>
+        <div class="item-row">
+          <span class="item-label">Sleep State</span>
+          <span id="cellSleep" class="item-val">Active (AWAKE)</span>
+        </div>
+        <div class="item-row">
+          <span class="item-label">Load Ratio</span>
+          <span id="cellLoad" class="item-val num">0.00%</span>
+        </div>
+        <div class="item-row">
+          <span class="item-label">Active Users</span>
+          <span id="cellActiveUes" class="item-val num">0 UEs</span>
+        </div>
+        <div class="item-row">
+          <span class="item-label">Power Draw</span>
+          <span id="cellEnergyW" class="item-val num">0.0 W</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Multi-Tick Plans -->
+    <div>
+      <div class="panel-header">
+        <span>Sequential Plans</span>
+        <span id="planCount" class="num" style="color: var(--accent-blue);">0</span>
+      </div>
+      <div id="plansList" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="empty-state">No active sequential plans</div>
+      </div>
+    </div>
+
+    <!-- Digital Twin Uncertainty -->
+    <div>
+      <div class="panel-header">
+        <span>Twin Conformal Intervals</span>
+        <span id="twinStatusBadge" class="badge badge-approve">CALIBRATED</span>
+      </div>
+      <div id="twinIntervalsList" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="empty-state">Loading twin bounds...</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom Legend -->
+  <div class="hud-legend">
+    <div class="legend-item"><span class="legend-dot cell-active"></span> Active Cell</div>
+    <div class="legend-item"><span class="legend-dot cell-sleep"></span> Sleeping Cell</div>
+    <div class="legend-item"><span class="legend-dot ue-good"></span> UE Good (&gt;10dB)</div>
+    <div class="legend-item"><span class="legend-dot ue-fair"></span> UE Fair (0-10dB)</div>
+    <div class="legend-item"><span class="legend-dot ue-drop"></span> Dropped UE (&lt;-3dB)</div>
+    <div class="legend-item"><span class="legend-dot clash"></span> 3D Conflict Beam</div>
+  </div>
+
+  <!-- Local Vendored Three.js & OrbitControls (NO CDN RUNTIME) -->
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/OrbitControls.js"></script>
+  <script src="3d.js"></script>
+</body>
+</html>
