@@ -3,6 +3,7 @@
 SRS FR-5.1, FR-5.3, NFR-2.
 Evaluates candidate parameter deltas and predicts joint multi-cell KPIs
 with an ultra-fast target latency (< 10 ms, P95 < 8 ms).
+Supports v2 conformal safety intervals via predict_v2().
 """
 from __future__ import annotations
 
@@ -10,15 +11,20 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
+import numpy as np
+
 from arbiter.shared.constants import (
     MIN_COVERAGE_RATIO,
     MAX_DROP_RATE_RATIO,
 )
+from arbiter.shared.v2_contracts import TwinPredictionV2
 from arbiter.twin.analytical_model import (
     AnalyticalPropagationChain,
-    DEFAULT_COLD_START_CONFIDENCE_MARGIN,
+    DEFAULT_MAX_TX_POWER_WATTS,
+    DEFAULT_INTERFERENCE_SCALE_WATTS,
 )
 from arbiter.twin.calibration import OnlineTwinCalibrator
+from arbiter.twin.conformal import ConformalPredictor
 from arbiter.twin.fail_safe import LKGReversionManager
 from arbiter.twin.schemas import (
     CandidateDelta,
@@ -31,7 +37,7 @@ from arbiter.twin.schemas import (
 
 
 class DigitalTwinEvaluator:
-    """Predictive evaluation engine using closed-form analytical radio propagation (FR-5.1)."""
+    """Predictive evaluation engine using closed-form analytical models."""
 
     def __init__(
         self,
@@ -39,11 +45,21 @@ class DigitalTwinEvaluator:
         calibrator: Optional[OnlineTwinCalibrator] = None,
         fail_safe_manager: Optional[LKGReversionManager] = None,
         propagation_chain: Optional[AnalyticalPropagationChain] = None,
+        conformal_predictor: Optional[ConformalPredictor] = None,
     ) -> None:
         self.state_provider: NetworkStateProvider = state_provider
-        self.calibrator: OnlineTwinCalibrator = calibrator or OnlineTwinCalibrator()
-        self.fail_safe_manager: LKGReversionManager = fail_safe_manager or LKGReversionManager()
-        self.propagation_chain: AnalyticalPropagationChain = propagation_chain or AnalyticalPropagationChain()
+        self.calibrator: OnlineTwinCalibrator = (
+            calibrator or OnlineTwinCalibrator()
+        )
+        self.fail_safe_manager: LKGReversionManager = (
+            fail_safe_manager or LKGReversionManager()
+        )
+        self.propagation_chain: AnalyticalPropagationChain = (
+            propagation_chain or AnalyticalPropagationChain()
+        )
+        self.conformal_predictor: ConformalPredictor = (
+            conformal_predictor or ConformalPredictor()
+        )
 
     def predict(
         self,
@@ -51,9 +67,9 @@ class DigitalTwinEvaluator:
         timeout_budget_ms: Optional[float] = None,
         evaluation_id: Optional[str] = None,
     ) -> TwinEvaluationResponse:
-        """Predict joint multi-cell KPIs for candidate deltas over 1-2 hop neighborhood (FR-5.1, FR-5.3).
+        """Predict joint multi-cell KPIs for candidate deltas (v1 interface).
 
-        Executes within timeout budget; reverts to LKG fail-safe if exceeded (NFR-10).
+        Executes within timeout budget; reverts to LKG fail-safe if exceeded.
         """
         eval_id = evaluation_id or f"eval-{uuid.uuid4().hex[:8]}"
         snapshot = self.state_provider.get_snapshot()
@@ -65,10 +81,16 @@ class DigitalTwinEvaluator:
 
         confidence_margin = self.calibrator.get_confidence_margin()
 
-        # Fast-path: execute analytical chain directly if no delay hook and budget > 50ms
-        if self.fail_safe_manager.injected_delay_ms == 0.0 and (timeout_budget_ms is None or timeout_budget_ms >= 50.0):
+        # Fast-path: execute analytical chain directly if no delay hook
+        can_fast_path = (
+            self.fail_safe_manager.injected_delay_ms == 0.0 and
+            (timeout_budget_ms is None or timeout_budget_ms >= 50.0)
+        )
+        if can_fast_path:
             start = time.perf_counter()
-            predicted_kpis = self.propagation_chain.evaluate_deltas(snapshot, candidate_deltas)
+            predicted_kpis = self.propagation_chain.evaluate_deltas(
+                snapshot, candidate_deltas
+            )
             elapsed_ms = (time.perf_counter() - start) * 1000.0
 
             safety_floors_satisfied = (
@@ -86,7 +108,9 @@ class DigitalTwinEvaluator:
 
         # Threaded guard path for timeout enforcement and delay injection
         def eval_task() -> PredictedKPIs:
-            return self.propagation_chain.evaluate_deltas(snapshot, candidate_deltas)
+            return self.propagation_chain.evaluate_deltas(
+                snapshot, candidate_deltas
+            )
 
         return self.fail_safe_manager.execute_with_guard(
             evaluation_id=eval_id,
@@ -94,6 +118,62 @@ class DigitalTwinEvaluator:
             affected_cells=affected_cells,
             timeout_budget_ms=timeout_budget_ms,
             confidence_margin=confidence_margin,
+        )
+
+    def predict_v2(
+        self,
+        candidate_deltas: List[CandidateDelta],
+        timeout_budget_ms: Optional[float] = None,
+        candidate_id: Optional[str] = None,
+        alpha: float = 0.1,
+        apply_drift: bool = True,
+    ) -> TwinPredictionV2:
+        """Predict calibrated conformal uncertainty intervals (v2 interface).
+
+        Returns TwinPredictionV2 carrying intervals with mean, lower, upper.
+        """
+        cand_id = candidate_id or f"cand-{uuid.uuid4().hex[:8]}"
+        snapshot = self.state_provider.get_snapshot()
+
+        # Run analytical propagation
+        predicted_kpis = self.propagation_chain.evaluate_deltas(
+            snapshot, candidate_deltas
+        )
+
+        # Compute multi-metric dictionary (core KPIs + normalized ratios)
+        total_ues = sum(
+            snapshot.ue_counts.get(c, 50)
+            for c in predicted_kpis.affected_cell_ids
+        )
+        dropped_users_val = float(predicted_kpis.drop_rate_ratio * total_ues)
+        n_affected = max(len(predicted_kpis.affected_cell_ids), 1)
+        max_power = n_affected * DEFAULT_MAX_TX_POWER_WATTS
+        energy_watts_val = float(
+            predicted_kpis.normalized_energy * max_power
+        )
+        linear_interf = (
+            predicted_kpis.normalized_interference *
+            DEFAULT_INTERFERENCE_SCALE_WATTS
+        )
+        safe_interf = max(linear_interf, 1e-15)
+        interf_dbm_val = float(10.0 * np.log10(safe_interf) + 30.0)
+
+        kpis_for_conformal: Dict[str, float] = {
+            "dropped_users": dropped_users_val,
+            "mean_sinr_db": predicted_kpis.predicted_sinr_avg_db,
+            "energy_w": energy_watts_val,
+            "interference_db": interf_dbm_val,
+            "coverage_ratio": predicted_kpis.coverage_ratio,
+            "drop_rate_ratio": predicted_kpis.drop_rate_ratio,
+            "normalized_energy": predicted_kpis.normalized_energy,
+            "normalized_interference": predicted_kpis.normalized_interference,
+        }
+
+        return self.conformal_predictor.predict_intervals(
+            predicted_kpis=kpis_for_conformal,
+            alpha=alpha,
+            candidate_id=cand_id,
+            apply_drift_flag=apply_drift,
         )
 
 
@@ -109,7 +189,6 @@ def set_global_evaluator(evaluator: DigitalTwinEvaluator) -> None:
 
 def get_global_evaluator() -> Optional[DigitalTwinEvaluator]:
     """Retrieve active global DigitalTwinEvaluator instance."""
-    global _global_evaluator
     return _global_evaluator
 
 
@@ -123,9 +202,6 @@ def handle_twin_evaluate(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     if evaluator is None:
         # Create minimal fallback state if no instance registered
-        import numpy as np
-        from arbiter.twin.schemas import ClusterSnapshot
-
         class FallbackProvider:
             def get_snapshot(self) -> ClusterSnapshot:
                 cell_ids = ["cell_A", "cell_B", "cell_C"]
@@ -137,13 +213,25 @@ def handle_twin_evaluate(payload: Dict[str, Any]) -> Dict[str, Any]:
                         [0.05, 0.0, 0.04],
                         [0.01, 0.04, 0.0],
                     ]),
-                    tx_power_dbm={"cell_A": 43.0, "cell_B": 43.0, "cell_C": 43.0},
-                    is_sleeping={"cell_A": False, "cell_B": False, "cell_C": False},
+                    tx_power_dbm={
+                        "cell_A": 43.0,
+                        "cell_B": 43.0,
+                        "cell_C": 43.0,
+                    },
+                    is_sleeping={
+                        "cell_A": False,
+                        "cell_B": False,
+                        "cell_C": False,
+                    },
                     signal_powers_w=np.array([1e-7, 1e-7, 1e-7]),
                     current_interference_w=np.array([2e-9, 2e-9, 2e-9]),
                     ue_counts={"cell_A": 50, "cell_B": 50, "cell_C": 50},
                     noise_floor_w=1e-13,
-                    neighbor_map={"cell_A": ["cell_B", "cell_C"], "cell_B": ["cell_A", "cell_C"], "cell_C": ["cell_A", "cell_B"]},
+                    neighbor_map={
+                        "cell_A": ["cell_B", "cell_C"],
+                        "cell_B": ["cell_A", "cell_C"],
+                        "cell_C": ["cell_A", "cell_B"],
+                    },
                 )
 
         evaluator = DigitalTwinEvaluator(state_provider=FallbackProvider())
