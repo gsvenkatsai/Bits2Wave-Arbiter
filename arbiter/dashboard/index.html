@@ -56,7 +56,9 @@
     </div>
 
     <div class="header-status-cluster">
-      <a href="/3d" class="btn-3d" style="text-decoration:none; display:inline-flex; align-items:center; padding: 4px 10px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4); border-radius: 4px; color: #60a5fa; font-size: 11px; font-weight: 600; cursor: pointer; margin-right: 8px;">3D View ↗</a>
+      <a id="btnToggle3D" href="/dashboard/3d" class="btn-switch-3d" title="Switch to 3D Digital Twin View [3D]">
+        <span>3D View</span> <span>&rarr;</span>
+      </a>
       <button id="btnInjectDrift" class="btn-drift" title="Drift Hook: widen intervals & toggle uncalibrated">Inject Twin Drift</button>
       <div id="connectionStatus" class="status-indicator status-disconnected">
         <span class="status-dot"></span>

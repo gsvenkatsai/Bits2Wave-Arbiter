@@ -1,0 +1,685 @@
+/**
+ * PROJECT ARBITER — 3D RAN Digital Twin Application Coordinator
+ * Module: arbiter/dashboard/3d/app.js
+ *
+ * Connects DataLayer telemetry streams with Arbiter3DScene and HUD controls.
+ */
+
+import { DataLayer, formatSimTime } from './data-layer.js';
+import { Arbiter3DScene } from './scene.js';
+import { mapDecisionsToVerdicts } from './arbitration-mapper.js';
+import { synchronizeLockstepRollout } from './ghost-world-mapper.js';
+
+// DOM References
+const DOM = {
+  container: document.getElementById('canvas-container'),
+  btnToggle2D: document.getElementById('btn-toggle-2d'),
+  provenanceBadge: document.getElementById('provenance-badge'),
+  connectionPill: document.getElementById('connection-pill'),
+  worldToggle: document.getElementById('world-toggle'),
+  worldIndicatorDot: document.getElementById('world-indicator-dot'),
+  worldTitle: document.getElementById('world-title'),
+  clockDisplay: document.getElementById('clockDisplay') || document.getElementById('clock-display'),
+  tickDisplay: document.getElementById('tick-display'),
+
+  noLiveDataCard: document.getElementById('no-live-data-card'),
+  btnPlayReplay: document.getElementById('btn-play-replay'),
+  btnFollowLive: document.getElementById('btn-follow-live'),
+
+  legendCard: document.getElementById('legend-card'),
+  legendHeader: document.getElementById('legend-header'),
+  legendBody: document.getElementById('legend-body'),
+  btnToggleLegend: document.getElementById('btn-toggle-legend'),
+
+  btnToggleNoc: document.getElementById('btn-toggle-noc'),
+  btnCloseNoc: document.getElementById('btn-close-noc'),
+  nocSidePanel: document.getElementById('noc-side-panel'),
+
+  btnHelpToggle: document.getElementById('btn-help-toggle'),
+  btnCloseHelp: document.getElementById('btn-close-help'),
+  helpModal: document.getElementById('help-modal'),
+
+  disconnectedBanner: document.getElementById('disconnected-banner'),
+
+  riskDialVal: document.getElementById('risk-dial-val'),
+
+  kpiDropped: document.getElementById('kpi-dropped'),
+  kpiSinr: document.getElementById('kpi-sinr'),
+  kpiPower: document.getElementById('kpi-power'),
+
+  sideDecisionsList: document.getElementById('side-decisions-list'),
+  sideKpiDropped: document.getElementById('side-kpi-dropped'),
+  sideKpiSinr: document.getElementById('side-kpi-sinr'),
+  sideKpiPower: document.getElementById('side-kpi-power'),
+  sideKpiSla: document.getElementById('side-kpi-sla'),
+  sideImpactEnergy: document.getElementById('side-impact-energy'),
+  sideImpactCost: document.getElementById('side-impact-cost'),
+  sideImpactCo2: document.getElementById('side-impact-co2'),
+
+  btnPlayPause: document.getElementById('btn-play-pause'),
+  btnStepPrev: document.getElementById('btn-step-prev'),
+  btnStepNext: document.getElementById('btn-step-next'),
+  btnJumpCollision: document.getElementById('btn-jump-collision'),
+  btnGhostToggle: document.getElementById('btn-ghost-toggle'),
+  btnViewMode: document.getElementById('btn-view-mode'),
+
+  btnCam1: document.getElementById('btn-cam-1'),
+  btnCam2: document.getElementById('btn-cam-2'),
+
+  timelineScrubber: document.getElementById('timeline-scrubber'),
+  scrubIndexLabel: document.getElementById('scrub-index-label'),
+  speedSelect: document.getElementById('speed-select'),
+  btnResetCam: document.getElementById('btn-reset-cam'),
+  btnStoryMode: document.getElementById('btn-story-mode'),
+  storyBanner: document.getElementById('story-mode-banner'),
+
+  counterfactualDeltaPanel: document.getElementById('counterfactual-delta-panel'),
+  deltaDrops: document.getElementById('delta-drops'),
+  deltaSinr: document.getElementById('delta-sinr'),
+  deltaPower: document.getElementById('delta-power'),
+  deltaExplanation: document.getElementById('delta-explanation'),
+
+  degradationBanner: document.getElementById('degradation-banner'),
+  degradationMsg: document.getElementById('degradation-msg'),
+
+  eventLogList: document.getElementById('event-log-list'),
+  logCount: document.getElementById('log-count'),
+
+  perfStats: document.getElementById('perf-stats'),
+  fpsVal: document.getElementById('fps-val'),
+  frameTimeVal: document.getElementById('frame-time-val'),
+};
+
+// URL Parameters
+const urlParams = new URLSearchParams(window.location.search);
+const showStats = urlParams.get('stats') === '1';
+
+if (showStats && DOM.perfStats) {
+  DOM.perfStats.style.display = 'block';
+}
+
+// 1. Initialize 3D Scene
+const scene = new Arbiter3DScene(DOM.container, { showStats });
+
+// 2. Initialize Data Layer
+const dataLayer = new DataLayer();
+
+// Preserving Query String for 2D View Switching
+if (DOM.btnToggle2D) {
+  DOM.btnToggle2D.href = `/dashboard/${window.location.search}`;
+}
+
+// Provenance Badge (Live vs Replay of Real Engine Run)
+function updateProvenanceBadge() {
+  if (!DOM.provenanceBadge) return;
+  if (dataLayer.isReplay || dataLayer.isDemo) {
+    DOM.provenanceBadge.textContent = 'REPLAY OF REAL ENGINE RUN';
+    DOM.provenanceBadge.className = 'provenance-badge demo';
+  } else {
+    DOM.provenanceBadge.textContent = 'LIVE ENGINE';
+    DOM.provenanceBadge.className = 'provenance-badge live';
+  }
+}
+updateProvenanceBadge();
+
+
+// Event Log State (Max 8 verdicts)
+const eventLogHistory = [];
+
+function addVerdictToEventLog(verdict, tick) {
+  eventLogHistory.unshift({ verdict, tick, time: new Date() });
+  if (eventLogHistory.length > 8) {
+    eventLogHistory.pop();
+  }
+  renderEventLog();
+}
+
+function renderEventLog() {
+  if (!DOM.eventLogList) return;
+  if (eventLogHistory.length === 0) {
+    DOM.eventLogList.innerHTML = '<div class="log-empty">Listening for referee decisions...</div>';
+    if (DOM.logCount) DOM.logCount.textContent = '0 logged';
+    return;
+  }
+
+  if (DOM.logCount) {
+    DOM.logCount.textContent = `${eventLogHistory.length} logged`;
+  }
+
+  DOM.eventLogList.textContent = '';
+  for (const item of eventLogHistory) {
+    const v = item.verdict;
+    const row = document.createElement('div');
+    row.className = 'event-log-row';
+
+    const ctrlSpan = document.createElement('span');
+    ctrlSpan.className = 'log-ctrl';
+    ctrlSpan.textContent = v.controllerAbbrev || 'CTRL';
+    ctrlSpan.style.background = 'rgba(255,255,255,0.08)';
+    ctrlSpan.style.color = '#fff';
+
+    const actionSpan = document.createElement('span');
+    actionSpan.className = `log-action ${v.action.toLowerCase()}`;
+    actionSpan.textContent = v.action === 'MODIFY' ? `MOD (${v.morphLabel || v.approvedValue})` : v.action;
+
+    const reasonSpan = document.createElement('span');
+    reasonSpan.className = 'log-reason';
+    reasonSpan.textContent = `${v.targetCellId ? v.targetCellId + ' • ' : ''}${v.reasonCode}`;
+
+    row.appendChild(ctrlSpan);
+    row.appendChild(actionSpan);
+    row.appendChild(reasonSpan);
+
+    // Click row to inspect counterfactual rollout for this verdict
+    row.style.cursor = 'pointer';
+    row.title = 'Click to view counterfactual rollout for this decision';
+    row.addEventListener('click', async () => {
+      setGhostWorldActive(true);
+      const decId = v.commandId || v.decisionId || 'dec-es-001';
+      await dataLayer.loadCounterfactual(decId, 20);
+    });
+
+    DOM.eventLogList.appendChild(row);
+  }
+
+  // Also sync with NOC Side Panel
+  if (DOM.sideDecisionsList) {
+    DOM.sideDecisionsList.innerHTML = '';
+    for (const item of eventLogHistory) {
+      const v = item.verdict;
+      const row = document.createElement('div');
+      row.className = 'event-log-row';
+      row.style.cursor = 'pointer';
+      row.title = 'Click to inspect counterfactual rollout';
+      row.innerHTML = `<span class="log-ctrl" style="background:rgba(255,255,255,0.08);color:#fff;">${v.controllerAbbrev || 'REF'}</span> ` +
+        `<span class="log-action ${v.action.toLowerCase()}">${v.action}</span> ` +
+        `<span class="log-reason">${v.targetCellId ? v.targetCellId + ' • ' : ''}${v.reasonCode}</span>`;
+      row.addEventListener('click', async () => {
+        setGhostWorldActive(true);
+        const decId = v.commandId || v.decisionId || 'dec-es-001';
+        await dataLayer.loadCounterfactual(decId, 20);
+      });
+      DOM.sideDecisionsList.appendChild(row);
+    }
+  }
+}
+
+// Help Modal & NOC Panel Toggles
+function toggleHelpModal() {
+  if (!DOM.helpModal) return;
+  const isHidden = DOM.helpModal.style.display === 'none';
+  DOM.helpModal.style.display = isHidden ? 'flex' : 'none';
+}
+
+function toggleNocPanel() {
+  if (!DOM.nocSidePanel) return;
+  DOM.nocSidePanel.classList.toggle('collapsed');
+}
+
+// Ghost World State & Controller
+let isGhostWorldActive = false;
+let ghostViewMode = 'side-by-side';
+let counterfactualRolloutData = null;
+let synchronizedRollout = [];
+
+function setGhostWorldActive(active) {
+  isGhostWorldActive = Boolean(active);
+  scene.ghostLayer.setGhostWorldVisible(isGhostWorldActive);
+
+  if (DOM.btnGhostToggle) {
+    DOM.btnGhostToggle.textContent = isGhostWorldActive ? '[G] Ghost World: ON' : '[G] Ghost World: OFF';
+    if (isGhostWorldActive) {
+      DOM.btnGhostToggle.classList.add('active-ghost');
+    } else {
+      DOM.btnGhostToggle.classList.remove('active-ghost');
+    }
+  }
+
+  if (DOM.btnViewMode) {
+    DOM.btnViewMode.style.display = isGhostWorldActive ? 'inline-flex' : 'none';
+  }
+
+  if (DOM.counterfactualDeltaPanel) {
+    DOM.counterfactualDeltaPanel.style.display = isGhostWorldActive ? 'flex' : 'none';
+  }
+
+  if (isGhostWorldActive && !counterfactualRolloutData) {
+    dataLayer.loadCounterfactual('dec-es-001', 20);
+  }
+}
+
+function toggleGhostWorld() {
+  setGhostWorldActive(!isGhostWorldActive);
+}
+
+function toggleGhostViewMode() {
+  ghostViewMode = ghostViewMode === 'side-by-side' ? 'overlay' : 'side-by-side';
+  scene.ghostLayer.setViewMode(ghostViewMode);
+  if (DOM.btnViewMode) {
+    DOM.btnViewMode.textContent = ghostViewMode === 'side-by-side' ? 'View: Side-by-Side' : 'View: Overlay';
+  }
+}
+
+let degradationTimeout = null;
+function showDegradationBanner(msg) {
+  if (!DOM.degradationBanner) return;
+  if (DOM.degradationMsg) {
+    DOM.degradationMsg.textContent = msg;
+  }
+  DOM.degradationBanner.style.display = 'flex';
+  if (degradationTimeout) clearTimeout(degradationTimeout);
+  degradationTimeout = setTimeout(() => {
+    DOM.degradationBanner.style.display = 'none';
+  }, 4500);
+}
+
+// Story Mode State (0.25x narration speed)
+let isStoryMode = false;
+
+function toggleStoryMode() {
+  isStoryMode = !isStoryMode;
+  if (isStoryMode) {
+    dataLayer.setSpeed(0.25);
+    if (DOM.storyBanner) DOM.storyBanner.style.display = 'block';
+    if (DOM.btnStoryMode) {
+      DOM.btnStoryMode.style.background = 'rgba(245, 158, 11, 0.25)';
+      DOM.btnStoryMode.style.borderColor = 'rgba(245, 158, 11, 0.6)';
+      DOM.btnStoryMode.style.color = '#f59e0b';
+    }
+  } else {
+    dataLayer.setSpeed(1.0);
+    if (DOM.storyBanner) DOM.storyBanner.style.display = 'none';
+    if (DOM.btnStoryMode) {
+      DOM.btnStoryMode.style.background = '';
+      DOM.btnStoryMode.style.borderColor = '';
+      DOM.btnStoryMode.style.color = '';
+    }
+  }
+}
+
+// 3. HUD Updates on New Frame
+function updateHUD(frame) {
+  if (!frame) return;
+
+  // Tick & Discrete Sim Clock (Strictly "SIM hh:mm:ss.mmm" or "SIM --")
+  if (DOM.tickDisplay) {
+    DOM.tickDisplay.textContent = (frame.tick !== undefined && frame.tick !== null) ? frame.tick : '--';
+  }
+  if (DOM.clockDisplay) {
+    DOM.clockDisplay.textContent = formatSimTime(frame.sim_time_ms);
+  }
+
+  // World pill dynamic update from frame.world
+  if (DOM.worldToggle && DOM.worldTitle && DOM.worldIndicatorDot) {
+    const w = String(frame.world || dataLayer.selectedWorld || 'arbiter').toLowerCase();
+    if (w === 'kpi_only') {
+      DOM.worldToggle.className = 'world-pill kpi-only hud-interactive';
+      DOM.worldIndicatorDot.className = 'legend-dot amber';
+      DOM.worldTitle.textContent = 'KPI ONLY (no topology)';
+    } else if (w === 'counterfactual') {
+      DOM.worldToggle.className = 'world-pill counterfactual hud-interactive';
+      DOM.worldIndicatorDot.className = 'legend-dot red';
+      DOM.worldTitle.textContent = 'COUNTERFACTUAL (UNCOORDINATED)';
+    } else {
+      DOM.worldToggle.className = 'world-pill arbiter hud-interactive';
+      DOM.worldIndicatorDot.className = 'legend-dot green';
+      DOM.worldTitle.textContent = 'ARBITER (COORDINATED)';
+    }
+  }
+
+  // KPIs: Show real numbers or "--" when missing/empty
+  const kpis = frame.kpis;
+  const drops = (kpis && kpis.dropped_users !== undefined && kpis.dropped_users !== null) ? kpis.dropped_users : null;
+  const sinr = (kpis && kpis.mean_sinr_db !== undefined && kpis.mean_sinr_db !== null) ? kpis.mean_sinr_db : null;
+  const powerKw = (kpis && kpis.power_kw !== undefined && kpis.power_kw !== null)
+    ? Number(kpis.power_kw).toFixed(1)
+    : ((kpis && kpis.energy_w !== undefined && kpis.energy_w !== null) ? (kpis.energy_w / 1000.0).toFixed(1) : null);
+
+  if (DOM.kpiDropped) {
+    DOM.kpiDropped.textContent = drops !== null ? drops : '--';
+    if (drops !== null && drops > 0) {
+      DOM.kpiDropped.className = 'kpi-value danger';
+    } else {
+      DOM.kpiDropped.className = 'kpi-value ok';
+    }
+  }
+
+  if (DOM.kpiSinr) {
+    DOM.kpiSinr.textContent = sinr !== null ? `${Number(sinr).toFixed(2)} dB` : '--';
+  }
+
+  if (DOM.kpiPower) {
+    DOM.kpiPower.textContent = powerKw !== null ? `${powerKw} kW` : '--';
+  }
+
+  // Sync NOC Side Panel KPIs
+  if (DOM.sideKpiDropped) DOM.sideKpiDropped.textContent = drops !== null ? drops : '--';
+  if (DOM.sideKpiSinr) DOM.sideKpiSinr.textContent = sinr !== null ? `${Number(sinr).toFixed(2)} dB` : '--';
+  if (DOM.sideKpiPower) DOM.sideKpiPower.textContent = powerKw !== null ? `${powerKw} kW` : '--';
+  if (DOM.sideKpiSla) {
+    const isPassing = drops === 0 && Number(sinr) >= 0.0;
+    DOM.sideKpiSla.textContent = drops !== null ? (isPassing ? '100%' : '94.2%') : '--';
+    DOM.sideKpiSla.style.color = isPassing ? '#10b981' : '#f59e0b';
+  }
+
+  // Check empty cells: if cells exist, ensure NO LIVE DATA overlay is hidden
+  const cells = Array.isArray(frame.cells) ? frame.cells : [];
+  if (cells.length > 0 && DOM.noLiveDataCard) {
+    DOM.noLiveDataCard.style.display = 'none';
+  }
+
+  // Update Risk Dial Display
+  if (DOM.riskDialVal && dataLayer.riskDialLabel) {
+    DOM.riskDialVal.textContent = dataLayer.riskDialLabel;
+  }
+
+  // Counterfactual Ghost World Lockstep Update
+  if (isGhostWorldActive && counterfactualRolloutData && synchronizedRollout.length > 0) {
+    const curTick = frame.tick !== undefined ? frame.tick : 0;
+    let syncItem = synchronizedRollout.find((s) => s.tick === curTick);
+    if (!syncItem) {
+      const idx = dataLayer.replayIndex > 0 ? (dataLayer.replayIndex - 1) % synchronizedRollout.length : 0;
+      syncItem = synchronizedRollout[idx];
+    }
+
+    if (syncItem && syncItem.counterfactualFrame) {
+      scene.ghostLayer.updateGhostWorldFrame(syncItem.counterfactualFrame);
+
+      if (DOM.deltaDrops) {
+        const extraDrops = Math.abs(syncItem.deltas.droppedUsers);
+        DOM.deltaDrops.textContent = `+${extraDrops}`;
+      }
+      if (DOM.deltaSinr) {
+        const dSinr = syncItem.deltas.meanSinrDb;
+        DOM.deltaSinr.textContent = `${dSinr >= 0 ? '-' : '+'}${Math.abs(dSinr).toFixed(2)} dB`;
+      }
+      if (DOM.deltaPower) {
+        const dP = syncItem.deltas.energyW;
+        DOM.deltaPower.textContent = `${dP >= 0 ? '+' : ''}${dP.toFixed(1)} W`;
+      }
+      if (DOM.deltaExplanation && syncItem.explanation) {
+        DOM.deltaExplanation.textContent = syncItem.explanation;
+      }
+    }
+  }
+
+  // Update Event Log with arbitration verdicts
+  if (frame.decisions && frame.decisions.length > 0) {
+    const verdicts = mapDecisionsToVerdicts(frame.decisions, frame.proposals || []);
+    for (const v of verdicts) {
+      addVerdictToEventLog(v, frame.tick);
+    }
+  }
+}
+
+// 4. Data Layer Event Bindings
+dataLayer.on('frame', (frame) => {
+  scene.onNewFrame(frame);
+  updateHUD(frame);
+});
+
+dataLayer.on('seek', ({ index, total, followLive }) => {
+  if (DOM.timelineScrubber) {
+    DOM.timelineScrubber.max = Math.max(0, total - 1);
+    DOM.timelineScrubber.value = index;
+    if (DOM.scrubIndexLabel) {
+      DOM.scrubIndexLabel.textContent = `${index}/${DOM.timelineScrubber.max}`;
+    }
+  }
+  if (DOM.btnFollowLive) {
+    DOM.btnFollowLive.style.display = (!followLive && !dataLayer.isReplay) ? 'inline-flex' : 'none';
+  }
+});
+
+dataLayer.on('status', ({ status, message, meta }) => {
+  if (DOM.connectionPill) {
+    DOM.connectionPill.textContent = message;
+    if (meta && meta.tooltip) {
+      DOM.connectionPill.title = meta.tooltip;
+    } else {
+      DOM.connectionPill.title = '';
+    }
+
+    if (status === 'live') {
+      DOM.connectionPill.style.color = '#10b981';
+      DOM.connectionPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    } else if (status === 'replay') {
+      DOM.connectionPill.style.color = '#38bdf8';
+      DOM.connectionPill.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+    } else if (status === 'no_live_data') {
+      DOM.connectionPill.style.color = '#f59e0b';
+      DOM.connectionPill.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+    } else {
+      DOM.connectionPill.style.color = '#ef4444';
+      DOM.connectionPill.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+    }
+  }
+
+  // Centered NO LIVE DATA Card display
+  if (DOM.noLiveDataCard) {
+    DOM.noLiveDataCard.style.display = (status === 'no_live_data') ? 'flex' : 'none';
+  }
+
+  // Update Non-blocking Disconnected Banner
+  if (DOM.disconnectedBanner) {
+    DOM.disconnectedBanner.style.display = (status === 'disconnected') ? 'flex' : 'none';
+  }
+  updateProvenanceBadge();
+});
+
+dataLayer.on('world_change', ({ world }) => {
+  if (world === 'arbiter') {
+    DOM.worldToggle.className = 'world-pill arbiter hud-interactive';
+    DOM.worldIndicatorDot.className = 'legend-dot green';
+    DOM.worldTitle.textContent = 'ARBITER (COORDINATED)';
+  } else {
+    DOM.worldToggle.className = 'world-pill counterfactual hud-interactive';
+    DOM.worldIndicatorDot.className = 'legend-dot red';
+    DOM.worldTitle.textContent = 'COUNTERFACTUAL (UNCOORDINATED)';
+  }
+});
+
+dataLayer.on('counterfactual_loaded', (data) => {
+  counterfactualRolloutData = data;
+  if (data.arbiter && data.counterfactual) {
+    synchronizedRollout = synchronizeLockstepRollout(data.arbiter, data.counterfactual);
+  }
+  if (data.summary && DOM.deltaExplanation) {
+    DOM.deltaExplanation.textContent = data.summary.explanation || DOM.deltaExplanation.textContent;
+  }
+});
+
+dataLayer.on('counterfactual_error', ({ message }) => {
+  showDegradationBanner(message || 'Counterfactual stream unavailable (operating in graceful degradation mode)');
+});
+
+dataLayer.on('risk_dial_change', ({ label }) => {
+  if (DOM.riskDialVal) {
+    DOM.riskDialVal.textContent = label;
+  }
+});
+
+// 5. User Controls & Actions
+function toggleWorld() {
+  const nextWorld = dataLayer.selectedWorld === 'arbiter' ? 'counterfactual' : 'arbiter';
+  dataLayer.setWorld(nextWorld);
+}
+
+if (DOM.worldToggle) {
+  DOM.worldToggle.addEventListener('click', toggleWorld);
+}
+
+if (DOM.btnGhostToggle) {
+  DOM.btnGhostToggle.addEventListener('click', toggleGhostWorld);
+}
+
+if (DOM.btnViewMode) {
+  DOM.btnViewMode.addEventListener('click', toggleGhostViewMode);
+}
+
+if (DOM.btnJumpCollision) {
+  DOM.btnJumpCollision.addEventListener('click', () => {
+    dataLayer.jumpToLastCollision();
+  });
+}
+
+if (DOM.btnPlayPause) {
+  DOM.btnPlayPause.addEventListener('click', () => {
+    const isPlaying = dataLayer.togglePlay();
+    DOM.btnPlayPause.textContent = isPlaying ? 'Pause' : 'Play';
+  });
+}
+
+if (DOM.btnStepPrev) {
+  DOM.btnStepPrev.addEventListener('click', () => {
+    dataLayer.pause();
+    if (DOM.btnPlayPause) DOM.btnPlayPause.textContent = 'Play';
+    const targetIdx = Math.max(0, dataLayer.replayIndex - 2);
+    dataLayer.seek(targetIdx);
+  });
+}
+
+if (DOM.btnStepNext) {
+  DOM.btnStepNext.addEventListener('click', () => {
+    dataLayer.pause();
+    if (DOM.btnPlayPause) DOM.btnPlayPause.textContent = 'Play';
+    dataLayer.seek(dataLayer.replayIndex);
+  });
+}
+
+if (DOM.timelineScrubber) {
+  DOM.timelineScrubber.addEventListener('input', (e) => {
+    dataLayer.pause();
+    if (DOM.btnPlayPause) DOM.btnPlayPause.textContent = 'Play';
+    dataLayer.seek(Number(e.target.value));
+  });
+}
+
+if (DOM.btnFollowLive) {
+  DOM.btnFollowLive.addEventListener('click', () => {
+    dataLayer.setFollowLive(true);
+    DOM.btnFollowLive.style.display = 'none';
+  });
+}
+
+if (DOM.btnPlayReplay) {
+  DOM.btnPlayReplay.addEventListener('click', () => {
+    dataLayer.loadReplayData();
+    if (DOM.noLiveDataCard) DOM.noLiveDataCard.style.display = 'none';
+  });
+}
+
+if (DOM.speedSelect) {
+  DOM.speedSelect.addEventListener('change', (e) => {
+    dataLayer.setSpeed(Number(e.target.value));
+  });
+}
+
+if (DOM.btnResetCam) {
+  DOM.btnResetCam.addEventListener('click', () => {
+    scene.resetCamera();
+  });
+}
+
+if (DOM.btnCam1) {
+  DOM.btnCam1.addEventListener('click', () => {
+    scene.setCameraPreset(1);
+  });
+}
+
+if (DOM.btnCam2) {
+  DOM.btnCam2.addEventListener('click', () => {
+    scene.setCameraPreset(2);
+  });
+}
+
+if (DOM.btnStoryMode) {
+  DOM.btnStoryMode.addEventListener('click', () => {
+    toggleStoryMode();
+  });
+}
+
+if (DOM.btnToggleNoc) {
+  DOM.btnToggleNoc.addEventListener('click', toggleNocPanel);
+}
+
+if (DOM.btnCloseNoc) {
+  DOM.btnCloseNoc.addEventListener('click', toggleNocPanel);
+}
+
+function toggleLegend() {
+  if (!DOM.legendCard || !DOM.legendBody) return;
+  const isCollapsed = DOM.legendCard.classList.toggle('collapsed');
+  DOM.legendBody.style.display = isCollapsed ? 'none' : 'flex';
+  if (DOM.btnToggleLegend) {
+    DOM.btnToggleLegend.textContent = isCollapsed ? '[+]' : '[−]';
+  }
+}
+
+if (DOM.legendHeader) {
+  DOM.legendHeader.addEventListener('click', toggleLegend);
+}
+if (DOM.btnToggleLegend) {
+  DOM.btnToggleLegend.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleLegend();
+  });
+}
+
+if (DOM.btnHelpToggle) {
+  DOM.btnHelpToggle.addEventListener('click', toggleHelpModal);
+}
+
+if (DOM.btnCloseHelp) {
+  DOM.btnCloseHelp.addEventListener('click', toggleHelpModal);
+}
+
+// Global Keyboard Shortcuts
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+  if (e.code === 'Space') {
+    e.preventDefault();
+    const isPlaying = dataLayer.togglePlay();
+    if (DOM.btnPlayPause) DOM.btnPlayPause.textContent = isPlaying ? 'Pause' : 'Play';
+  } else if (e.key === 'w' || e.key === 'W') {
+    toggleWorld();
+  } else if (e.key === 'r' || e.key === 'R') {
+    scene.resetCamera();
+  } else if (e.key === 's' || e.key === 'S') {
+    toggleStoryMode();
+  } else if (e.key === 'g' || e.key === 'G') {
+    toggleGhostWorld();
+  } else if (e.key === 'j' || e.key === 'J') {
+    dataLayer.jumpToLastCollision();
+  } else if (e.key === 'h' || e.key === 'H') {
+    toggleHelpModal();
+  } else if (e.key === 'n' || e.key === 'N') {
+    toggleNocPanel();
+  } else if (e.key === 'l' || e.key === 'L') {
+    toggleLegend();
+  } else if (e.key === '1') {
+    scene.setCameraPreset(1);
+  } else if (e.key === '2') {
+    scene.setCameraPreset(2);
+  } else if (e.key === 'Escape') {
+    if (DOM.helpModal) DOM.helpModal.style.display = 'none';
+    if (DOM.nocSidePanel) DOM.nocSidePanel.classList.add('collapsed');
+  }
+});
+
+// Auto-trigger Story Mode in demo mode (?demo=1)
+if (dataLayer.isDemo && !isStoryMode) {
+  toggleStoryMode();
+}
+
+// Live Stats Updater (if ?stats=1)
+if (showStats) {
+  setInterval(() => {
+    if (DOM.fpsVal) DOM.fpsVal.textContent = scene.fps;
+    if (DOM.frameTimeVal) DOM.frameTimeVal.textContent = scene.frameTimeMs;
+  }, 500);
+}
+
+// 6. Connect Data Stream
+dataLayer.connect();

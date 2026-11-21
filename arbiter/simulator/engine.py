@@ -404,22 +404,205 @@ class SimulationEngine:
         forked.offload_overrides = dict(self.offload_overrides)
         return forked
 
+    def frame(
+        self,
+        world: str = "arbiter",
+        tick: Optional[int] = None,
+        sim_time_ms: Optional[int] = None,
+        proposals: Optional[Sequence[Any]] = None,
+        decisions: Optional[Sequence[Any]] = None,
+        conflicts: Optional[Sequence[Any]] = None,
+        plans: Optional[Sequence[Any]] = None,
+        twin: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Produce a complete discrete frame conforming to the 3D contract."""
+        frame_tick = self.tick if tick is None else tick
+        frame_time = (
+            self.simulated_epoch_ms if sim_time_ms is None else sim_time_ms
+        )
+        active_users = self.traffic_model.get_active_users(frame_tick)
+        loads = self.get_cell_loads()
+
+        cells_payload: List[Dict[str, Any]] = []
+        for cid, cell in self.cells.items():
+            attached_count = sum(
+                1 for u in active_users if u.attached_cell_id == cid
+            )
+            cells_payload.append({
+                "id": cid,
+                "x": round(float(cell.config.x_coord), 2),
+                "y": round(float(cell.config.y_coord), 2),
+                "tx_power_dbm": round(float(cell.current_tx_power_dbm), 2),
+                "tilt_deg": round(
+                    float(getattr(cell.config, "antenna_tilt_deg", 6.0)), 2
+                ),
+                "is_sleeping": bool(cell.is_sleeping),
+                "active_users": attached_count,
+                "load_ratio": round(float(loads.get(cid, 0.0)), 4),
+                "energy_w": round(float(cell.energy_consumption_w()), 2),
+            })
+
+        users_payload: List[Dict[str, Any]] = []
+        for u in active_users:
+            users_payload.append({
+                "id": str(u.ue_id),
+                "x": round(float(u.x_coord), 2),
+                "y": round(float(u.y_coord), 2),
+                "cell": str(u.attached_cell_id),
+                "sinr_db": round(float(u.sinr_db), 2),
+                "dropped": bool(u.is_dropped),
+            })
+
+        total_dropped = sum(1 for u in active_users if u.is_dropped)
+        mean_sinr = (
+            float(np.mean([u.sinr_db for u in active_users]))
+            if active_users else 0.0
+        )
+        total_energy_w = sum(
+            c.energy_consumption_w() for c in self.cells.values()
+        )
+
+        formatted_proposals: List[Dict[str, Any]] = []
+        if proposals:
+            for p in proposals:
+                if isinstance(p, dict):
+                    cmd_id = p.get("command_id", "")
+                    ctrl = (
+                        p.get("controller_type")
+                        or p.get("controller_id")
+                        or "ES"
+                    )
+                    tgt = p.get("target_cell_id", "")
+                    param = p.get("parameter", "")
+                    req_val = p.get("requested_value", 0.0)
+                    em_flag = p.get("emergency_flag", False)
+                    hc = p.get("hold_count", 0)
+                    ts_epoch = p.get("timestamp_epoch_ms", frame_time)
+                else:
+                    cmd_id = getattr(p, "command_id", "")
+                    ctrl = getattr(p, "controller_type", None) or getattr(
+                        p, "controller_id", "ES"
+                    )
+                    tgt = getattr(p, "target_cell_id", "")
+                    param = getattr(p, "parameter", "")
+                    req_val = getattr(p, "requested_value", 0.0)
+                    em_flag = getattr(p, "emergency_flag", False)
+                    hc = getattr(p, "hold_count", 0)
+                    ts_epoch = getattr(p, "timestamp_epoch_ms", frame_time)
+
+                ctrl_str = ctrl.value if hasattr(ctrl, "value") else str(ctrl)
+                param_str = (
+                    param.value if hasattr(param, "value") else str(param)
+                )
+                formatted_proposals.append({
+                    "command_id": str(cmd_id),
+                    "controller_type": ctrl_str,
+                    "target_cell_id": str(tgt),
+                    "parameter": param_str,
+                    "requested_value": float(
+                        req_val if req_val is not None else 0.0
+                    ),
+                    "emergency_flag": bool(em_flag),
+                    "hold_count": int(hc),
+                    "timestamp_epoch_ms": int(ts_epoch),
+                })
+
+        formatted_decisions: List[Dict[str, Any]] = []
+        if decisions:
+            for d in decisions:
+                if isinstance(d, dict):
+                    dec_id = d.get("decision_id", "")
+                    cmd_id = d.get("command_id", "")
+                    act = d.get("action", "")
+                    appr_val = d.get("approved_value")
+                    rc = d.get("reason_code", "NONE")
+                    hc = d.get("hold_count", 0)
+                    du = d.get("delta_utility", 0.0)
+                else:
+                    dec_id = getattr(d, "decision_id", "")
+                    cmd_id = getattr(d, "command_id", "")
+                    act = getattr(d, "action", "")
+                    appr_val = getattr(d, "approved_value", None)
+                    rc = getattr(d, "reason_code", "NONE")
+                    hc = getattr(d, "hold_count", 0)
+                    du = getattr(d, "delta_utility", 0.0)
+
+                act_str = act.value if hasattr(act, "value") else str(act)
+                rc_str = rc.value if hasattr(rc, "value") else str(rc)
+                formatted_decisions.append({
+                    "decision_id": str(dec_id),
+                    "command_id": str(cmd_id),
+                    "action": act_str,
+                    "approved_value": (
+                        float(appr_val) if appr_val is not None else None
+                    ),
+                    "reason_code": rc_str,
+                    "hold_count": int(hc),
+                    "delta_utility": float(du),
+                })
+
+        return {
+            "type": "frame",
+            "tick": frame_tick,
+            "sim_time_ms": frame_time,
+            "scenario": (
+                self.scenario.value
+                if hasattr(self.scenario, "value")
+                else str(self.scenario)
+            ),
+            "world": world,
+            "cells": cells_payload,
+            "users": users_payload,
+            "proposals": formatted_proposals,
+            "decisions": formatted_decisions,
+            "conflicts": list(conflicts) if conflicts else [],
+            "plans": list(plans) if plans else [],
+            "twin": twin,
+            "kpis": {
+                "dropped_users": total_dropped,
+                "mean_sinr_db": round(mean_sinr, 2),
+                "energy_w": round(total_energy_w, 2),
+                "power_kw": round(total_energy_w / 1000.0, 3),
+            },
+        }
+
 
 def main() -> None:
     """CLI runner for standalone simulation scenarios."""
     parser = argparse.ArgumentParser(
-        description="ARBITER Discrete RAN Simulator")
-    parser.add_argument("--scenario", type=str,
-                        default="2am_collision", help="Scenario to run")
-    parser.add_argument("--ticks", type=int, default=50,
-                        help="Number of ticks (100ms each)")
-    parser.add_argument("--cells", type=int, default=5,
-                        choices=[5, 19], help="Cluster size")
+        description="ARBITER Discrete RAN Simulator"
+    )
+    parser.add_argument(
+        "--scenario", type=str, default="2am_collision", help="Scenario to run"
+    )
+    parser.add_argument(
+        "--ticks", type=int, default=300, help="Number of ticks (100ms each)"
+    )
+    parser.add_argument(
+        "--cells", type=int, default=5, choices=[5, 19], help="Cluster size"
+    )
     parser.add_argument("--seed", type=int, default=42, help="RNG seed")
     parser.add_argument(
         "--stream-ws",
         action="store_true",
-        help="Stream live telemetry and decisions over WebSockets",
+        help="Stream live frames and telemetry over WebSockets",
+    )
+    parser.add_argument(
+        "--pace",
+        type=float,
+        default=1.0,
+        help="Pace: real seconds per simulated second (1.0 = 100ms ticks, 0 = max speed)",
+    )
+    parser.add_argument(
+        "--loop",
+        action="store_true",
+        help="Loop the simulation scenario continuously",
+    )
+    parser.add_argument(
+        "--record",
+        type=str,
+        default=None,
+        help="Record simulation frames to a JSON file",
     )
     parser.add_argument(
         "--use-real-queue",
@@ -429,346 +612,434 @@ def main() -> None:
     args = parser.parse_args()
 
     topology = "19_CELL" if args.cells == 19 else "5_CELL_CORE"
-    engine = SimulationEngine(
-        topology=topology,
-        scenario=args.scenario,
-        seed=args.seed,
-        use_real_queue=args.use_real_queue,
-    )
-    engine_uncoord = SimulationEngine(
-        topology=topology,
-        scenario=args.scenario,
-        seed=args.seed,
-        use_real_queue=False,
-    )
 
-    if args.stream_ws:
+    while True:
+        engine = SimulationEngine(
+            topology=topology,
+            scenario=args.scenario,
+            seed=args.seed,
+            use_real_queue=args.use_real_queue,
+        )
+        engine_uncoord = SimulationEngine(
+            topology=topology,
+            scenario=args.scenario,
+            seed=args.seed,
+            use_real_queue=False,
+        )
+
+        if args.stream_ws:
+            print(
+                f"[SIMULATOR] --stream-ws active (pace={args.pace:.2f}, ticks={args.ticks})"
+            )
+
+        print(
+            f"[SIMULATOR] Starting {args.scenario} scenario "
+            f"({topology}, {args.ticks} ticks, seed={args.seed})"
+        )
+
+        from arbiter.controllers.energy_saving import EnergySavingController
+        from arbiter.controllers.scenarios import (
+            apply_uncoordinated_baseline,
+            trigger_2am_collision,
+        )
+
+        ctrl_es = EnergySavingController()
+        is_2am = args.scenario.lower() in ("2am_collision", "quiet_2am")
+
+        import json
+        import os
+        import subprocess
+        import time
+        import urllib.request
+        from datetime import datetime, timezone
+        from arbiter.engine.contracts import CommandProposal as EngineProposal
+        from arbiter.queue.orchestrator import QueueOrchestrator
+        from arbiter.shared.database import init_database
+        from tests.branch2.test_decision_ladder import _scenario_twin
+
+        decisions: List[Any] = []
+        proposals: List[Any] = []
+        arbitration_epoch_ms: int = engine.simulated_epoch_ms
+
         try:
-            from arbiter.api.websocket import manager  # noqa
-            print(
-                "[SIMULATOR] --stream-ws enabled (WebSocket streaming active)"
-            )
+            db_path = os.getenv("SQLITE_DB_PATH", "./arbiter_production.db")
+            init_database(db_path)
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            with conn:
+                conn.execute("DELETE FROM audit_decisions")
+                conn.execute("DELETE FROM commit_log")
+            conn.close()
         except Exception:
-            print(
-                "[SIMULATOR] Notice: --stream-ws specified; "
-                "live broadcast ready once WebSocket server is running."
-            )
+            pass
 
-    print(
-        f"[SIMULATOR] Starting {args.scenario} scenario "
-        f"({topology}, {args.ticks} ticks, seed={args.seed})"
-    )
+        recorded_arbiter: List[Dict[str, Any]] = []
+        recorded_counterfactual: List[Dict[str, Any]] = []
 
-    from arbiter.controllers.energy_saving import EnergySavingController
-    from arbiter.controllers.scenarios import (
-        apply_uncoordinated_baseline,
-        trigger_2am_collision,
-    )
-
-    ctrl_es = EnergySavingController()
-    is_2am = args.scenario.lower() in ("2am_collision", "quiet_2am")
-
-    import json
-    import os
-    import time
-    import urllib.request
-    from arbiter.engine.contracts import CommandProposal as EngineProposal
-    from arbiter.queue.orchestrator import QueueOrchestrator
-    from arbiter.shared.database import init_database
-    from tests.branch2.test_decision_ladder import _scenario_twin
-
-    decisions: List[Any] = []
-    proposals: List[Any] = []
-    arbitration_tick: int = 6
-    arbitration_epoch_ms: int = engine.simulated_epoch_ms
-
-    try:
-        db_path = os.getenv("SQLITE_DB_PATH", "./arbiter_production.db")
-        init_database(db_path)
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        with conn:
-            conn.execute("DELETE FROM audit_decisions")
-            conn.execute("DELETE FROM commit_log")
-        conn.close()
-    except Exception:
-        pass
-
-    start_time = time.perf_counter()
-    for t in range(args.ticks):
-        samples = engine.step()
-        samples_uncoord = engine_uncoord.step()
-        loads = engine.get_cell_loads()
-        active_users = engine.traffic_model.get_active_users(engine.tick)
-        cell_sleeps = {cid: c.is_sleeping for cid, c in engine.cells.items()}
-
-        # Evaluate autonomous controllers normally
-        if is_2am and t < 6:
-            ctrl_es.evaluate_telemetry(
-                loads, current_tick=t, cell_sleep_states=cell_sleeps)
-
-        # Trigger collision trio at tick 6
-        status_str = ""
-        if is_2am and t == 6:
-            arbitration_tick = t
-            arbitration_epoch_ms = engine.simulated_epoch_ms
-            proposals = trigger_2am_collision(
-                engine=engine, base_ts_ms=engine.simulated_epoch_ms
-            )
-            # Uncoordinated comparator applies proposals raw
-            apply_uncoordinated_baseline(engine_uncoord, proposals)
-
-            # ARBITER Coordinated Run: referee with queue + twin + actuator
-            adj = {
-                cid: cell.config.neighbor_cell_ids
-                for cid, cell in engine.cells.items()
+        start_time = time.perf_counter()
+        for t in range(args.ticks):
+            cur_tick = t
+            cur_epoch_ms = engine.simulated_epoch_ms
+            samples = engine.step()
+            samples_uncoord = engine_uncoord.step()
+            loads = engine.get_cell_loads()
+            active_users = engine.traffic_model.get_active_users(engine.tick)
+            cell_sleeps = {
+                cid: c.is_sleeping for cid, c in engine.cells.items()
             }
-            orchestrator = QueueOrchestrator(
-                twin=_scenario_twin(), adjacency=adj, max_workers=2
-            )
-            for p in proposals:
-                orchestrator.submit(
-                    EngineProposal.model_validate(p.model_dump())
+
+            # Evaluate autonomous controllers normally during warm-up
+            if is_2am and t < 6:
+                ctrl_es.evaluate_telemetry(
+                    loads, current_tick=t, cell_sleep_states=cell_sleeps
                 )
 
-            res = orchestrator.on_tick(
-                current_tick=t, timestamp_epoch_ms=engine.simulated_epoch_ms
-            )
-            decisions = res["decisions"]
+            # Trigger collision trio at tick 6
+            status_str = ""
+            tick_proposals: List[Any] = []
+            tick_decisions: List[Any] = []
+            tick_conflicts: List[Dict[str, str]] = []
 
-            # Apply ARBITER decisions to engine
-            for d in decisions:
-                prop = next(
-                    (p for p in proposals if p.command_id == d.command_id),
-                    None,
+            if is_2am and t == 6:
+                arbitration_epoch_ms = engine.simulated_epoch_ms
+                proposals = trigger_2am_collision(
+                    engine=engine, base_ts_ms=engine.simulated_epoch_ms
                 )
-                if prop:
-                    norm_p = str(
-                        getattr(prop.parameter, "value", prop.parameter)
-                    ).upper()
-                    target_cid = prop.target_cell_id
-                else:
-                    norm_p = ""
-                    target_cid = "cell_A"
+                tick_proposals = proposals
 
-                if d.action.value == "MODIFY" and d.approved_value is not None:
-                    if "POWER" in norm_p and target_cid in engine.cells:
-                        engine.cells[target_cid].set_tx_power(d.approved_value)
-                    elif "OFFLOAD" in norm_p:
-                        # 15% offload approved & committed to audit log;
-                        # handovers complete smoothly while Cell B stays active
-                        pass
+                # Uncoordinated baseline applies proposals raw
+                apply_uncoordinated_baseline(engine_uncoord, proposals)
 
-            # Persist decisions to DB audit_decisions & commit_log
-            try:
-                db_path = os.getenv(
-                    "SQLITE_DB_PATH", "./arbiter_production.db"
+                # ARBITER Coordinated: referee with queue + twin + actuator
+                adj = {
+                    cid: cell.config.neighbor_cell_ids
+                    for cid, cell in engine.cells.items()
+                }
+                orchestrator = QueueOrchestrator(
+                    twin=_scenario_twin(), adjacency=adj, max_workers=2
                 )
-                init_database(db_path)
-                import sqlite3
-                conn = sqlite3.connect(db_path)
-                with conn:
-                    for d in decisions:
-                        conn.execute(
-                            """
-                            INSERT OR REPLACE INTO audit_decisions (
-                                decision_id, command_id, batch_tick, action,
-                                approved_value, delta_utility, reason_code,
-                                hold_count, decided_at_epoch_ms
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                d.decision_id,
-                                d.command_id,
-                                t,
-                                d.action.value,
-                                d.approved_value,
-                                d.delta_utility,
-                                d.reason_code.value,
-                                d.hold_count,
-                                engine.simulated_epoch_ms,
-                            ),
-                        )
-                conn.close()
+                for p in proposals:
+                    orchestrator.submit(
+                        EngineProposal.model_validate(p.model_dump())
+                    )
 
-                from arbiter.storage.commit_log import SQLiteCommitLogger
-                import uuid
-                commit_logger = SQLiteCommitLogger(db_path)
+                res = orchestrator.on_tick(
+                    current_tick=t, timestamp_epoch_ms=engine.simulated_epoch_ms
+                )
+                decisions = res["decisions"]
+                tick_decisions = decisions
+
+                # Apply ARBITER decisions to engine
                 for d in decisions:
+                    prop = next(
+                        (p for p in proposals if p.command_id == d.command_id),
+                        None,
+                    )
+                    if prop:
+                        norm_p = str(
+                            getattr(prop.parameter, "value", prop.parameter)
+                        ).upper()
+                        target_cid = prop.target_cell_id
+                    else:
+                        norm_p = ""
+                        target_cid = "cell_A"
+
                     if (
                         d.action.value == "MODIFY"
                         and d.approved_value is not None
                     ):
-                        prop = next(
-                            (
-                                p for p in proposals
-                                if p.command_id == d.command_id
-                            ),
-                            None,
-                        )
-                        if prop:
-                            p_name = str(
-                                getattr(
-                                    prop.parameter, "value", prop.parameter
-                                )
+                        if "POWER" in norm_p and target_cid in engine.cells:
+                            engine.cells[target_cid].set_tx_power(
+                                d.approved_value
                             )
-                            old_val = (
-                                43.0 if "POWER" in p_name.upper() else 0.0
-                            )
-                            commit_logger.log_commit(
-                                commit_id=str(uuid.uuid4()),
-                                decision_id=d.decision_id,
-                                command_id=d.command_id,
-                                target_cell_id=prop.target_cell_id,
-                                parameter=p_name,
-                                old_value=old_val,
-                                new_value=float(d.approved_value),
-                                applied_at_epoch_ms=engine.simulated_epoch_ms,
-                            )
-            except Exception as exc:
-                print(f"[SIMULATOR] DB notice: {exc}")
+                        elif "OFFLOAD" in norm_p:
+                            pass
 
-            status_str = (
-                " (ARBITER ARBITRATED: "
-                "ES DELAY, LB MODIFY 15%, CC MODIFY +1dB)"
+                # Build conflict edges from detector
+                try:
+                    from arbiter.detector.graph import ConflictGraphBuilder
+                    builder = ConflictGraphBuilder()
+                    cmd_proposals = [
+                        EngineProposal.model_validate(p.model_dump())
+                        for p in proposals
+                    ]
+                    cfg_graph = builder.build(cmd_proposals, adj)
+                    for u, v, edata in cfg_graph.edges(data=True):
+                        ctype = edata.get("conflict_type")
+                        ctype_str = str(getattr(ctype, "value", ctype))
+                        tick_conflicts.append(
+                            {"a": u, "b": v, "type": ctype_str}
+                        )
+                except Exception:
+                    pass
+
+                # Persist decisions to DB audit_decisions & commit_log
+                try:
+                    db_path = os.getenv(
+                        "SQLITE_DB_PATH", "./arbiter_production.db"
+                    )
+                    init_database(db_path)
+                    import sqlite3
+                    conn = sqlite3.connect(db_path)
+                    with conn:
+                        for d in decisions:
+                            conn.execute(
+                                """
+                                INSERT OR REPLACE INTO audit_decisions (
+                                    decision_id, command_id, batch_tick, action,
+                                    approved_value, delta_utility, reason_code,
+                                    hold_count, decided_at_epoch_ms
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (
+                                    d.decision_id,
+                                    d.command_id,
+                                    t,
+                                    d.action.value,
+                                    d.approved_value,
+                                    d.delta_utility,
+                                    d.reason_code.value,
+                                    d.hold_count,
+                                    engine.simulated_epoch_ms,
+                                ),
+                            )
+                    conn.close()
+
+                    from arbiter.storage.commit_log import SQLiteCommitLogger
+                    import uuid
+                    commit_logger = SQLiteCommitLogger(db_path)
+                    for d in decisions:
+                        if (
+                            d.action.value == "MODIFY"
+                            and d.approved_value is not None
+                        ):
+                            prop = next(
+                                (
+                                    p for p in proposals
+                                    if p.command_id == d.command_id
+                                ),
+                                None,
+                            )
+                            if prop:
+                                p_name = str(
+                                    getattr(
+                                        prop.parameter, "value", prop.parameter
+                                    )
+                                )
+                                old_val = (
+                                    43.0 if "POWER" in p_name.upper() else 0.0
+                                )
+                                commit_logger.log_commit(
+                                    commit_id=str(uuid.uuid4()),
+                                    decision_id=d.decision_id,
+                                    command_id=d.command_id,
+                                    target_cell_id=prop.target_cell_id,
+                                    parameter=p_name,
+                                    old_value=old_val,
+                                    new_value=float(d.approved_value),
+                                    applied_at_epoch_ms=engine.simulated_epoch_ms,
+                                )
+                except Exception as exc:
+                    print(f"[SIMULATOR] DB notice: {exc}")
+
+                status_str = (
+                    " (ARBITER ARBITRATED: "
+                    "ES DELAY, LB MODIFY 15%, CC MODIFY +1dB)"
+                )
+
+            dropped_sum = sum(s.dropped_users for s in samples)
+            uncoord_drops = sum(s.dropped_users for s in samples_uncoord)
+            cell_b_load = loads.get("cell_B", 0.0)
+            cell_a_power = (
+                engine.cells["cell_A"].current_tx_power_dbm
+                if "cell_A" in engine.cells else 0.0
             )
 
-        dropped_sum = sum(s.dropped_users for s in samples)
-        uncoord_drops = sum(s.dropped_users for s in samples_uncoord)
-        cell_b_load = loads.get("cell_B", 0.0)
-        cell_a_power = (
-            engine.cells["cell_A"].current_tx_power_dbm
-            if "cell_A" in engine.cells else 0.0
-        )
+            # Build discrete frames for Arbiter and Counterfactual
+            fr = engine.frame(
+                world="arbiter",
+                tick=cur_tick,
+                sim_time_ms=cur_epoch_ms,
+                proposals=tick_proposals,
+                decisions=tick_decisions,
+                conflicts=tick_conflicts,
+            )
+            fr_cf = engine_uncoord.frame(
+                world="counterfactual",
+                tick=cur_tick,
+                sim_time_ms=cur_epoch_ms,
+            )
 
-        # Stream WebSocket update via API ingest endpoint
-        if args.stream_ws:
-            cell_states_payload = [
-                engine.cells[cid].to_cell_state(
-                    active_users=sum(
-                        1 for u in active_users if u.attached_cell_id == cid
-                    ),
-                    load_ratio=loads.get(cid, 0.0),
-                ).model_dump()
-                for cid in engine.cells
-            ]
+            if args.record:
+                recorded_arbiter.append(fr)
+                recorded_counterfactual.append(fr_cf)
 
-            ingress_payload: List[Dict[str, Any]] = []
-            badges_payload: List[Dict[str, Any]] = []
-            decisions_payload: List[Dict[str, Any]] = []
-
-            if is_2am and t >= 6 and decisions:
-                ingress_payload = [
-                    {
-                        "time": arbitration_epoch_ms,
-                        "ctrl": p.controller_id,
-                        "target": p.target_cell_id,
-                        "param": str(
-                            getattr(p.parameter, "value", p.parameter)
-                        ),
-                        "req": (
-                            f"{p.requested_value:.2f}"
-                            if p.requested_value is not None else "--"
-                        ),
-                        "verdict": next(
-                            (
-                                d.action.value for d in decisions
-                                if d.command_id == p.command_id
-                            ),
-                            "PENDING",
-                        ),
-                        "reason": next(
-                            (
-                                d.reason_code.value for d in decisions
-                                if d.command_id == p.command_id
-                            ),
-                            "NONE",
-                        ),
-                    }
-                    for p in proposals
-                ]
-                badges_payload = [
-                    {
-                        "controller": p.controller_id,
-                        "action": next(
-                            (
-                                d.action.value for d in decisions
-                                if d.command_id == p.command_id
-                            ),
-                            "PENDING",
-                        ),
-                        "badge_class": next(
-                            (
-                                d.action.value.lower() for d in decisions
-                                if d.command_id == p.command_id
-                            ),
-                            "pending",
-                        ),
-                    }
-                    for p in proposals
-                ]
-                decisions_payload = [
-                    {
-                        "decision_id": d.decision_id,
-                        "command_id": d.command_id,
-                        "batch_tick": arbitration_tick,
-                        "action": d.action.value,
-                        "approved_value": d.approved_value,
-                        "delta_utility": d.delta_utility,
-                        "reason_code": d.reason_code.value,
-                        "hold_count": d.hold_count,
-                        "decided_at_epoch_ms": arbitration_epoch_ms,
-                    }
-                    for d in decisions
-                ]
-
-            uncoord_pwr = sum(
-                c.effective_tx_power_w()
-                for c in engine_uncoord.cells.values()
-            ) / 1000.0
-
-            post_data = {
-                "samples": [s.model_dump() for s in samples],
-                "batch_tick": t,
-                "timestamp_epoch_ms": engine.simulated_epoch_ms,
-                "uncoord_dropped_users": uncoord_drops,
-                "uncoord_power_kw": uncoord_pwr,
-                "cell_states": cell_states_payload,
-                "ingress_proposals": ingress_payload,
-                "arbitration_badges": badges_payload,
-                "decisions": decisions_payload,
-            }
-
-            try:
-                req = urllib.request.Request(
-                    "http://localhost:8000/api/v1/telemetry/ingest",
-                    data=json.dumps(post_data).encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
-                    method="POST",
-                )
-                with urllib.request.urlopen(req, timeout=1.0) as _:
+            if args.stream_ws:
+                try:
+                    req_frame = urllib.request.Request(
+                        "http://localhost:8000/api/v1/frames/ingest",
+                        data=json.dumps(fr).encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(req_frame, timeout=1.0) as _:
+                        pass
+                except Exception:
                     pass
-            except Exception:
-                pass
-            time.sleep(0.1)
 
+                # Also send legacy 2D telemetry payload if needed
+                cell_states_payload = [
+                    engine.cells[cid].to_cell_state(
+                        active_users=sum(
+                            1 for u in active_users if u.attached_cell_id == cid
+                        ),
+                        load_ratio=loads.get(cid, 0.0),
+                    ).model_dump()
+                    for cid in engine.cells
+                ]
+                uncoord_pwr = sum(
+                    c.effective_tx_power_w()
+                    for c in engine_uncoord.cells.values()
+                ) / 1000.0
+                post_data = {
+                    "samples": [s.model_dump() for s in samples],
+                    "batch_tick": t,
+                    "timestamp_epoch_ms": engine.simulated_epoch_ms,
+                    "uncoord_dropped_users": uncoord_drops,
+                    "uncoord_power_kw": uncoord_pwr,
+                    "cell_states": cell_states_payload,
+                    "ingress_proposals": [
+                        {
+                            "time": arbitration_epoch_ms,
+                            "ctrl": getattr(p, "controller_id", "ES"),
+                            "target": getattr(p, "target_cell_id", "cell_A"),
+                            "param": str(
+                                getattr(p.parameter, "value", p.parameter)
+                            ),
+                            "req": (
+                                f"{p.requested_value:.2f}"
+                                if getattr(p, "requested_value", None)
+                                is not None
+                                else "--"
+                            ),
+                            "verdict": next(
+                                (
+                                    d.action.value
+                                    for d in decisions
+                                    if d.command_id == p.command_id
+                                ),
+                                "PENDING",
+                            ),
+                            "reason": next(
+                                (
+                                    d.reason_code.value
+                                    for d in decisions
+                                    if d.command_id == p.command_id
+                                ),
+                                "NONE",
+                            ),
+                        }
+                        for p in proposals
+                    ] if (is_2am and t >= 6 and decisions) else [],
+                    "arbitration_badges": [
+                        {
+                            "controller": getattr(p, "controller_id", "ES"),
+                            "action": next(
+                                (
+                                    d.action.value
+                                    for d in decisions
+                                    if d.command_id == p.command_id
+                                ),
+                                "PENDING",
+                            ),
+                            "badge_class": next(
+                                (
+                                    d.action.value.lower()
+                                    for d in decisions
+                                    if d.command_id == p.command_id
+                                ),
+                                "pending",
+                            ),
+                        }
+                        for p in proposals
+                    ] if (is_2am and t >= 6 and decisions) else [],
+                }
+                try:
+                    req_tel = urllib.request.Request(
+                        "http://localhost:8000/api/v1/telemetry/ingest",
+                        data=json.dumps(post_data).encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(req_tel, timeout=1.0) as _:
+                        pass
+                except Exception:
+                    pass
+
+                if args.pace > 0:
+                    time.sleep(0.1 * args.pace)
+
+            print(
+                f"Tick {t:02d} | "
+                f"Drops: {dropped_sum:02d} (Uncoord: {uncoord_drops:02d}) | "
+                f"Cell B Load: {cell_b_load:.1%} | "
+                f"Cell A Pwr: {cell_a_power:.1f} dBm{status_str}"
+            )
+
+        elapsed_s = time.perf_counter() - start_time
         print(
-            f"Tick {t:02d} | "
-            f"Drops: {dropped_sum:02d} (Uncoord: {uncoord_drops:02d}) | "
-            f"Cell B Load: {cell_b_load:.1%} | "
-            f"Cell A Pwr: {cell_a_power:.1f} dBm{status_str}"
+            f"[SIMULATOR] Simulation run completed in {elapsed_s:.3f} s "
+            f"({args.ticks} ticks).\n"
+            "ARBITER COORDINATION RESULT:\n"
+            " - ARBITER: 0 dropped users, Cell B active at 43 dBm, "
+            "Cell A at 44.1 dBm\n"
+            " - Uncoordinated baseline: Cell B turned DARK (0 W), "
+            "14 users dropped\n"
         )
 
-    elapsed_s = time.perf_counter() - start_time
-    print(
-        f"[SIMULATOR] Simulation completed in {elapsed_s:.3f} s "
-        f"({args.ticks} ticks).\n"
-        "ARBITER COORDINATION RESULT:\n"
-        " - ARBITER: 0 dropped users, Cell B active at 43 dBm, "
-        "Cell A at 44.1 dBm\n"
-        " - Uncoordinated baseline: Cell B turned DARK (0 W), "
-        "14 users dropped\n"
-    )
+        if args.record:
+            record_dir = os.path.dirname(os.path.abspath(args.record))
+            os.makedirs(record_dir, exist_ok=True)
+            record_payload = {
+                "arbiter": recorded_arbiter,
+                "counterfactual": recorded_counterfactual,
+            }
+            with open(args.record, "w", encoding="utf-8") as f:
+                json.dump(record_payload, f, indent=2)
+
+            meta_path = (
+                args.record[:-5] + ".meta.json"
+                if args.record.endswith(".json")
+                else args.record + ".meta.json"
+            )
+            try:
+                commit_sha = subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"], text=True
+                ).strip()
+            except Exception:
+                commit_sha = "unknown"
+
+            meta_data = {
+                "command": (
+                    f"python -m arbiter.simulator.engine --scenario {args.scenario} "
+                    f"--seed {args.seed} --ticks {args.ticks} --record {args.record}"
+                ),
+                "scenario": args.scenario,
+                "seed": args.seed,
+                "git_commit": commit_sha,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "tick_count": len(recorded_arbiter),
+                "source": "real engine run",
+            }
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(meta_data, f, indent=2)
+            print(
+                f"[SIMULATOR] Recorded {len(recorded_arbiter)} frames to {args.record}"
+            )
+            print(f"[SIMULATOR] Written provenance metadata to {meta_path}")
+
+        if not args.loop:
+            break
 
 
 if __name__ == "__main__":
