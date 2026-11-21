@@ -30,7 +30,7 @@ def test_cell_ids_fixture(cell_ids: tuple[str, ...]) -> None:
 
 def test_hex_adjacency_fixture_is_a_copy(hex_adjacency: dict[str, list[str]]) -> None:
     hex_adjacency["A"].append("E")
-    from conftest import HEX_ADJACENCY
+    from tests.branch2.conftest import HEX_ADJACENCY
 
     assert "E" not in HEX_ADJACENCY["A"]
 

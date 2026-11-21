@@ -28,6 +28,8 @@ from arbiter.engine.ladder import (
     SafetyFloorEnforcer,
     UncertaintyGuard,
 )
+from arbiter.actuator.enforcer import ActuatorEnforcer
+from arbiter.engine.actuator_adapter import ActuatorAdapter
 from arbiter.engine.mocks.mock_actuator_client import AppliedChange, MockActuatorClient
 from arbiter.engine.mocks.mock_twin_client import (
     MockDigitalTwinClient,
@@ -35,7 +37,9 @@ from arbiter.engine.mocks.mock_twin_client import (
     TwinClient,
     TwinTimeoutError,
 )
+from arbiter.engine.twin_adapter import TwinClientAdapter
 from arbiter.engine.utility import UtilityCalculator
+from arbiter.twin.evaluator import DigitalTwinEvaluator
 
 __all__ = [
     "CommandProposal",
@@ -46,9 +50,13 @@ __all__ = [
     "ReasonCode",
     "WEIGHT_PRESETS",
     "TwinClient",
+    "TwinClientAdapter",
+    "DigitalTwinEvaluator",
     "MockDigitalTwinClient",
     "ScriptedTwin",
     "TwinTimeoutError",
+    "ActuatorEnforcer",
+    "ActuatorAdapter",
     "MockActuatorClient",
     "AppliedChange",
     "UtilityCalculator",

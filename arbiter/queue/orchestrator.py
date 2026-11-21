@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import time
+import uuid
 from collections import deque
 from typing import Any, Callable, Deque, Dict, Protocol, Sequence
 
@@ -84,6 +85,7 @@ class QueueOrchestrator:
         max_workers: int = 4,
         clock: Callable[[], int] | None = None,
         latency_window: int = 512,
+        actuator: Any | None = None,
     ) -> None:
         if max_workers < 1:
             raise ValueError("max_workers must be >= 1")
@@ -91,6 +93,7 @@ class QueueOrchestrator:
         self._detector: DetectorProtocol = detector or ConflictGraphBuilder()
         self._engine: EngineProtocol = engine or DecisionLadderEngine()
         self._twin: TwinClient = twin or MockDigitalTwinClient()
+        self._actuator: Any | None = actuator
         self._adjacency: AdjacencyLike = adjacency if adjacency is not None else {}
         self._weights = weights or UtilityWeights()
         self._partitioner = GraphPartitioner()
@@ -113,6 +116,11 @@ class QueueOrchestrator:
     def detector(self) -> DetectorProtocol:
         """Injected conflict detector."""
         return self._detector
+
+    @property
+    def actuator(self) -> Any | None:
+        """Injected actuator enforcer or adapter."""
+        return self._actuator
 
     def submit(self, cmd: CommandProposal) -> bool:
         """Accept a proposal (emergency ones bypass the queue)."""
@@ -157,6 +165,26 @@ class QueueOrchestrator:
                     self._queue.hold(command, current_tick)
                 elif decision.action in _APPLIED_ACTIONS:
                     self._engine.record_handover(command, current_tick)
+                    if self._actuator is not None:
+                        if hasattr(self._actuator, "apply"):
+                            self._actuator.apply(
+                                command, decision.approved_value, tick=current_tick
+                            )
+                        elif hasattr(self._actuator, "commit"):
+                            self._actuator.commit({
+                                "commit_id": str(uuid.uuid4()),
+                                "decision_id": decision.decision_id,
+                                "command_id": command.command_id,
+                                "target_cell_id": command.target_cell,
+                                "parameter": command.parameter,
+                                "old_value": float(command.current_value),
+                                "new_value": float(
+                                    decision.approved_value
+                                    if decision.approved_value is not None
+                                    else command.requested_value
+                                ),
+                                "timestamp_epoch_ms": timestamp_epoch_ms,
+                            })
 
         return {
             "batch_tick": current_tick,
@@ -194,7 +222,8 @@ class QueueOrchestrator:
 def build_default_orchestrator(
     adjacency: AdjacencyLike | None = None,
     twin: TwinClient | None = None,
+    actuator: Any | None = None,
     **kwargs: Any,
 ) -> QueueOrchestrator:
     """Convenience factory with the production detector and ladder wired in."""
-    return QueueOrchestrator(adjacency=adjacency, twin=twin, **kwargs)
+    return QueueOrchestrator(adjacency=adjacency, twin=twin, actuator=actuator, **kwargs)
