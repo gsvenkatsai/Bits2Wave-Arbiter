@@ -11,9 +11,13 @@ import sqlite3
 import threading
 from typing import Optional
 
+from arbiter.shared.database import init_database
+
+__all__ = ["DatabaseConnectionFactory", "init_database"]
+
 
 class DatabaseConnectionFactory:
-    """Thread-safe SQLite connection factory enabling WAL mode and busy handling."""
+    """Thread-safe SQLite connection factory enabling WAL and busy handling."""
 
     def __init__(
         self,
@@ -28,13 +32,16 @@ class DatabaseConnectionFactory:
         self._lock = threading.Lock()
 
         # Initialize directory and ensure base WAL pragmas
-        os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
+        os.makedirs(
+            os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True
+        )
         self._init_pragmas()
 
     def _init_pragmas(self) -> None:
         """Initialize database-level pragmas."""
         with self._lock:
-            conn = sqlite3.connect(self.db_path, timeout=self.busy_timeout_ms / 1000.0)
+            timeout_sec = self.busy_timeout_ms / 1000.0
+            conn = sqlite3.connect(self.db_path, timeout=timeout_sec)
             try:
                 conn.execute("PRAGMA journal_mode=WAL;")
                 conn.execute(f"PRAGMA busy_timeout={self.busy_timeout_ms};")
@@ -47,8 +54,10 @@ class DatabaseConnectionFactory:
                 conn.close()
 
     def get_connection(self) -> sqlite3.Connection:
-        """Provide a thread-local SQLite connection configured for concurrent access."""
-        conn: Optional[sqlite3.Connection] = getattr(self._local, "connection", None)
+        """Provide a thread-local SQLite connection for concurrent access."""
+        conn: Optional[sqlite3.Connection] = getattr(
+            self._local, "connection", None
+        )
         if conn is None:
             conn = sqlite3.connect(
                 self.db_path,
@@ -67,7 +76,9 @@ class DatabaseConnectionFactory:
 
     def close(self) -> None:
         """Close connection for current thread."""
-        conn: Optional[sqlite3.Connection] = getattr(self._local, "connection", None)
+        conn: Optional[sqlite3.Connection] = getattr(
+            self._local, "connection", None
+        )
         if conn is not None:
             conn.close()
             self._local.connection = None

@@ -34,6 +34,7 @@ class SimulationEngine:
         telemetry_sink: Optional[Any] = None,
         proposal_sink: Optional[Any] = None,
         use_real_queue: bool = False,
+        use_real_telemetry: bool = False,
     ) -> None:
         self.topology = topology
         self.scenario = (
@@ -43,15 +44,28 @@ class SimulationEngine:
         self.seed = seed
         self.simulated_epoch_ms = start_epoch_ms
         self.tick = 0
-        self.telemetry_sink = telemetry_sink
+
+        if telemetry_sink is not None:
+            self.telemetry_sink = telemetry_sink
+        elif use_real_telemetry:
+            from arbiter.simulator.telemetry_sink_adapter import (
+                KPITelemetrySink,
+            )
+            self.telemetry_sink = KPITelemetrySink()
+        else:
+            self.telemetry_sink = None
 
         if proposal_sink is not None:
             self.proposal_sink = proposal_sink
         elif use_real_queue:
-            from arbiter.simulator.proposal_sink_adapter import ProposalQueueSink
+            from arbiter.simulator.proposal_sink_adapter import (
+                ProposalQueueSink,
+            )
             self.proposal_sink = ProposalQueueSink()
         else:
-            from arbiter.simulator.mocks.mock_proposal_sink import MockProposalSink
+            from arbiter.simulator.mocks.mock_proposal_sink import (
+                MockProposalSink,
+            )
             self.proposal_sink = MockProposalSink()
 
         # Propagation model
@@ -160,11 +174,14 @@ class SimulationEngine:
 
         # 7. Deliver to telemetry sink if attached
         if self.telemetry_sink is not None:
-            self.telemetry_sink.ingest(
-                batch_tick=self.tick,
-                timestamp_epoch_ms=self.simulated_epoch_ms,
-                samples=samples,
-            )
+            try:
+                self.telemetry_sink.ingest(
+                    batch_tick=self.tick,
+                    timestamp_epoch_ms=self.simulated_epoch_ms,
+                    samples=samples,
+                )
+            except TypeError:
+                self.telemetry_sink.ingest(samples, batch_tick=self.tick)
 
         # 8. Advance simulation discrete clock
         self.tick += 1
@@ -305,8 +322,10 @@ def main() -> None:
 
     if args.stream_ws:
         try:
-            from arbiter.api.websocket import manager  # type: ignore  # noqa: F401
-            print("[SIMULATOR] --stream-ws enabled (WebSocket streaming active)")
+            from arbiter.api.websocket import manager  # type: ignore  # noqa
+            print(
+                "[SIMULATOR] --stream-ws enabled (WebSocket streaming active)"
+            )
         except Exception:
             print(
                 "[SIMULATOR] Notice: --stream-ws specified; "
