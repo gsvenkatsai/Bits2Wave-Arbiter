@@ -562,7 +562,6 @@ class SimulationEngine:
                 "dropped_users": total_dropped,
                 "mean_sinr_db": round(mean_sinr, 2),
                 "energy_w": round(total_energy_w, 2),
-                "power_kw": round(total_energy_w / 1000.0, 3),
             },
         }
 

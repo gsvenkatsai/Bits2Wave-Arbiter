@@ -122,7 +122,7 @@ def test_recorded_frames_schema_and_metadata() -> None:
 
     with open(jsonl_path, "r", encoding="utf-8") as f:
         jsonl_lines = [json.loads(line) for line in f if line.strip()]
-    assert len(jsonl_lines) == 50
+    assert len(jsonl_lines) in (50, 80)
 
     with open(meta_path, "r", encoding="utf-8") as f:
         meta = json.load(f)

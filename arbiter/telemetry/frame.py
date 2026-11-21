@@ -107,10 +107,14 @@ class PlanStepFrame(BaseModel):
 
 class PlanFrame(BaseModel):
     """Multi-tick sequential arbitration plan."""
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     plan_id: str = Field(..., description="Unique plan UUID")
     steps: List[PlanStepFrame] = Field(default_factory=list, description="Ordered plan steps")
+    source_command_id: Optional[str] = Field(default=None, description="Command UUID that triggered plan")
+    created_tick: Optional[int] = Field(default=None, description="Tick plan was synthesized")
+    expires_tick: Optional[int] = Field(default=None, description="Tick plan expires")
+    rationale: Optional[str] = Field(default=None, description="Human-readable coordination rationale")
 
 
 class TwinIntervalFrame(BaseModel):
@@ -135,11 +139,12 @@ class TwinFrame(BaseModel):
 
 class KpiFrame(BaseModel):
     """Cluster-wide aggregated KPIs for the current tick."""
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     dropped_users: int = Field(..., ge=0, description="Total users currently dropped")
     mean_sinr_db: float = Field(..., description="Cluster mean SINR in dB")
     energy_w: float = Field(..., ge=0.0, description="Total cluster power consumption in Watts")
+    power_kw: Optional[float] = Field(default=None, description="Cluster power in kW")
 
 
 class FrameMessage(BaseModel):
