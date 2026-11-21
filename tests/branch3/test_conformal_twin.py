@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import random
 import time
+from typing import Any
 import numpy as np
 
 from arbiter.shared.v2_contracts import TwinPredictionV2
@@ -27,7 +28,7 @@ from arbiter.twin.mocks.mock_twin_v2 import MockDigitalTwinV2
 from arbiter.twin.schemas import CandidateDelta
 
 
-def test_conformal_cold_start_under_30_points():
+def test_conformal_cold_start_under_30_points() -> None:
     """Verify n < 30 returns calibrated=False and wide default intervals."""
     cp = ConformalPredictor(
         window_size=200, min_calibration_points=30, alpha=0.1
@@ -51,7 +52,7 @@ def test_conformal_cold_start_under_30_points():
     assert np.isclose(interval.mean - interval.lower, expected_q)
 
 
-def test_conformal_finite_sample_quantile_exact():
+def test_conformal_finite_sample_quantile_exact() -> None:
     """Verify exact quantile formula: k = ceil((n+1)(1-alpha))."""
     cp = ConformalPredictor(
         window_size=100, min_calibration_points=30, alpha=0.1
@@ -71,7 +72,7 @@ def test_conformal_finite_sample_quantile_exact():
     assert q == 45.0
 
 
-def test_conformal_empirical_coverage_above_88_pct():
+def test_conformal_empirical_coverage_above_88_pct() -> None:
     """Verify empirical coverage >= 0.88 on held-out synthetic test stream."""
     random.seed(100)
     np.random.seed(100)
@@ -120,7 +121,7 @@ def test_conformal_empirical_coverage_above_88_pct():
     assert empirical_coverage >= 0.88, err_msg
 
 
-def test_drift_injection_widens_intervals():
+def test_drift_injection_widens_intervals() -> None:
     """Verify injecting drift widens intervals after recalibration."""
     random.seed(99)
     cp = ConformalPredictor(
@@ -156,7 +157,9 @@ def test_drift_injection_widens_intervals():
     assert drifted_width > baseline_width * 1.5, "Failed to widen under drift"
 
 
-def test_predict_v2_backward_compatibility(mock_state_provider):
+def test_predict_v2_backward_compatibility(
+    mock_state_provider: Any,
+) -> None:
     """Verify v1 predict() and v2 predict_v2() operate concurrently."""
     evaluator = DigitalTwinEvaluator(state_provider=mock_state_provider)
 
@@ -184,7 +187,9 @@ def test_predict_v2_backward_compatibility(mock_state_provider):
     assert "coverage_ratio" in kpi_names
 
 
-def test_predict_v2_latency_sub_10ms(mock_state_provider):
+def test_predict_v2_latency_sub_10ms(
+    mock_state_provider: Any,
+) -> None:
     """Verify predict_v2 latency remains well under the 10 ms SLA."""
     evaluator = DigitalTwinEvaluator(state_provider=mock_state_provider)
 
@@ -222,7 +227,7 @@ def test_predict_v2_latency_sub_10ms(mock_state_provider):
     assert p95_ms < 8.0, f"P95 latency {p95_ms:.3f} ms exceeded 8 ms target"
 
 
-def test_mock_twin_v2_matches_contracts():
+def test_mock_twin_v2_matches_contracts() -> None:
     """Verify MockDigitalTwinV2 fulfills Pranav's contract requirements."""
     mock = MockDigitalTwinV2()
     result = mock.predict_v2(candidate_id="cand-pranav-01")
@@ -237,7 +242,7 @@ def test_mock_twin_v2_matches_contracts():
         assert interv.coverage == 0.90
 
 
-def test_v2_calibration_db_persistence(tmp_db_factory):
+def test_v2_calibration_db_persistence(tmp_db_factory: Any) -> None:
     """Verify record_v2_calibration_event persists into v2_calibration."""
     conn = tmp_db_factory.get_connection()
 
@@ -267,7 +272,7 @@ def test_v2_calibration_db_persistence(tmp_db_factory):
     assert payload["residuals"]["dropped_users"] == 1.0
 
 
-def test_conformal_rolling_window_pruning():
+def test_conformal_rolling_window_pruning() -> None:
     """Verify residuals buffer prunes oldest observations past maxlen."""
     cp = ConformalPredictor(window_size=50, min_calibration_points=10)
 
