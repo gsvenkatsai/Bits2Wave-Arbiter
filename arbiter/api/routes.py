@@ -41,7 +41,15 @@ from arbiter.telemetry.impact import (
     store_impact_record,
 )
 from arbiter.telemetry.monitor import DB_PATH, KPITelemetryMonitor
-from arbiter.api.websocket import broadcast_tick_update, build_tick_update
+from arbiter.api.websocket import (
+    broadcast_frame,
+    broadcast_tick_update,
+    build_tick_update,
+    get_latest_frame,
+    set_latest_frame,
+)
+from arbiter.telemetry.recorder import compute_counterfactual_frames
+from arbiter.telemetry.frame import build_frame_message
 
 # ---------------------------------------------------------------------------
 # ASSUMPTIONS — one constant / one place each; easy to change.
@@ -84,6 +92,7 @@ router = APIRouter(prefix="/api/v1")
 
 _monitor_singleton: KPITelemetryMonitor | None = None
 _decision_engine_singleton: Any = None
+_simulation_engine_singleton: Any = None
 _active_risk_dial: RiskDial = RiskDial(
     weight_coverage=0.30,
     weight_energy=0.20,
@@ -92,6 +101,18 @@ _active_risk_dial: RiskDial = RiskDial(
     label="Balanced",
 )
 _current_twin_prediction: Optional[TwinPredictionV2] = None
+
+
+def get_simulation_engine() -> Any:
+    """Returns the registered active SimulationEngine (if any)."""
+    global _simulation_engine_singleton
+    return _simulation_engine_singleton
+
+
+def set_simulation_engine(engine: Any) -> None:
+    """Register active SimulationEngine instance."""
+    global _simulation_engine_singleton
+    _simulation_engine_singleton = engine
 
 
 def get_monitor() -> KPITelemetryMonitor:
@@ -384,7 +405,53 @@ async def ingest_telemetry(
     )
     await broadcast_tick_update(payload)
 
+    # Broadcast unified frame to connected dashboard clients
+    try:
+        eng = get_simulation_engine()
+        if eng is not None:
+            frame_msg = build_frame_message(
+                engine=eng,
+                twin_prediction=current_twin,
+            )
+            await broadcast_frame(frame_msg.model_dump())
+    except Exception:
+        pass
+
     return {"rows_written": rows}
+
+
+@router.get("/frame/latest")
+def get_latest_frame_endpoint() -> dict[str, Any]:
+    """
+    GET /api/v1/frame/latest
+    Returns the most recent unified simulation frame message conforming to v3 contract.
+    """
+    return get_latest_frame()
+
+
+@router.get("/recorder/counterfactual_frames/{decision_id}")
+def get_counterfactual_frames_endpoint(
+    decision_id: str,
+    horizon: int = Query(default=20, ge=1, le=100),
+    db_path: str = Depends(get_db_path),
+) -> dict[str, Any]:
+    """
+    GET /api/v1/recorder/counterfactual_frames/{decision_id}?horizon=20
+    Evaluates or returns cached counterfactual frame rollout comparing ARBITER against raw baseline.
+    Returns two worlds of equal length ('arbiter' and 'counterfactual').
+    Raises 404 if snapshot has aged out or cannot be found.
+    """
+    try:
+        return compute_counterfactual_frames(
+            decision_id=decision_id,
+            horizon=horizon,
+            db_path=db_path,
+        )
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        )
 
 
 @router.get("/state/cells")

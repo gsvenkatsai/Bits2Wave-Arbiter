@@ -9,6 +9,7 @@ SRS traceability:
 Threshold source: arbiter/shared/constants.py::TWIN_MAPE_TARGET_PCT (= 10.0).
 """
 from __future__ import annotations
+from typing import Any
 
 from typing import Optional
 
@@ -59,7 +60,7 @@ class ShadowModeGate:
             return False
         return self._last_mape < self._threshold
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict[str, Any]:
         """
         Return current gate state as a plain dict.
 

@@ -21,8 +21,9 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from arbiter.shared.database import init_database
@@ -74,6 +75,27 @@ _DASHBOARD_DIR: str = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "dashboard")
 )
 os.makedirs(_DASHBOARD_DIR, exist_ok=True)
+
+_FIXTURES_DIR: str = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "fixtures")
+)
+if os.path.exists(_FIXTURES_DIR):
+    app.mount(
+        "/fixtures",
+        StaticFiles(directory=_FIXTURES_DIR),
+        name="fixtures",
+    )
+
+
+@app.get("/3d", response_class=FileResponse)
+def get_3d_dashboard() -> FileResponse:
+    """Serve the 3D Cellular RAN Visualization Dashboard."""
+    file_path = os.path.join(_DASHBOARD_DIR, "3d.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="3d.html not found")
+    return FileResponse(file_path)
+
+
 app.mount(
     "/dashboard",
     StaticFiles(directory=_DASHBOARD_DIR, html=True),
@@ -84,3 +106,48 @@ app.mount(
     StaticFiles(directory=_DASHBOARD_DIR, html=True),
     name="dashboard",
 )
+
+
+def main() -> None:
+    """CLI entry point for starting the server or recording offline 2 AM collision frames."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="ARBITER API Server & Offline 2 AM Collision Recorder"
+    )
+    parser.add_argument(
+        "--record",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help="Record real 2 AM collision run (seed 42, 80 ticks) to target .jsonl file",
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Server bind host (default: 0.0.0.0)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Server bind port (default: 8000)",
+    )
+    args = parser.parse_args()
+
+    if args.record:
+        from arbiter.telemetry.recorder import record_2am_collision
+
+        print("[RECORDER] Simulating real 2 AM collision run (seed 42, 80 ticks)...")
+        frames = record_2am_collision(output_path=args.record, seed=42, ticks=80)
+        print(f"[RECORDER] Successfully recorded {len(frames)} frames to {args.record}")
+        return
+
+    import uvicorn
+
+    uvicorn.run("arbiter.api.server:app", host=args.host, port=args.port, reload=False)
+
+
+if __name__ == "__main__":
+    main()
