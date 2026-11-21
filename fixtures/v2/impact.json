@@ -1,0 +1,7 @@
+{
+  "tick": 6,
+  "energy_saved_kwh": 0.155,
+  "cost_inr": 1.085,
+  "co2_g": 127.1,
+  "tariff_label": "COMMERCIAL_OFF_PEAK_NIGHT"
+}

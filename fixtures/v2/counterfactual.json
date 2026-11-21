@@ -1,0 +1,27 @@
+{
+  "decision_id": "dec-2am-collision-06",
+  "batch_tick": 6,
+  "horizon_ticks": 10,
+  "with_arbiter": {
+    "dropped_users": 0,
+    "mean_sinr_db": 8.49,
+    "energy_w": 100140.0,
+    "interference_db": -104.2,
+    "utility": 0.815
+  },
+  "without_arbiter": {
+    "dropped_users": 14,
+    "mean_sinr_db": 4.12,
+    "energy_w": 80000.0,
+    "interference_db": -98.5,
+    "utility": 0.352
+  },
+  "diff": {
+    "dropped_users": -14.0,
+    "mean_sinr_db": 4.37,
+    "energy_w": 20140.0,
+    "interference_db": -5.7,
+    "utility": 0.463
+  },
+  "explanation": "Uncoordinated execution triggered a blackout on Cell B (0 W) while receiving offloaded traffic from Cell A, causing 14 call drops. ARBITER delayed Cell B sleep and safely bounded offload, maintaining 0 dropped users."
+}

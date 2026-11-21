@@ -1,0 +1,35 @@
+{
+  "candidate_id": "cand-2am-lb-offload-modify",
+  "intervals": [
+    {
+      "kpi": "coverage_ratio",
+      "mean": 0.942,
+      "lower": 0.915,
+      "upper": 0.965,
+      "coverage": 0.90
+    },
+    {
+      "kpi": "drop_rate_ratio",
+      "mean": 0.004,
+      "lower": 0.001,
+      "upper": 0.008,
+      "coverage": 0.90
+    },
+    {
+      "kpi": "normalized_energy",
+      "mean": 0.448,
+      "lower": 0.410,
+      "upper": 0.485,
+      "coverage": 0.90
+    },
+    {
+      "kpi": "normalized_interference",
+      "mean": 0.285,
+      "lower": 0.250,
+      "upper": 0.320,
+      "coverage": 0.90
+    }
+  ],
+  "calibrated": true,
+  "n_calibration": 50
+}
