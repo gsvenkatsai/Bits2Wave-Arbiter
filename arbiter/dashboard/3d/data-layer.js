@@ -595,12 +595,17 @@ export class DataLayer {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'frame') {
+            this.lastNativeFrameTimestamp = Date.now();
             this.pushFrame(data);
           } else if (data.type === 'TICK_UPDATE') {
-            // Degraded fallback when only 2D TICK_UPDATE is broadcast
-            const frame = this.adaptTickUpdateToFrame(data);
-            if (frame) {
-              this.pushFrame(frame);
+            // Degraded fallback ONLY when no native frame stream is arriving
+            const now = Date.now();
+            const hasRecentNativeFrame = this.lastNativeFrameTimestamp && (now - this.lastNativeFrameTimestamp < 3000);
+            if (!hasRecentNativeFrame) {
+              const frame = this.adaptTickUpdateToFrame(data);
+              if (frame) {
+                this.pushFrame(frame);
+              }
             }
           }
         } catch (e) {

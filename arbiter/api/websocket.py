@@ -238,7 +238,7 @@ async def ws_live(websocket: WebSocket) -> None:
         # Keep alive — wait for client disconnect or ping
         while True:
             await websocket.receive_text()
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, ConnectionResetError, asyncio.CancelledError):
         pass
     finally:
         manager.disconnect(websocket)

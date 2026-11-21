@@ -488,9 +488,6 @@ export class Arbiter3DScene {
       hexTile,
       config: cellData,
     };
-      hexTile,
-      config: cellData,
-    };
     this.cellEntities.set(id, entity);
     return entity;
   }
@@ -654,7 +651,6 @@ export class Arbiter3DScene {
     }
 
     // Capture previous and target user positions for lerping
-    const users = Array.isArray(frame.users) ? frame.users : [];
     this.userPositionsPrev.clear();
     for (const [id, pos] of this.userPositionsTarget.entries()) {
       this.userPositionsPrev.set(id, { ...pos });
