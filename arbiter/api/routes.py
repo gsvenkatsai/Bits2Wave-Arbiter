@@ -41,7 +41,18 @@ from arbiter.telemetry.impact import (
     store_impact_record,
 )
 from arbiter.telemetry.monitor import DB_PATH, KPITelemetryMonitor
-from arbiter.api.websocket import broadcast_tick_update, build_tick_update
+from arbiter.api.websocket import (
+    broadcast_tick_update,
+    build_tick_update,
+    format_simulated_time,
+)
+
+_latest_frame: dict[str, Any] | None = None
+
+
+def get_latest_frame_data() -> dict[str, Any] | None:
+    """Return the currently cached latest complete frame, or None."""
+    return _latest_frame
 
 # ---------------------------------------------------------------------------
 # ASSUMPTIONS — one constant / one place each; easy to change.
@@ -385,6 +396,363 @@ async def ingest_telemetry(
     await broadcast_tick_update(payload)
 
     return {"rows_written": rows}
+
+
+@router.post("/frames/ingest")
+async def ingest_frame(
+    request: Request,
+    monitor: KPITelemetryMonitor = Depends(get_monitor),
+    db_path: str = Depends(get_db_path),
+) -> dict[str, Any]:
+    """POST /api/v1/frames/ingest — Ingest complete 3D discrete simulation frame.
+
+    Joins decisions, conflict edges, plans, and twin uncertainty intervals,
+    then broadcasts to live WebSocket subscribers as type 'frame' and 'TICK_UPDATE'.
+    """
+    raw = await request.json()
+    if not isinstance(raw, dict):
+        raise HTTPException(
+            status_code=422, detail="Frame body must be a JSON object"
+        )
+
+    tick = int(raw.get("tick", 0))
+    sim_time_ms = int(raw.get("sim_time_ms", 1732154400000 + tick * 100))
+    scenario = str(raw.get("scenario", "2am_collision"))
+    world = str(raw.get("world", "arbiter"))
+    cells = raw.get("cells", [])
+    users = raw.get("users", [])
+    proposals = raw.get("proposals", [])
+    kpis = raw.get("kpis", {})
+
+    # 1. Join decisions
+    incoming_decisions = raw.get("decisions", [])
+    decisions: list[dict[str, Any]] = []
+    if incoming_decisions:
+        conn = sqlite3.connect(db_path)
+        try:
+            with conn:
+                for d in incoming_decisions:
+                    conn.execute(
+                        """
+                        INSERT OR REPLACE INTO audit_decisions (
+                            decision_id, command_id, batch_tick, action,
+                            approved_value, delta_utility, reason_code,
+                            hold_count, decided_at_epoch_ms
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            d.get("decision_id"),
+                            d.get("command_id"),
+                            tick,
+                            d.get("action"),
+                            d.get("approved_value"),
+                            d.get("delta_utility", 0.0),
+                            d.get("reason_code", "NONE"),
+                            d.get("hold_count", 0),
+                            sim_time_ms,
+                        ),
+                    )
+        except Exception:
+            pass
+        finally:
+            conn.close()
+        decisions = incoming_decisions
+    else:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            cur = conn.execute(
+                """
+                SELECT decision_id, command_id, action, approved_value,
+                       delta_utility, reason_code, hold_count
+                FROM audit_decisions
+                WHERE batch_tick = ?
+                """,
+                (tick,),
+            )
+            rows = cur.fetchall()
+            decisions = [dict(r) for r in rows]
+        except Exception:
+            decisions = []
+        finally:
+            conn.close()
+
+    # 2. Join conflict edges
+    conflicts = raw.get("conflicts", [])
+    if not conflicts and proposals:
+        try:
+            from arbiter.detector.graph import ConflictGraphBuilder
+            from arbiter.engine.contracts import CommandProposal as EngineProposal
+            from arbiter.shared.models import ControllerType
+            builder = ConflictGraphBuilder()
+            cmd_props = []
+            for p in proposals:
+                raw_ctrl = (
+                    p.get("controller_type")
+                    or p.get("controller_id")
+                    or "ENERGY_SAVING"
+                )
+                try:
+                    ctrl_enum = ControllerType(raw_ctrl)
+                except Exception:
+                    ctrl_enum = ControllerType.ENERGY_SAVING
+
+                cmd_props.append(
+                    EngineProposal(
+                        command_id=str(p.get("command_id", "")),
+                        controller_id=ctrl_enum,
+                        controller_type=ctrl_enum,
+                        target_cell_id=str(p.get("target_cell_id", "cell_A")),
+                        parameter=p.get("parameter", "tx_power_dbm"),
+                        requested_value=float(p.get("requested_value", 0.0)),
+                        emergency_flag=bool(p.get("emergency_flag", False)),
+                        timestamp_epoch_ms=int(
+                            p.get("timestamp_epoch_ms", sim_time_ms)
+                        ),
+                    )
+                )
+            from arbiter.simulator.grid import HexagonalGrid
+            grid = HexagonalGrid()
+            cluster_cells = grid.generate_5_cell_cluster()
+            adj = {
+                cid: cfg.neighbor_cell_ids for cid, cfg in cluster_cells.items()
+            }
+            cfg_graph = builder.build(cmd_props, adj)
+            for u, v, edata in cfg_graph.edges(data=True):
+                ctype = edata.get("conflict_type")
+                ctype_str = str(getattr(ctype, "value", ctype))
+                conflicts.append({"a": str(u), "b": str(v), "type": ctype_str})
+        except Exception:
+            conflicts = []
+
+    # 3. Join plans
+    plans = raw.get("plans", [])
+    if not plans:
+        try:
+            plans = get_plans(db_path)
+        except Exception:
+            plans = []
+
+    # 4. Join twin intervals
+    twin = raw.get("twin")
+    if not twin:
+        pred = _get_or_load_twin_prediction()
+        twin = {
+            "calibrated": pred.calibrated,
+            "intervals": [
+                {
+                    "kpi": i.kpi,
+                    "mean": i.mean,
+                    "lower": i.lower,
+                    "upper": i.upper,
+                }
+                for i in pred.intervals
+            ],
+        }
+
+    complete_frame: dict[str, Any] = {
+        "type": "frame",
+        "tick": tick,
+        "sim_time_ms": sim_time_ms,
+        "scenario": scenario,
+        "world": world,
+        "cells": cells,
+        "users": users,
+        "proposals": proposals,
+        "decisions": decisions,
+        "conflicts": conflicts,
+        "plans": plans,
+        "twin": twin,
+        "kpis": kpis,
+    }
+
+    global _latest_frame
+    _latest_frame = complete_frame
+
+    # Update cell states cache
+    if cells:
+        global _latest_cell_states
+        _latest_cell_states = [
+            CellState(
+                cell_id=c["id"],
+                x_coord=float(c.get("x", 0.0)),
+                y_coord=float(c.get("y", 0.0)),
+                current_tx_power_dbm=float(c.get("tx_power_dbm", 43.0)),
+                antenna_tilt_deg=float(c.get("tilt_deg", 6.0)),
+                is_sleeping=bool(c.get("is_sleeping", False)),
+                active_users=int(c.get("active_users", 0)),
+                load_ratio=float(c.get("load_ratio", 0.0)),
+                neighbor_cell_ids=[],
+            )
+            for c in cells
+        ]
+
+    # Broadcast full 3D frame over WebSocket
+    await broadcast_tick_update(complete_frame)
+
+    # Broadcast TICK_UPDATE for 2D dashboard
+    ctrl_abbrevs = {
+        "ENERGY_SAVING": "ES",
+        "LOAD_BALANCING": "LB",
+        "COVERAGE_CAPACITY": "CC",
+        "PUBLIC_SAFETY": "PS",
+    }
+    ingress_proposals = [
+        {
+            "time": format_simulated_time(sim_time_ms),
+            "ctrl": ctrl_abbrevs.get(
+                p.get("controller_type", ""), p.get("controller_type", "ES")
+            ),
+            "target": p.get("target_cell_id", ""),
+            "param": str(p.get("parameter", "")),
+            "req": (
+                f"{p.get('requested_value', 0):.2f}"
+                if p.get("requested_value") is not None
+                else "--"
+            ),
+            "verdict": next(
+                (
+                    d.get("action")
+                    for d in decisions
+                    if d.get("command_id") == p.get("command_id")
+                ),
+                "PENDING",
+            ),
+            "reason": next(
+                (
+                    d.get("reason_code")
+                    for d in decisions
+                    if d.get("command_id") == p.get("command_id")
+                ),
+                "NONE",
+            ),
+        }
+        for p in proposals
+    ]
+    arbitration_badges = [
+        {
+            "controller": ctrl_abbrevs.get(
+                p.get("controller_type", ""), p.get("controller_type", "ES")
+            ),
+            "action": next(
+                (
+                    d.get("action")
+                    for d in decisions
+                    if d.get("command_id") == p.get("command_id")
+                ),
+                "PENDING",
+            ),
+            "badge_class": next(
+                (
+                    str(d.get("action", "")).lower()
+                    for d in decisions
+                    if d.get("command_id") == p.get("command_id")
+                ),
+                "pending",
+            ),
+        }
+        for p in proposals
+    ]
+
+    samples = [
+        TelemetrySample(
+            sample_id=f"smp-{tick}-{c['id']}",
+            cell_id=c["id"],
+            sinr_db=round(float(kpis.get("mean_sinr_db", 0.0)), 2),
+            dropped_users=c.get("active_users", 0) if c.get("is_sleeping") else 0,
+            active_users=c.get("active_users", 0),
+            throughput_mbps=round(float(c.get("load_ratio", 0.0) * 100.0), 2),
+            energy_consumption_w=round(float(c.get("energy_w", 0.0)), 2),
+            timestamp_epoch_ms=sim_time_ms,
+        )
+        for c in cells
+    ]
+    if samples:
+        try:
+            monitor.ingest(samples)
+        except Exception:
+            pass
+
+    tick_update = build_tick_update(
+        batch_tick=tick,
+        ingress_proposals=ingress_proposals,
+        arbitration_badges=arbitration_badges,
+        samples=samples,
+        timestamp_epoch_ms=sim_time_ms,
+        twin_prediction=_get_or_load_twin_prediction().model_dump(),
+    )
+    tick_update["aggregate_kpis"]["total_dropped_users"] = kpis.get(
+        "dropped_users", 0
+    )
+    tick_update["aggregate_kpis"]["total_power_kw"] = kpis.get(
+        "power_kw", kpis.get("energy_w", 0.0) / 1000.0
+    )
+    tick_update["aggregate_kpis"]["mean_sinr_db"] = kpis.get(
+        "mean_sinr_db", 0.0
+    )
+
+    await broadcast_tick_update(tick_update)
+
+    return {
+        "status": "ok",
+        "tick": tick,
+        "decisions_count": len(decisions),
+        "conflicts_count": len(conflicts),
+    }
+
+
+@router.get("/frame/latest")
+def get_latest_frame() -> dict[str, Any]:
+    """GET /api/v1/frame/latest — Retrieve latest complete 3D frame."""
+    if _latest_frame is not None:
+        return _latest_frame
+
+    states = _get_cell_states()
+    twin_pred = _get_or_load_twin_prediction()
+    return {
+        "type": "frame",
+        "tick": 0,
+        "sim_time_ms": 1732154400000,
+        "scenario": "2am_collision",
+        "world": "arbiter",
+        "cells": [
+            {
+                "id": c.cell_id,
+                "x": 0.0,
+                "y": 0.0,
+                "tx_power_dbm": c.current_tx_power_dbm,
+                "tilt_deg": c.antenna_tilt_deg,
+                "is_sleeping": c.is_sleeping,
+                "active_users": c.active_users,
+                "load_ratio": c.load_ratio,
+                "energy_w": 2149.29,
+            }
+            for c in states
+        ],
+        "users": [],
+        "proposals": [],
+        "decisions": [],
+        "conflicts": [],
+        "plans": [],
+        "twin": {
+            "calibrated": twin_pred.calibrated,
+            "intervals": [
+                {
+                    "kpi": i.kpi,
+                    "mean": i.mean,
+                    "lower": i.lower,
+                    "upper": i.upper,
+                }
+                for i in twin_pred.intervals
+            ],
+        },
+        "kpis": {
+            "dropped_users": 0,
+            "mean_sinr_db": 9.51,
+            "energy_w": 2149.29,
+            "power_kw": 2.149,
+        },
+    }
 
 
 @router.get("/state/cells")

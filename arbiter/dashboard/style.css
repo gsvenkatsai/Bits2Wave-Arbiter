@@ -1440,6 +1440,28 @@ body {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
+/* 3D View Switcher Button */
+.btn-switch-3d {
+  background: rgba(0, 229, 255, 0.12);
+  color: #00e5ff;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-switch-3d:hover {
+  background: rgba(0, 229, 255, 0.25);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+}
+
 /* Uncertainty intervals on KPI cards */
 .kpi-interval {
   font-size: 0.62rem;

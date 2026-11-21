@@ -95,6 +95,7 @@ const DOM = {
   connectionText: document.getElementById("connectionText"),
   clockDisplay: document.getElementById("clockDisplay"),
   btnInjectDrift: document.getElementById("btnInjectDrift"),
+  btnToggle3D: document.getElementById("btnToggle3D"),
 
   kpiDroppedUsers: document.getElementById("kpiDroppedUsers"),
   kpiTotalPower: document.getElementById("kpiTotalPower"),
@@ -1278,6 +1279,11 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.btnInjectDrift.addEventListener("click", () => {
       injectTwinDrift();
     });
+  }
+
+  // 3D View switcher link preserving query string
+  if (DOM.btnToggle3D) {
+    DOM.btnToggle3D.href = `/dashboard/3d${window.location.search}`;
   }
 
   // Risk Dial preset buttons
