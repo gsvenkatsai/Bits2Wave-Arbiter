@@ -69,14 +69,12 @@ app.include_router(rest_router)
 app.include_router(ws_router)
 
 # Dashboard static files — MUST be mounted LAST (catch-all "/" route).
-# Conditional: arbiter/dashboard/ is created in Module 4; skip if absent.
-# Dashboard (Module 4) must handle empty cells list gracefully per user decision.
 _DASHBOARD_DIR: str = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "dashboard")
 )
-if os.path.isdir(_DASHBOARD_DIR):
-    app.mount(
-        "/",
-        StaticFiles(directory=_DASHBOARD_DIR, html=True),
-        name="dashboard",
-    )
+os.makedirs(_DASHBOARD_DIR, exist_ok=True)
+app.mount(
+    "/",
+    StaticFiles(directory=_DASHBOARD_DIR, html=True),
+    name="dashboard",
+)

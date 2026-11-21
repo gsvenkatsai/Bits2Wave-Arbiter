@@ -350,3 +350,62 @@ class TestBenchmarksRun:
         assert "ARBITER" in body["modes"]
         assert "UNCOORDINATED" in body["modes"]
         assert "STATIC_PRIORITY" in body["modes"]
+
+
+# ---------------------------------------------------------------------------
+# Dashboard Static Files & Frontend Assets (Spec §5.1, §4.1)
+# ---------------------------------------------------------------------------
+
+class TestDashboardStaticFiles:
+
+    def test_static_index_html_returns_200_and_html_type(self, client):
+        """GET / serves index.html with text/html content-type."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers.get("content-type", "")
+        assert "ARBITER" in resp.text
+        assert "2 AM COLLISION MONITOR" in resp.text
+
+    def test_static_app_js_returns_200_and_js_type(self, client):
+        """GET /app.js serves app.js with javascript content-type."""
+        resp = client.get("/app.js")
+        assert resp.status_code == 200
+        content_type = resp.headers.get("content-type", "")
+        assert "javascript" in content_type
+
+    def test_static_style_css_returns_200_and_css_type(self, client):
+        """GET /style.css serves style.css with text/css content-type."""
+        resp = client.get("/style.css")
+        assert resp.status_code == 200
+        assert "text/css" in resp.headers.get("content-type", "")
+
+    def test_action_badge_css_classes_exist_in_stylesheet(self):
+        """All 4 action badge classes from Spec §5.1 exist in style.css."""
+        import pathlib
+        css_path = pathlib.Path("arbiter/dashboard/style.css")
+        assert css_path.exists(), "style.css missing"
+        css_content = css_path.read_text(encoding="utf-8")
+        assert ".badge-approve" in css_content
+        assert ".badge-modify" in css_content
+        assert ".badge-delay" in css_content
+        assert ".badge-reject" in css_content
+
+    def test_synthetic_and_mock_strings_exist_in_app_js(self):
+        """'SYNTHETIC' and 'MOCK' strings must be explicitly present in app.js."""
+        import pathlib
+        js_path = pathlib.Path("arbiter/dashboard/app.js")
+        assert js_path.exists(), "app.js missing"
+        js_content = js_path.read_text(encoding="utf-8")
+        assert "SYNTHETIC" in js_content
+        assert "MOCK" in js_content
+
+    def test_no_innerhtml_assignment_with_server_data(self):
+        """Grep test: No innerHTML = assignments in app.js (safe DOM manipulation only)."""
+        import pathlib
+        import re
+        js_path = pathlib.Path("arbiter/dashboard/app.js")
+        js_content = js_path.read_text(encoding="utf-8")
+        # Assert no innerHTML assignment exists
+        matches = re.findall(r"\.innerHTML\s*=", js_content)
+        assert len(matches) == 0, f"Found unsafe innerHTML assignment in app.js: {matches}"
+

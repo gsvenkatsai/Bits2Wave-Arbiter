@@ -1,0 +1,410 @@
+/* ==============================================================================
+   PROJECT ARBITER — 2 AM Collision Monitor Dashboard Style
+   Module: arbiter/dashboard/style.css
+   Specification: Branch 4 Spec §5.1 (pages 6-7) & §4.2
+   Theme: High-contrast Dark Operations Console (NOC)
+   ============================================================================== */
+
+:root {
+  --bg-primary: #0a0e17;
+  --bg-card: #131a29;
+  --bg-card-hover: #192237;
+  --border-color: #202b42;
+  --border-subtle: #172133;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Spec §5.1 Action Badge Colors (pages 6-7) */
+  --badge-green-bg: rgba(16, 185, 129, 0.18);
+  --badge-green-fg: #10b981;
+  --badge-blue-bg: rgba(59, 130, 246, 0.18);
+  --badge-blue-fg: #3b82f6;
+  --badge-amber-bg: rgba(245, 158, 11, 0.18);
+  --badge-amber-fg: #f59e0b;
+  --badge-red-bg: rgba(239, 68, 68, 0.18);
+  --badge-red-fg: #ef4444;
+
+  /* Provenance badges */
+  --badge-purple-bg: rgba(168, 85, 247, 0.18);
+  --badge-purple-fg: #c084fc;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, monospace;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.4;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   Mock Banner (high visibility)
+   -------------------------------------------------------------------------- */
+.mock-banner {
+  background: linear-gradient(90deg, #b45309, #d97706);
+  color: #ffffff;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  border-bottom: 1px solid #f59e0b;
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
+.dashboard-header {
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.brand-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  font-family: monospace;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background-color: var(--border-color);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #64748b;
+}
+
+.status-connected .status-dot {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.status-reconnecting .status-dot {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.status-disconnected .status-dot {
+  background-color: #ef4444;
+}
+
+/* --------------------------------------------------------------------------
+   KPI Cards Section
+   -------------------------------------------------------------------------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 20px 24px 12px 24px;
+}
+
+.kpi-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.kpi-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.kpi-subtext {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Main Layout Grid
+   -------------------------------------------------------------------------- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 12px 24px 24px 24px;
+  flex: 1;
+}
+
+.panel {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.panel-header h2 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.panel-body {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Tables
+   -------------------------------------------------------------------------- */
+.data-table-container {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background-color: rgba(0, 0, 0, 0.2);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+}
+
+.data-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.data-table tr:hover {
+  background-color: var(--bg-card-hover);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* --------------------------------------------------------------------------
+   Action Badges (Spec §5.1 pages 6-7)
+   -------------------------------------------------------------------------- */
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.badge-approve {
+  background-color: var(--badge-green-bg);
+  color: var(--badge-green-fg);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-modify {
+  background-color: var(--badge-blue-bg);
+  color: var(--badge-blue-fg);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.badge-delay {
+  background-color: var(--badge-amber-bg);
+  color: var(--badge-amber-fg);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-reject {
+  background-color: var(--badge-red-bg);
+  color: var(--badge-red-fg);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-synthetic {
+  background-color: var(--badge-purple-bg);
+  color: var(--badge-purple-fg);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   Comparative Live Charts
+   -------------------------------------------------------------------------- */
+.chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-card {
+  background-color: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.chart-title {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 0.7rem;
+  font-family: monospace;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-line {
+  width: 14px;
+  height: 2px;
+  display: inline-block;
+}
+
+.legend-arbiter {
+  background-color: #10b981;
+}
+
+.legend-uncoordinated {
+  background-color: #ef4444;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 110px;
+  display: block;
+}
+
+.chart-note {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   Branch 3 Cell Topology / Awaiting State
+   -------------------------------------------------------------------------- */
+.info-box-awaiting {
+  background-color: rgba(59, 130, 246, 0.08);
+  border: 1px dashed rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  padding: 24px;
+  text-align: center;
+  color: #93c5fd;
+  font-size: 0.85rem;
+}
+
+.info-box-awaiting .title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.info-box-awaiting .desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}

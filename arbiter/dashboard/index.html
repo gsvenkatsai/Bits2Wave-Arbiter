@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARBITER • 2 AM Collision Monitor</title>
+  <!-- Static mount path verified in arbiter/api/server.py: app.mount("/", StaticFiles(directory=...)) -->
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+
+  <!-- Top Mock Data Banner (?mock=1) -->
+  <div id="mockBanner" class="mock-banner">
+    ⚠️ MOCK TELEMETRY MODE ACTIVE — Using client-side synthetic tick generator (Spec §6) — NOT LIVE ARBITER DATA
+  </div>
+
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="brand">
+      <h1>ARBITER</h1>
+      <span class="brand-badge">2 AM COLLISION MONITOR</span>
+      <span id="provenanceBadge" class="badge badge-synthetic" style="display: none;">SYNTHETIC</span>
+    </div>
+    <div class="status-bar">
+      <div id="connectionStatus" class="status-indicator status-disconnected">
+        <span class="status-dot"></span>
+        <span id="connectionText">Connecting...</span>
+      </div>
+      <div id="clockDisplay" style="font-family: monospace;">00:00:00.000</div>
+    </div>
+  </header>
+
+  <!-- Top Aggregate KPI Cards (Spec §4.2 page 6) -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <span class="kpi-label">Total Dropped Users</span>
+      <span id="kpiDroppedUsers" class="kpi-value">—</span>
+      <span class="kpi-subtext">Sum across active cells</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Total Power (kW)</span>
+      <span id="kpiTotalPower" class="kpi-value">—</span>
+      <span class="kpi-subtext">Cluster nocturnal energy</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Mean SINR (dB)</span>
+      <span id="kpiMeanSinr" class="kpi-value">—</span>
+      <span class="kpi-subtext">Signal interference ratio</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Twin MAPE (%)</span>
+      <span id="kpiTwinMape" class="kpi-value">—</span>
+      <span id="kpiMapeSubtext" class="kpi-subtext">Guard floor &lt; 10.0%</span>
+    </div>
+  </section>
+
+  <!-- Main Workspace Grid -->
+  <main class="dashboard-grid">
+
+    <!-- Panel 1: Live Ingress Stream & ARBITER Badges (Spec §5.1 page 6) -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Live Ingress &amp; Action Badges</h2>
+        <span id="ingressTickCounter" style="font-size: 0.75rem; font-family: monospace; color: var(--text-muted);">Tick: —</span>
+      </div>
+      <div class="panel-body data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Ctrl</th>
+              <th>Target</th>
+              <th>Param</th>
+              <th>Req</th>
+              <th>Action Badge</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody id="ingressTableBody">
+            <tr>
+              <td colspan="7" class="empty-state">Waiting for live tick stream from ws://...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel 2: Comparative KPI Live Charts (Spec §5.1 page 7) -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Comparative KPI Live Charts</h2>
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">ARBITER vs Baseline</span>
+      </div>
+      <div class="panel-body chart-wrapper">
+        <!-- Dropped Users Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Instantaneous Dropped Users</span>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-line legend-arbiter"></span>ARBITER</span>
+              <span class="legend-item"><span class="legend-line legend-uncoordinated"></span>Uncoordinated</span>
+            </div>
+          </div>
+          <canvas id="chartDroppedUsers" class="chart-canvas" width="600" height="110"></canvas>
+          <div id="chartDroppedNote" class="chart-note"></div>
+        </div>
+
+        <!-- Power kW Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Cluster Power Consumption (kW)</span>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-line legend-arbiter"></span>ARBITER</span>
+              <span class="legend-item"><span class="legend-line legend-uncoordinated"></span>Uncoordinated</span>
+            </div>
+          </div>
+          <canvas id="chartPowerKw" class="chart-canvas" width="600" height="110"></canvas>
+          <div id="chartPowerNote" class="chart-note"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel 3: Cell State & Topology (Spec §4.1 page 5) -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Physical Cell Topology</h2>
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">GET /api/v1/state/cells</span>
+      </div>
+      <div class="panel-body" id="cellStateContainer">
+        <!-- Will be populated or show 'Awaiting Branch 3' -->
+      </div>
+    </section>
+
+    <!-- Panel 4: Arbitration Decisions Audit History (Spec §4.1 page 5) -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Arbitration Decisions History</h2>
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">audit_decisions (limit 50)</span>
+      </div>
+      <div class="panel-body data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Tick</th>
+              <th>Action</th>
+              <th>Approved</th>
+              <th>&Delta;U</th>
+              <th>Reason</th>
+              <th>Hold</th>
+              <th>Decided At</th>
+            </tr>
+          </thead>
+          <tbody id="decisionsTableBody">
+            <tr>
+              <td colspan="7" class="empty-state">Loading audit decisions...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>
