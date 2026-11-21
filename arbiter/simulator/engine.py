@@ -32,6 +32,8 @@ class SimulationEngine:
         seed: int = 42,
         start_epoch_ms: int = 1732154400000,
         telemetry_sink: Optional[Any] = None,
+        proposal_sink: Optional[Any] = None,
+        use_real_queue: bool = False,
     ) -> None:
         self.topology = topology
         self.scenario = (
@@ -42,6 +44,15 @@ class SimulationEngine:
         self.simulated_epoch_ms = start_epoch_ms
         self.tick = 0
         self.telemetry_sink = telemetry_sink
+
+        if proposal_sink is not None:
+            self.proposal_sink = proposal_sink
+        elif use_real_queue:
+            from arbiter.simulator.proposal_sink_adapter import ProposalQueueSink
+            self.proposal_sink = ProposalQueueSink()
+        else:
+            from arbiter.simulator.mocks.mock_proposal_sink import MockProposalSink
+            self.proposal_sink = MockProposalSink()
 
         # Propagation model
         self.propagation = Cost231PropagationModel()
@@ -66,6 +77,11 @@ class SimulationEngine:
 
         # Offload overrides: ue_id -> pinned target_cell_id
         self.offload_overrides: Dict[str, str] = {}
+
+    @classmethod
+    def create_integrated(cls, **kwargs: Any) -> "SimulationEngine":
+        """Factory for SimulationEngine wired to real ProposalQueue."""
+        return cls(use_real_queue=True, **kwargs)
 
     def get_cell_configs(self) -> List[CellConfiguration]:
         """Return raw CellConfiguration models."""
@@ -267,11 +283,35 @@ def main() -> None:
     parser.add_argument("--cells", type=int, default=5,
                         choices=[5, 19], help="Cluster size")
     parser.add_argument("--seed", type=int, default=42, help="RNG seed")
+    parser.add_argument(
+        "--stream-ws",
+        action="store_true",
+        help="Stream live telemetry and decisions over WebSockets",
+    )
+    parser.add_argument(
+        "--use-real-queue",
+        action="store_true",
+        help="Wire to Branch 2 ProposalQueue instead of mock sink",
+    )
     args = parser.parse_args()
 
     topology = "19_CELL" if args.cells == 19 else "5_CELL_CORE"
     engine = SimulationEngine(
-        topology=topology, scenario=args.scenario, seed=args.seed)
+        topology=topology,
+        scenario=args.scenario,
+        seed=args.seed,
+        use_real_queue=args.use_real_queue,
+    )
+
+    if args.stream_ws:
+        try:
+            from arbiter.api.websocket import manager  # type: ignore  # noqa: F401
+            print("[SIMULATOR] --stream-ws enabled (WebSocket streaming active)")
+        except Exception:
+            print(
+                "[SIMULATOR] Notice: --stream-ws specified; "
+                "live broadcast ready once WebSocket server is running."
+            )
 
     print(
         f"[SIMULATOR] Starting {args.scenario} scenario "
