@@ -9,6 +9,7 @@ from arbiter.shared.models import (
     ParameterType,
     TelemetrySample,
 )
+from arbiter.simulator.traffic import CELL_CAPACITY_MBPS
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class LoadBalancingController(BaseController):
             for item in metrics:
                 if isinstance(item, TelemetrySample):
                     cell_loads[item.cell_id] = float(
-                        item.throughput_mbps / 30.0
+                        item.throughput_mbps / CELL_CAPACITY_MBPS
                     )
         elif isinstance(metrics, dict):
             cell_loads = {str(k): float(v) for k, v in metrics.items()}

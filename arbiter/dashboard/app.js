@@ -44,15 +44,13 @@ const STATE = {
   // Previous KPI values for number tweening
   prevKPIs: { drops: 0, power: 0, sinr: 0, mape: 0 },
 
-  // 7-cell canonical topology coordinates & states
+  // 5-cell canonical topology coordinates & states
   cells: [
-    { id: "cell_A", name: "Cell A (Core)", x: 180, y: 130, tx: 43.0, tilt: 6.0, load: 0.42, users: 128, sleeping: false },
-    { id: "cell_B", name: "Cell B (North)", x: 180, y: 62, tx: 38.0, tilt: 8.0, load: 0.18, users: 44, sleeping: true },
-    { id: "cell_C", name: "Cell C (NE)",    x: 238, y: 96, tx: 41.0, tilt: 6.0, load: 0.35, users: 95, sleeping: false },
-    { id: "cell_D", name: "Cell D (SE)",    x: 238, y: 164, tx: 43.0, tilt: 7.0, load: 0.48, users: 142, sleeping: false },
-    { id: "cell_E", name: "Cell E (South)", x: 180, y: 198, tx: 35.0, tilt: 9.0, load: 0.12, users: 28, sleeping: true },
-    { id: "cell_F", name: "Cell F (SW)",    x: 122, y: 164, tx: 42.0, tilt: 6.0, load: 0.39, users: 110, sleeping: false },
-    { id: "cell_G", name: "Cell G (NW)",    x: 122, y: 96, tx: 40.0, tilt: 7.0, load: 0.29, users: 76, sleeping: false }
+    { id: "cell_A", name: "Cell A (Core)",  x: 160, y: 110, tx: 43.0, tilt: 6.0, load: 0.88, users: 35, sleeping: false },
+    { id: "cell_B", name: "Cell B (East)",  x: 230, y: 110, tx: 43.0, tilt: 6.0, load: 0.10, users: 4,  sleeping: false },
+    { id: "cell_C", name: "Cell C (NE)",    x: 195, y: 50,  tx: 43.0, tilt: 6.0, load: 0.10, users: 4,  sleeping: false },
+    { id: "cell_D", name: "Cell D (NW)",    x: 125, y: 50,  tx: 43.0, tilt: 6.0, load: 0.15, users: 6,  sleeping: false },
+    { id: "cell_E", name: "Cell E (South)", x: 160, y: 170, tx: 43.0, tilt: 6.0, load: 0.12, users: 5,  sleeping: false }
   ],
   selectedCellId: "cell_A",
 
@@ -66,7 +64,7 @@ const STATE = {
 };
 
 const urlParams = new URLSearchParams(window.location.search);
-STATE.isMockMode = urlParams.get("mock") === "1";
+STATE.isMockMode = urlParams.get("demo") === "1" || urlParams.get("mock") === "1";
 
 const DOM = {
   mockBanner: document.getElementById("mockBanner"),
@@ -380,14 +378,14 @@ function updateCharts(batchTick, arbiterDrops, uncoordDrops, arbiterPower, uncoo
   renderCanvasLineChart(
     DOM.chartDroppedUsers,
     STATE.history.arbiterDrops,
-    STATE.isMockMode ? STATE.history.uncoordDrops : [],
+    STATE.history.uncoordDrops,
     "ARBITER", "Uncoordinated", "#10b981", "#ef4444"
   );
 
   renderCanvasLineChart(
     DOM.chartPowerKw,
     STATE.history.arbiterPower,
-    STATE.isMockMode ? STATE.history.uncoordPower : [],
+    STATE.history.uncoordPower,
     "ARBITER", "Uncoordinated", "#10b981", "#ef4444"
   );
 
@@ -533,7 +531,9 @@ function handleTickUpdate(msg) {
     updateAggregateKPIs(msg.aggregate_kpis);
     const arbDrop = msg.aggregate_kpis.total_dropped_users || 0;
     const arbPower = msg.aggregate_kpis.total_power_kw || 0;
-    updateCharts(msg.batch_tick || 0, arbDrop, null, arbPower, null);
+    const uncoordDrop = msg.aggregate_kpis.uncoord_dropped_users ?? null;
+    const uncoordPower = msg.aggregate_kpis.uncoord_power_kw ?? null;
+    updateCharts(msg.batch_tick || 0, arbDrop, uncoordDrop, arbPower, uncoordPower);
   }
 
   const proposals = msg.ingress_proposals || [];
@@ -562,33 +562,30 @@ async function fetchCellStates() {
 function renderCellStates(cells) {
   clearChildren(DOM.cellStateContainer);
 
-  if (!cells || cells.length === 0) {
-    const box = document.createElement("div");
-    box.className = "info-box-awaiting";
+  const titleEl = document.querySelector(".topology-panel .panel-title");
+  if (cells && cells.length > 0) {
+    if (titleEl) {
+      titleEl.textContent = `Physical Cell Topology (${cells.length}-Cell Cluster)`;
+    }
 
-    const title = document.createElement("div");
-    title.className = "title";
-    title.textContent = "ℹ️ Live Cell Storage: Awaiting Branch 3";
-
-    const desc = document.createElement("div");
-    desc.className = "desc";
-    desc.textContent = "GET /api/v1/state/cells is in STUB mode pending Branch 3 digital twin storage merge. Displaying canonical 7-cell network cluster above.";
-
-    box.appendChild(title);
-    box.appendChild(desc);
-    DOM.cellStateContainer.appendChild(box);
-    return;
+    cells.forEach((liveCell, idx) => {
+      const match = STATE.cells.find(c => c.id === liveCell.cell_id) || STATE.cells[idx];
+      if (match) {
+        match.id = liveCell.cell_id;
+        match.tx = liveCell.current_tx_power_dbm;
+        match.tilt = liveCell.antenna_tilt_deg;
+        match.load = liveCell.load_ratio;
+        match.users = liveCell.active_users;
+        match.sleeping = liveCell.is_sleeping;
+      }
+    });
+  } else if (titleEl) {
+    titleEl.textContent = "Physical Cell Topology (5-Cell Cluster)";
   }
 
-  cells.forEach((liveCell, idx) => {
-    if (STATE.cells[idx]) {
-      STATE.cells[idx].tx = liveCell.current_tx_power_dbm;
-      STATE.cells[idx].tilt = liveCell.antenna_tilt_deg;
-      STATE.cells[idx].load = liveCell.load_ratio;
-      STATE.cells[idx].sleeping = liveCell.is_sleeping;
-    }
-  });
   renderHexTopology();
+  const selected = STATE.cells.find(c => c.id === STATE.selectedCellId) || STATE.cells[0];
+  if (selected) updateInspector(selected);
 }
 
 // ---------------------------------------------------------------------------
@@ -725,18 +722,19 @@ document.querySelectorAll(".filter-chip").forEach(chip => {
 // ---------------------------------------------------------------------------
 function startMockGenerator() {
   DOM.mockBanner.style.display = "block";
+  DOM.mockBanner.textContent = "DEMO DATA — SYNTHETIC SIMULATION (?demo=1)";
   DOM.provenanceBadge.style.display = "inline-block";
-  DOM.provenanceBadge.textContent = "SYNTHETIC";
-  updateConnectionStatus("connected", "MOCK ACTIVE (?mock=1)");
+  DOM.provenanceBadge.textContent = "DEMO DATA";
+  updateConnectionStatus("connected", "DEMO DATA ACTIVE");
 
   const controllers = ["ES", "LB", "CC", "PS"];
   const targetCells = ["cell_A", "cell_B", "cell_C", "cell_D"];
   const params = ["SLEEP_STATE", "OFFLOAD_RATIO", "TX_POWER_DBM", "TILT_DEG"];
   const badgeTemplates = [
     { badge_type: "APPROVE", label: "APPROVE", reason: "NONE" },
-    { badge_type: "MODIFY",  label: "MODIFY (15%)", reason: "HEADROOM_CONSTRAINT" },
-    { badge_type: "DELAY",   label: "DELAY (hold 2)", reason: "ACTIVE_HANDOVER" },
-    { badge_type: "REJECT",  label: "REJECT (cyclic)", reason: "PING_PONG_DETECTED" }
+    { badge_type: "MODIFY",  label: "MODIFY (15%)", reason: "HEADROOM" },
+    { badge_type: "DELAY",   label: "DELAY (hold 1)", reason: "ACTIVE_HO" },
+    { badge_type: "REJECT",  label: "REJECT (cyclic)", reason: "CYCLIC_PINGPONG" }
   ];
 
   STATE.mockIntervalTimer = setInterval(() => {

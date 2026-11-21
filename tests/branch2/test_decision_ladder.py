@@ -51,7 +51,8 @@ def _scenario_kpis(candidate: List[dict[str, Any]]) -> Dict[str, float]:
             interference += 0.05 * to_value
             drop_rate += 0.15 * to_value * to_value
         elif parameter == "TX_POWER_DBM":
-            step = to_value - 30.0
+            from_value = float(delta.get("from_value", 0.0))
+            step = to_value - (from_value if from_value > 0.0 else 30.0)
             coverage += 0.05 * step
             energy += 0.02 * step
             interference += 0.02 * step

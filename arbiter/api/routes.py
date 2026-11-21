@@ -12,6 +12,7 @@ Responsibility (confirmed by user):
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
@@ -78,18 +79,36 @@ def get_db_path() -> str:
 
 
 # ---------------------------------------------------------------------------
-# STUB: cell state provider — ASSUMPTION A2
+# Physical cell state provider — wired with 5-cell cluster state
 # ---------------------------------------------------------------------------
 
-def _get_cell_states() -> list[CellState]:
-    """
-    STUB: Branch 3 not merged.
+_latest_cell_states: list[CellState] = []
 
-    Returns an empty list until Branch 3's actuator/storage layer populates
-    cell state data.  Swap this function's body only; no other change required.
-    Listed under STUBS in the Module 2 close-out for integration follow-up.
-    """
-    return []  # STUB: Branch 3 not merged — see ASSUMPTION A2
+
+def _get_cell_states() -> list[CellState]:
+    """Retrieve current states of all cells."""
+    global _latest_cell_states
+    if _latest_cell_states:
+        return _latest_cell_states
+    from arbiter.simulator.grid import HexagonalGrid
+    from arbiter.simulator.cell import CellEntity
+    grid = HexagonalGrid()
+    cells = grid.generate_5_cell_cluster(isd=500.0)
+    baseline_stats = {
+        "cell_A": (35, 0.875),
+        "cell_B": (4, 0.100),
+        "cell_C": (4, 0.100),
+        "cell_D": (6, 0.150),
+        "cell_E": (5, 0.125),
+    }
+    _latest_cell_states = [
+        CellEntity(c).to_cell_state(
+            active_users=baseline_stats.get(c.cell_id, (0, 0.0))[0],
+            load_ratio=baseline_stats.get(c.cell_id, (0, 0.0))[1],
+        )
+        for c in cells.values()
+    ]
+    return _latest_cell_states
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +139,7 @@ class BenchmarkRunRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.get("/health")
-def health() -> dict:
+def health() -> dict[str, Any]:
     """
     GET /api/v1/health — Health probe.
     Source: spec §4.1 page 4.
@@ -133,22 +152,68 @@ def health() -> dict:
 async def ingest_telemetry(
     request: Request,
     monitor: KPITelemetryMonitor = Depends(get_monitor),
-) -> dict:
+) -> dict[str, Any]:
     """
     POST /api/v1/telemetry/ingest — Ingest telemetry from Branch 1 simulator.
     Source: spec §4.1 page 4.
 
-    Accepts List[TelemetrySample] OR a single TelemetrySample (ASSUMPTION A1).
-    Uses Request + model_validate to handle both shapes reliably in Pydantic v2
-    (a typed Union body parameter has known serialisation edge cases in FastAPI).
-
-    After persisting, broadcasts a TICK_UPDATE to all connected WebSocket clients.
+    Accepts List[TelemetrySample] OR a single TelemetrySample (ASSUMPTION A1),
+    or rich simulation tick updates containing samples and arbitration badges.
     """
     raw = await request.json()
+    batch_tick = 0
+    ingress_proposals = []
+    arbitration_badges = []
+    timestamp_epoch_ms = None
+    uncoord_dropped = None
+    uncoord_power = None
 
     if isinstance(raw, list):
         try:
             samples = [TelemetrySample.model_validate(item) for item in raw]
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors())
+    elif isinstance(raw, dict) and "samples" in raw:
+        try:
+            samples = [
+                TelemetrySample.model_validate(item) for item in raw["samples"]
+            ]
+            batch_tick = raw.get("batch_tick", 0)
+            ingress_proposals = raw.get("ingress_proposals", [])
+            arbitration_badges = raw.get("arbitration_badges", [])
+            timestamp_epoch_ms = raw.get("timestamp_epoch_ms")
+            uncoord_dropped = raw.get("uncoord_dropped_users")
+            uncoord_power = raw.get("uncoord_power_kw")
+
+            if "cell_states" in raw:
+                global _latest_cell_states
+                _latest_cell_states = [
+                    CellState.model_validate(c) for c in raw["cell_states"]
+                ]
+            if "decisions" in raw:
+                conn = sqlite3.connect(get_db_path())
+                try:
+                    with conn:
+                        for d in raw["decisions"]:
+                            conn.execute(
+                                """
+                                INSERT OR REPLACE INTO audit_decisions (
+                                    decision_id, command_id, batch_tick, action,
+                                    approved_value, delta_utility, reason_code,
+                                    hold_count, decided_at_epoch_ms
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (
+                                    d["decision_id"], d["command_id"],
+                                    d["batch_tick"], d["action"],
+                                    d.get("approved_value"),
+                                    d["delta_utility"], d["reason_code"],
+                                    d.get("hold_count", 0),
+                                    d["decided_at_epoch_ms"],
+                                ),
+                            )
+                finally:
+                    conn.close()
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=exc.errors())
     elif isinstance(raw, dict):
@@ -168,14 +233,22 @@ async def ingest_telemetry(
     rows = monitor.ingest(samples)
 
     # Broadcast aggregate KPIs to connected dashboard clients (spec §4.2).
-    payload = build_tick_update(samples=samples)
+    payload = build_tick_update(
+        batch_tick=batch_tick,
+        ingress_proposals=ingress_proposals,
+        arbitration_badges=arbitration_badges,
+        samples=samples,
+        timestamp_epoch_ms=timestamp_epoch_ms,
+        uncoord_dropped_users=uncoord_dropped,
+        uncoord_power_kw=uncoord_power,
+    )
     await broadcast_tick_update(payload)
 
     return {"rows_written": rows}
 
 
 @router.get("/state/cells")
-def get_cells() -> list[dict]:
+def get_cells() -> list[dict[str, Any]]:
     """
     GET /api/v1/state/cells — Latest physical cell configurations.
     Source: spec §4.1 page 5.
@@ -193,7 +266,7 @@ def get_cells() -> list[dict]:
 def get_decisions_history(
     limit: int = 50,
     db_path: str = Depends(get_db_path),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     GET /api/v1/decisions/history?limit=50 — Recent arbitration decisions.
     Source: spec §4.1 page 5.
@@ -221,7 +294,7 @@ def get_decisions_history(
 
 
 @router.post("/benchmarks/run", status_code=202)
-def run_benchmarks(body: BenchmarkRunRequest) -> dict:
+def run_benchmarks(body: BenchmarkRunRequest) -> dict[str, Any]:
     """
     POST /api/v1/benchmarks/run — Trigger Monte Carlo benchmark run.
     Source: spec §4.1 page 5.

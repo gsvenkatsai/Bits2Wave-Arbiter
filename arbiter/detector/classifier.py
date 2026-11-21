@@ -218,6 +218,8 @@ def _match_sleep_vs_inbound_offload(
         return False
     if offloader.handover_to is not None:
         return offloader.handover_to == sleeper.target_cell
+    if offloader.target_cell == sleeper.target_cell:
+        return True
     # No explicit destination: rising offload on a neighbouring cell is assumed
     # to spill toward the sleeping cell.
     return index.within(sleeper.target_cell, offloader.target_cell, classifier.hop_radius)
@@ -323,11 +325,24 @@ class ConflictClassifier:
             return None, None
 
         if a.target_cell == b.target_cell:
-            if normalize_parameter(a.parameter) != normalize_parameter(b.parameter):
+            norm_a = normalize_parameter(a.parameter)
+            norm_b = normalize_parameter(b.parameter)
+            if norm_a == norm_b:
+                direction_a, direction_b = direction(a), direction(b)
+                if direction_a * direction_b < 0:
+                    return ConflictType.DIRECT, "opposing_values"
                 return None, None
-            direction_a, direction_b = direction(a), direction(b)
-            if direction_a * direction_b < 0:
-                return ConflictType.DIRECT, "opposing_values"
+            # Cross-parameter conflicts on the same cell:
+            if (
+                (norm_a in SLEEP_PARAMETERS and norm_b in OFFLOAD_PARAMETERS
+                 and _is_sleep_on(a) and _is_offload_increase(b))
+                or (norm_b in SLEEP_PARAMETERS and norm_a in OFFLOAD_PARAMETERS
+                    and _is_sleep_on(b) and _is_offload_increase(a))
+            ):
+                return (
+                    ConflictType.INDIRECT,
+                    RuleKind.SLEEP_VS_INBOUND_OFFLOAD.value,
+                )
             return None, None
 
         index = self.index_for(adjacency)

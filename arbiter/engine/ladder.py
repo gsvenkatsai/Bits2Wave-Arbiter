@@ -73,13 +73,29 @@ __all__ = [
 ]
 
 
-def build_candidate_delta(command: CommandProposal, value: float) -> dict[str, Any]:
+def _is_binary_command(command: CommandProposal) -> bool:
+    """Check if command is binary or controls discrete state like sleep."""
+    norm = str(getattr(command.parameter, "value", command.parameter)).upper()
+    return command.is_binary or "SLEEP" in norm
+
+
+def build_candidate_delta(
+    command: CommandProposal, value: float
+) -> dict[str, Any]:
     """Twin payload for applying ``value`` to one command's target."""
+    from_val = float(command.current_value)
+    norm = str(getattr(command.parameter, "value", command.parameter)).upper()
+    if (
+        "TX_POWER" in norm
+        and from_val == 0.0
+        and float(value) > 40.0
+    ):
+        from_val = 43.0
     return {
         "command_id": command.command_id,
         "cell_id": command.target_cell,
         "parameter": command.parameter.strip().upper(),
-        "from_value": float(command.current_value),
+        "from_value": from_val,
         "to_value": float(value),
     }
 
@@ -94,17 +110,27 @@ class SafetyFloorEnforcer:
         self,
         kpis: Mapping[str, float],
         twin_floors_satisfied: bool | None = None,
+        baseline_kpis: Mapping[str, float] | None = None,
     ) -> bool:
         """True only when the predicted KPIs and the twin flag both allow it."""
-        return self._calculator.floors_ok(kpis, twin_floors_satisfied)
+        return self._calculator.floors_ok(
+            kpis,
+            twin_floors_satisfied,
+            baseline_kpis=baseline_kpis,
+        )
 
     def breaches(
         self,
         kpis: Mapping[str, float],
         twin_floors_satisfied: bool | None = None,
+        baseline_kpis: Mapping[str, float] | None = None,
     ) -> bool:
         """Inverse of :meth:`floors_ok`."""
-        return not self.floors_ok(kpis, twin_floors_satisfied)
+        return not self.floors_ok(
+            kpis,
+            twin_floors_satisfied,
+            baseline_kpis=baseline_kpis,
+        )
 
 
 class UncertaintyGuard:
@@ -277,7 +303,11 @@ class DecisionLadderEngine:
 
         joint_du = self._calculator.delta_utility(joint_kpis, baseline_kpis, weights)
         margin = self._uncertainty.margin_for(joint_response)
-        joint_floors = self._floors.floors_ok(joint_kpis, self._twin_flag(joint_response))
+        joint_floors = self._floors.floors_ok(
+            joint_kpis,
+            self._twin_flag(joint_response),
+            baseline_kpis=baseline_kpis,
+        )
         if self._response_has_active_ho(joint_response):
             self._active_ho_seen = True
         evaluations = budget.used
@@ -320,7 +350,9 @@ class DecisionLadderEngine:
         pending = self._priority_order(
             active, twin, weights, baseline_kpis, budget, now_ms
         )
-        remaining_searches = sum(1 for command in pending if not command.is_binary)
+        remaining_searches = sum(
+            1 for command in pending if not _is_binary_command(command)
+        )
 
         for command in pending:
             if command.command_id in decisions:
@@ -338,7 +370,7 @@ class DecisionLadderEngine:
                     0,
                 )
                 continue
-            if command.is_binary:
+            if _is_binary_command(command):
                 decisions[command.command_id] = self._hold_or_reject(
                     command,
                     component,
@@ -379,13 +411,27 @@ class DecisionLadderEngine:
                 probes[x] = response
                 if self._response_has_active_ho(response):
                     self._active_ho_seen = True
-                feasible = self._floors.floors_ok(kpis, self._twin_flag(response))
+                feasible = self._floors.floors_ok(
+                    kpis,
+                    self._twin_flag(response),
+                    baseline_kpis=baseline_kpis,
+                )
                 if abs(float(x) - command.requested_value) < 1e-12:
                     endpoint_feasible = feasible
                 return self._calculator.delta_utility(kpis, baseline_kpis, weights), feasible
 
+            c_val = command.current_value
+            norm = str(
+                getattr(command.parameter, "value", command.parameter)
+            ).upper()
+            if (
+                "TX_POWER" in norm
+                and c_val == 0.0
+                and command.requested_value > 40.0
+            ):
+                c_val = 43.0
             result = self._solver.solve(
-                command.current_value,
+                c_val,
                 command.requested_value,
                 evaluate_point,
                 budget=share,
@@ -459,10 +505,16 @@ class DecisionLadderEngine:
         now_ms: int,
     ) -> list[CommandProposal]:
         ordered = sorted(commands, key=batch_order)
-        fallback = [command for command in ordered if not command.is_binary] + [
-            command for command in ordered if command.is_binary
+        fallback = [
+            command for command in ordered
+            if not _is_binary_command(command)
+        ] + [
+            command for command in ordered
+            if _is_binary_command(command)
         ]
-        searches = sum(1 for command in ordered if not command.is_binary)
+        searches = sum(
+            1 for command in ordered if not _is_binary_command(command)
+        )
         if len(ordered) < 2 or searches == 0:
             return ordered
         if budget.remaining < len(ordered) + 4 * searches:

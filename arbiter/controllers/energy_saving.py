@@ -9,6 +9,7 @@ from arbiter.shared.models import (
     ParameterType,
     TelemetrySample,
 )
+from arbiter.simulator.traffic import CELL_CAPACITY_MBPS
 
 
 class EnergySavingController(BaseController):
@@ -63,9 +64,9 @@ class EnergySavingController(BaseController):
         if isinstance(metrics, list):
             for item in metrics:
                 if isinstance(item, TelemetrySample):
-                    # Estimate cell load: 30.0 Mbps nominal capacity
+                    # Estimate cell load: nominal capacity CELL_CAPACITY_MBPS
                     load = (
-                        float(item.throughput_mbps / 30.0)
+                        float(item.throughput_mbps / CELL_CAPACITY_MBPS)
                         if item.throughput_mbps > 0
                         else 0.0
                     )

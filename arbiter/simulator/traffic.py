@@ -9,7 +9,7 @@ import numpy as np
 from arbiter.simulator.cell import CellConfiguration, UserEquipment
 from arbiter.simulator.grid import HexagonalGrid
 
-CELL_CAPACITY_MBPS: float = 30.0
+CELL_CAPACITY_MBPS: float = 80.0
 
 
 class ScenarioType(str, Enum):

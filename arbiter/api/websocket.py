@@ -14,7 +14,7 @@ Responsibility (confirmed by user):
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -81,6 +81,13 @@ def _now_hhmmss_ms() -> str:
     return now.strftime("%H:%M:%S.") + f"{ms:03d}"
 
 
+def format_simulated_time(epoch_ms: int) -> str:
+    """Format epoch milliseconds as HH:MM:SS.mmm in UTC."""
+    dt = datetime.fromtimestamp(epoch_ms / 1000.0, tz=timezone.utc)
+    ms = epoch_ms % 1000
+    return dt.strftime("%H:%M:%S.") + f"{ms:03d}"
+
+
 # ---------------------------------------------------------------------------
 # Public message builder
 # ---------------------------------------------------------------------------
@@ -88,38 +95,16 @@ def _now_hhmmss_ms() -> str:
 def build_tick_update(
     *,
     batch_tick: int = 0,
-    ingress_proposals: list[dict] | None = None,
-    arbitration_badges: list[dict] | None = None,
+    ingress_proposals: list[dict[str, Any]] | None = None,
+    arbitration_badges: list[dict[str, Any]] | None = None,
     samples: list[TelemetrySample] | None = None,
     twin_mape_pct: float = 0.0,
-) -> dict:
+    timestamp_epoch_ms: int | None = None,
+    uncoord_dropped_users: int | None = None,
+    uncoord_power_kw: float | None = None,
+) -> dict[str, Any]:
     """
     Build a TICK_UPDATE message conforming to spec §4.2 pages 5-6.
-
-    Parameters
-    ----------
-    batch_tick:
-        Simulation tick index (default 0 — ASSUMPTION: Branch 1 not wired yet).
-    ingress_proposals:
-        List of proposal dicts from Branch 2.  Empty until Branch 2 integrated.
-    arbitration_badges:
-        List of badge dicts from Branch 2.  Empty until Branch 2 integrated.
-    samples:
-        Ingested TelemetrySamples; used to compute aggregate_kpis fields.
-        If None, all KPI values are 0.
-    twin_mape_pct:
-        Current MAPE % from KPITelemetryMonitor.  0.0 until Branch 3 wired.
-
-    Returns
-    -------
-    dict
-        Spec-conformant TICK_UPDATE with all six top-level keys (§4.2 page 5).
-
-    Aggregate KPI field mapping (spec §4.2 page 6):
-        total_dropped_users  ← sum(TelemetrySample.dropped_users)
-        total_power_kw       ← sum(TelemetrySample.energy_consumption_w) / 1000
-        mean_sinr_db         ← mean(TelemetrySample.sinr_db)
-        twin_mape_pct        ← caller-supplied (from KPITelemetryMonitor)
     """
     if samples:
         total_dropped: int    = sum(s.dropped_users for s in samples)
@@ -131,18 +116,31 @@ def build_tick_update(
         total_power_kw = 0.0
         mean_sinr      = 0.0
 
+    if timestamp_epoch_ms is not None:
+        ts_str = format_simulated_time(timestamp_epoch_ms)
+    elif samples and len(samples) > 0 and samples[0].timestamp_epoch_ms:
+        ts_str = format_simulated_time(samples[0].timestamp_epoch_ms)
+    else:
+        ts_str = _now_hhmmss_ms()
+
+    agg_kpis: dict[str, Any] = {
+        "total_dropped_users": total_dropped,
+        "total_power_kw":      total_power_kw,
+        "mean_sinr_db":        mean_sinr,
+        "twin_mape_pct":       twin_mape_pct,
+    }
+    if uncoord_dropped_users is not None:
+        agg_kpis["uncoord_dropped_users"] = uncoord_dropped_users
+    if uncoord_power_kw is not None:
+        agg_kpis["uncoord_power_kw"] = uncoord_power_kw
+
     return {
-        "type":               "TICK_UPDATE",             # spec §4.2 page 5
-        "batch_tick":         batch_tick,                # spec §4.2 page 5
-        "timestamp":          _now_hhmmss_ms(),          # spec §4.2 page 5 (ASSUMPTION A5)
-        "ingress_proposals":  ingress_proposals or [],   # spec §4.2 page 5
-        "arbitration_badges": arbitration_badges or [],  # spec §4.2 pages 5-6
-        "aggregate_kpis": {                              # spec §4.2 page 6
-            "total_dropped_users": total_dropped,        # spec §4.2 page 6
-            "total_power_kw":      total_power_kw,       # spec §4.2 page 6
-            "mean_sinr_db":        mean_sinr,            # spec §4.2 page 6
-            "twin_mape_pct":       twin_mape_pct,        # spec §4.2 page 6
-        },
+        "type":               "TICK_UPDATE",
+        "batch_tick":         batch_tick,
+        "timestamp":          ts_str,
+        "ingress_proposals":  ingress_proposals or [],
+        "arbitration_badges": arbitration_badges or [],
+        "aggregate_kpis":     agg_kpis,
     }
 
 
@@ -176,7 +174,7 @@ class ConnectionManager:
         """
         self._connections.discard(websocket)
 
-    async def broadcast(self, message: dict) -> None:
+    async def broadcast(self, message: dict[str, Any]) -> None:
         """
         Send a JSON message to all connected clients.
 
@@ -240,7 +238,7 @@ async def ws_live(websocket: WebSocket) -> None:
 # Public broadcast helper (called from routes.py after ingest)
 # ---------------------------------------------------------------------------
 
-async def broadcast_tick_update(payload: dict) -> None:
+async def broadcast_tick_update(payload: dict[str, Any]) -> None:
     """
     Broadcast a prepared TICK_UPDATE payload to all connected WS clients.
     Called by routes.ingest_telemetry() after persisting.

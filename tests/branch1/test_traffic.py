@@ -20,14 +20,14 @@ def test_pool_sizes_5_and_19_cells() -> None:
 
 
 def test_active_count_scales_with_profile() -> None:
-    # Quiet night scale = 0.22 -> round(70 * 0.22) = 15
+    # 2 AM scenario: active_ue_count = 54 (scale = 54/70)
     model = TrafficDistributionModel(
         topology="5_CELL_CORE", scenario=ScenarioType.QUIET_2AM, seed=42
     )
     # At tick 0, get_load_multiplier is 1.0
     active_users = model.get_active_users(tick_index=0)
-    expected_count = round(70 * 0.22)
-    assert len(active_users) == expected_count
+    expected_count = round(70 * (54 / 70))
+    assert len(active_users) == expected_count == 54
 
 
 def test_reproducibility_with_same_seed() -> None:
@@ -104,6 +104,41 @@ def test_2am_collision_load_guarantee() -> None:
 
     assert load_B < 0.15, f"Cell B load {load_B:.2%} must be < 15%"
     assert load_A > 0.75, f"Cell A load {load_A:.2%} must be > 75%"
+
+    counts = {
+        cid: sum(1 for u in active_users if u.attached_cell_id == cid)
+        for cid in model.cells
+    }
+    assert counts["cell_A"] == 35, f"Cell A users: {counts['cell_A']}"
+    assert counts["cell_B"] == 4, f"Cell B users: {counts['cell_B']}"
+    for cid in ("cell_C", "cell_D", "cell_E"):
+        assert 4 <= counts[cid] <= 6, f"{cid} users: {counts[cid]}"
+
+
+def test_2am_baseline_sinr_and_drops() -> None:
+    """Regression test asserting criterion (a): healthy baseline metrics."""
+    from arbiter.simulator.engine import SimulationEngine
+    import numpy as np
+
+    engine = SimulationEngine(
+        topology="5_CELL_CORE", scenario=ScenarioType.QUIET_2AM, seed=42
+    )
+    samples = engine.step()
+    active_users = engine.traffic_model.get_active_users(engine.tick)
+
+    # 0 dropped users
+    total_drops = sum(s.dropped_users for s in samples)
+    assert total_drops == 0, f"Drops must be 0, got {total_drops}"
+
+    # Cluster mean SINR >= 8.0 dB
+    mean_sinr = float(np.mean([u.sinr_db for u in active_users]))
+    assert mean_sinr >= 8.0, f"SINR must be >= 8.0 dB, got {mean_sinr:.2f} dB"
+
+    # All 5 cells active at 43.0 dBm
+    assert len(engine.cells) == 5
+    for cid, cell in engine.cells.items():
+        assert not cell.is_sleeping, f"Cell {cid} should not be sleeping"
+        assert cell.current_tx_power_dbm == 43.0
 
 
 def test_scenario_type_parsing() -> None:

@@ -195,11 +195,9 @@ class TestCells:
 
     def test_cells_stub_returns_empty_list(self, client):
         """
-        STUB assertion — confirms Branch 3 not yet merged (ASSUMPTION A2).
-        Remove this test and wire _get_cell_states() when Branch 3 integrates.
+        Confirms 5-cell cluster state is returned when Branch 3 integrates.
         """
-        assert client.get("/api/v1/state/cells").json() == []
-
+        assert len(client.get("/api/v1/state/cells").json()) == 5
     def test_cells_each_element_conforms_to_cell_state_schema(self, client):
         """
         Any returned element must deserialise as CellState (shared/models.py:72).

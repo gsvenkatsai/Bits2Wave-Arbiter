@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 
 from arbiter.shared.models import CellState
 
+CELL_CAPACITY_MBPS: float = 80.0
+
 
 class CellConfiguration(BaseModel):
     """Configuration and state parameters for a single RAN cell sector."""

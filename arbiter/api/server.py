@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +39,7 @@ CORS_ORIGINS: list[str] = json.loads(_cors_raw)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ANN001
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Initialise SQLite schema on startup (idempotent — shared DDL uses
     CREATE TABLE IF NOT EXISTS).  Schema source: shared/database.py.

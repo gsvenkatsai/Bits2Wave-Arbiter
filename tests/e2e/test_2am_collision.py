@@ -17,9 +17,12 @@ Playbook Section 6.1 Traceability:
    - Uncoordinated baseline comparison: blackout (Cell B 0 W, dropped users).
 """
 import sqlite3
+import numpy as np
 import pytest
+from fastapi.testclient import TestClient
 
 from arbiter.actuator.enforcer import ActuatorEnforcer
+from arbiter.api.server import app
 from arbiter.controllers.scenarios import (
     apply_uncoordinated_baseline,
     collision_report,
@@ -216,3 +219,142 @@ def test_2am_collision_simulation_coordinated_vs_uncoordinated() -> None:
         report_uncoord["total_dropped_users"]
         > report_coord["total_dropped_users"]
     )
+
+
+def test_2am_collision_full_acceptance_criteria() -> None:
+    """End-to-end regression test for all 2 AM collision acceptance criteria.
+
+    Validates:
+    (a) Baseline tick: 0 dropped users, mean SINR >= 8 dB, 5 cells at 43 dBm.
+    (b) Pre-collision: Cell A ~35 (> 75%), Cell B ~4 (< 15%), C/D/E light.
+    (c) Collision trio land in same 100 ms:
+        - ES (cell_B SLEEP_STATE 1.0) -> DELAY (hold 1, reason NONE)
+        - LB (cell_B OFFLOAD_RATIO 0.40) -> MODIFY ~0.15 (reason HEADROOM)
+        - CC (cell_A TX_POWER_DBM 46) -> MODIFY ~44 dBm (reason HEADROOM)
+        - No decision reason outside ReasonCode enum
+    (d) Post-actuation: Cell B stays active, drops stay 0; uncoord drops > 0.
+    (e) Topology endpoint returns 5 cells.
+    """
+    # (a) Baseline tick assertions
+    engine = SimulationEngine(
+        topology="5_CELL_CORE", scenario=ScenarioType.QUIET_2AM, seed=42
+    )
+    samples = engine.step()
+    drops = sum(s.dropped_users for s in samples)
+    assert drops == 0, f"Baseline dropped users must be 0, got {drops}"
+
+    active_users = engine.traffic_model.get_active_users(engine.tick)
+    cluster_sinr = float(np.mean([u.sinr_db for u in active_users]))
+    assert cluster_sinr >= 8.0, (
+        f"Mean SINR must be >= 8 dB, got {cluster_sinr}"
+    )
+
+    assert len(engine.cells) == 5
+    for cid, cell in engine.cells.items():
+        assert cell.current_tx_power_dbm == 43.0, f"{cid} not at 43 dBm"
+        assert cell.is_sleeping is False, f"{cid} is sleeping in baseline"
+
+    # (b) Pre-collision user distribution & loads
+    loads = engine.get_cell_loads()
+    cell_counts = {
+        cid: sum(1 for u in active_users if u.attached_cell_id == cid)
+        for cid in engine.cells
+    }
+    assert cell_counts["cell_A"] == pytest.approx(35, abs=2)
+    assert loads["cell_A"] > 0.75, f"Cell A load {loads['cell_A']:.1%} <= 75%"
+    assert cell_counts["cell_B"] == pytest.approx(4, abs=1)
+    assert loads["cell_B"] < 0.15, f"Cell B load {loads['cell_B']:.1%} >= 15%"
+    for cid in ("cell_C", "cell_D", "cell_E"):
+        assert 3 <= cell_counts[cid] <= 8, f"{cid} count not light"
+
+    # Step to tick 6
+    for _ in range(5):
+        engine.step()
+
+    # (c) Ingress collision proposals & arbitration
+    proposals = trigger_2am_collision(
+        engine=engine, base_ts_ms=engine.simulated_epoch_ms
+    )
+    assert len(proposals) == 3
+    base_ts = proposals[0].timestamp_epoch_ms
+    for p in proposals:
+        assert abs(p.timestamp_epoch_ms - base_ts) < 100
+
+    adj = {
+        cid: cell.config.neighbor_cell_ids
+        for cid, cell in engine.cells.items()
+    }
+    orchestrator = QueueOrchestrator(
+        twin=_scenario_twin(), adjacency=adj, max_workers=2
+    )
+    for p in proposals:
+        orchestrator.submit(CommandProposal.model_validate(p.model_dump()))
+
+    res = orchestrator.on_tick(
+        current_tick=6, timestamp_epoch_ms=engine.simulated_epoch_ms
+    )
+    decisions = res["decisions"]
+    assert len(decisions) == 3
+
+    # Verify no reason outside ReasonCode enum
+    valid_reasons = set(ReasonCode)
+    for d in decisions:
+        assert d.reason_code in valid_reasons, f"Invalid: {d.reason_code}"
+
+    # Verify exact decisions
+    by_ctrl = {}
+    for d in decisions:
+        prop = next(p for p in proposals if p.command_id == d.command_id)
+        by_ctrl[prop.controller_type] = d
+
+    # ES -> DELAY (hold 1, reason NONE)
+    dec_es = by_ctrl[ControllerType.ENERGY_SAVING]
+    assert dec_es.action is ActionType.DELAY
+    assert dec_es.hold_count == 1
+    assert dec_es.reason_code is ReasonCode.NONE
+
+    # LB -> MODIFY ~0.15 (reason HEADROOM)
+    dec_lb = by_ctrl[ControllerType.LOAD_BALANCING]
+    assert dec_lb.action is ActionType.MODIFY
+    assert dec_lb.approved_value == pytest.approx(0.1528, abs=0.01)
+    assert dec_lb.reason_code is ReasonCode.HEADROOM
+
+    # CC -> MODIFY ~44 dBm (+1 dB, reason HEADROOM)
+    dec_cc = by_ctrl[ControllerType.COVERAGE_CAPACITY]
+    assert dec_cc.action is ActionType.MODIFY
+    assert dec_cc.approved_value == pytest.approx(44.146, abs=0.3)
+    assert dec_cc.reason_code is ReasonCode.HEADROOM
+
+    # (d) Post-actuation
+    # Apply coordinated decisions
+    engine.cells["cell_A"].set_tx_power(dec_cc.approved_value)
+    # ES is delayed, Cell B stays active at 43 dBm
+    samples_coord = engine.step()
+    drops_coord = sum(s.dropped_users for s in samples_coord)
+    assert drops_coord == 0, f"Coordinated drops must be 0, got {drops_coord}"
+    assert engine.cells["cell_B"].is_sleeping is False
+    assert engine.cells["cell_B"].effective_tx_power_w() > 0.0
+
+    # Parallel uncoordinated comparator
+    engine_uncoord = SimulationEngine(
+        topology="5_CELL_CORE", scenario=ScenarioType.QUIET_2AM, seed=42
+    )
+    for _ in range(6):
+        engine_uncoord.step()
+    uncoord_props = trigger_2am_collision(
+        engine=engine_uncoord, base_ts_ms=engine_uncoord.simulated_epoch_ms
+    )
+    apply_uncoordinated_baseline(engine_uncoord, uncoord_props)
+    samples_uncoord = engine_uncoord.step()
+    drops_uncoord = sum(s.dropped_users for s in samples_uncoord)
+    assert drops_uncoord > 0, "Uncoordinated baseline must suffer drops"
+    assert (
+        engine_uncoord.cells["cell_B"].effective_tx_power_w() == 0.0
+    ), "Cell B must be 0 W (blackout)"
+
+    # (e) Topology endpoint returns 5 cells
+    client = TestClient(app)
+    resp = client.get("/api/v1/state/cells")
+    assert resp.status_code == 200
+    cells_data = resp.json()
+    assert len(cells_data) == 5, f"Expected 5 cells, got {len(cells_data)}"

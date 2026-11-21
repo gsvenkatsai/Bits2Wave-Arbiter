@@ -105,16 +105,24 @@ class UtilityCalculator:
         self,
         kpis: Mapping[str, float],
         twin_floors_satisfied: bool | None = None,
+        baseline_kpis: Mapping[str, float] | None = None,
     ) -> bool:
         """Both safety floors hold and the twin did not report a breach.
 
-        The twin's ``safety_floors_satisfied`` flag is never trusted on its own:
-        the floors are recomputed from the predicted KPIs and the twin flag can
-        only make the verdict stricter. ``None`` means "no twin flag available".
+        If baseline already violates a floor, an action is rejected only
+        if it makes the floor metric worse than the current state.
+        The twin's ``safety_floors_satisfied`` flag is never trusted alone:
+        the floors are recomputed from the predicted KPIs and the twin flag
+        can only make the verdict stricter. ``None`` means no twin flag.
         """
         coverage = float(kpis.get("coverage_ratio", 0.0))
         drop_rate = float(kpis.get("drop_rate_ratio", 1.0))
         computed = coverage >= FLOOR_COVERAGE and drop_rate <= FLOOR_DROP_RATE
+        if not computed and baseline_kpis is not None:
+            base_cov = float(baseline_kpis.get("coverage_ratio", 0.0))
+            base_drop = float(baseline_kpis.get("drop_rate_ratio", 1.0))
+            if base_cov < FLOOR_COVERAGE or base_drop > FLOOR_DROP_RATE:
+                computed = (coverage >= base_cov) and (drop_rate <= base_drop)
         if twin_floors_satisfied is None:
             return computed
         return computed and bool(twin_floors_satisfied)
