@@ -4,163 +4,1814 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARBITER • 2 AM Collision Monitor</title>
-  <!-- Static mount path verified in arbiter/api/server.py: app.mount("/", StaticFiles(directory=...)) -->
-  <link rel="stylesheet" href="/style.css">
-  <script src="/app.js" defer></script>
+
+  <!-- Typography: Inter (UI) & JetBrains Mono (Data & Numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       LINEAR DESIGN SYSTEM TOKENS (NOC High-Density Console)
+       ========================================================================== */
+    :root {
+      /* 4-Step Surface Ladder */
+      --surface-canvas:   #090a0d;   /* Root backdrop */
+      --surface-base:     #0f1117;   /* Panel & container background */
+      --surface-elevated: #161922;   /* Hovered rows, inputs, cards */
+      --surface-overlay:  #1d212d;   /* Tooltips, active badges, modals */
+
+      /* Hairlines */
+      --hairline-subtle:  rgba(255, 255, 255, 0.065);
+      --hairline-strong:  rgba(255, 255, 255, 0.12);
+      --hairline-active:  rgba(0, 229, 255, 0.45);
+
+      /* Neutral Chrome Typography */
+      --text-primary:     #f2f4f8;   /* 98% contrast */
+      --text-secondary:   #8a94a6;   /* Labels, units, metadata */
+      --text-muted:       #4c5566;   /* Table headers, grid ticks */
+
+      /* Accent & Semantic Action Palette */
+      --accent-cyan:      #00e5ff;
+      --accent-glow:      rgba(0, 229, 255, 0.22);
+
+      --action-approve:   #10b981;   /* Emerald */
+      --action-approve-tint: rgba(16, 185, 129, 0.10);
+      --action-modify:    #3b82f6;   /* Blue */
+      --action-modify-tint:  rgba(59, 130, 246, 0.10);
+      --action-delay:     #f59e0b;   /* Amber */
+      --action-delay-tint:   rgba(245, 158, 11, 0.10);
+      --action-reject:    #ef4444;   /* Coral */
+      --action-reject-tint:  rgba(239, 68, 68, 0.12);
+      --action-reject-glow:  rgba(239, 68, 68, 0.35);
+
+      --badge-purple-bg:  rgba(168, 85, 247, 0.12);
+      --badge-purple-fg:  #c084fc;
+
+      /* Radii scale: 4 / 8 / 12 */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+
+      /* Typography */
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+      /* Motion */
+      --ease-linear: cubic-bezier(0.2, 0.8, 0.2, 1);
+      --anim-hover: 140ms var(--ease-linear);
+      --anim-entrance: 280ms var(--ease-linear);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Fixed 100vh layout — Zero page scroll */
+    html, body {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      background-color: var(--surface-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Tabular mono numerals */
+    .num {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Thin Dark Scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #232834;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #333a4c;
+    }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #232834 transparent;
+    }
+
+    /* --------------------------------------------------------------------------
+       HEADER CHROME (46px height, neutral, dense)
+       -------------------------------------------------------------------------- */
+    .noc-header {
+      height: 46px;
+      min-height: 46px;
+      background: var(--surface-base);
+      border-bottom: 1px solid var(--hairline-subtle);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 50;
+    }
+
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-elevated);
+      border: 1px solid var(--hairline-subtle);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.05em;
+    }
+
+    /* Small Mock Pill in Header */
+    .mock-banner, .mock-pill {
+      font-size: 0.65rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      padding: 2px 8px;
+      border-radius: 9999px;
+      display: none;
+    }
+
+    .header-status-cluster {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      background: var(--surface-elevated);
+      border: 1px solid var(--hairline-subtle);
+      padding: 3px 9px;
+      border-radius: 9999px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--text-muted);
+    }
+
+    .status-connected .status-dot {
+      background-color: var(--action-approve);
+      box-shadow: 0 0 8px var(--action-approve);
+      animation: pulse-dot 2.4s infinite var(--ease-linear);
+    }
+    .status-reconnecting .status-dot {
+      background-color: var(--action-delay);
+      box-shadow: 0 0 6px var(--action-delay);
+    }
+    .status-disconnected .status-dot {
+      background-color: var(--action-reject);
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.8; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.25); }
+    }
+
+    .clock-display {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--text-primary);
+      background: var(--surface-canvas);
+      border: 1px solid var(--hairline-subtle);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* --------------------------------------------------------------------------
+       TOP KPIS BAR (68px fixed height)
+       -------------------------------------------------------------------------- */
+    .kpi-strip {
+      height: 70px;
+      min-height: 70px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--hairline-subtle);
+      border-bottom: 1px solid var(--hairline-subtle);
+    }
+
+    .kpi-cell {
+      background: var(--surface-base);
+      padding: 8px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      transition: background var(--anim-hover);
+    }
+    .kpi-cell:hover {
+      background: var(--surface-elevated);
+    }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: 3px;
+    }
+
+    .kpi-body {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .kpi-value {
+      font-family: var(--font-mono);
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .delta-chip {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity var(--anim-entrance);
+    }
+    .delta-chip.show { opacity: 1; }
+    .delta-up   { color: var(--action-reject);  background: var(--action-reject-tint); }
+    .delta-down { color: var(--action-approve); background: var(--action-approve-tint); }
+
+    /* Micro sparkline canvas */
+    .kpi-sparkline {
+      width: 60px;
+      height: 18px;
+      margin-left: auto;
+    }
+
+    /* MAPE Guard Floor Track */
+    .mape-track-wrapper {
+      width: 100%;
+      margin-top: 4px;
+    }
+    .mape-track {
+      height: 4px;
+      background: var(--surface-elevated);
+      border-radius: 2px;
+      position: relative;
+      overflow: visible;
+    }
+    .mape-fill {
+      height: 100%;
+      width: 48%;
+      background: var(--action-approve);
+      border-radius: 2px;
+      transition: width var(--anim-entrance), background-color var(--anim-hover);
+    }
+    .mape-fill.breach {
+      background: var(--action-reject);
+    }
+    .mape-tick-10 {
+      position: absolute;
+      left: 50%; /* 10% on a 0-20% scale */
+      top: -3px;
+      width: 2px;
+      height: 10px;
+      background: var(--text-secondary);
+      border-radius: 1px;
+    }
+    .mape-tick-label {
+      position: absolute;
+      left: 50%;
+      top: 6px;
+      transform: translateX(-50%);
+      font-size: 0.58rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    /* --------------------------------------------------------------------------
+       DENSE FIXED 100VH NOC WORKSPACE GRID (Hero Left 60%, Stacked Right 40%)
+       -------------------------------------------------------------------------- */
+    .noc-workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.45fr 1fr; /* ~60% hero / ~40% secondary */
+      gap: 1px;
+      background: var(--hairline-subtle);
+      overflow: hidden;
+      min-height: 0; /* Prevents overflow blowout */
+    }
+
+    .column-hero, .column-secondary {
+      background: var(--surface-canvas);
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* Panels separated by hairlines only — no cards inside cards */
+    .noc-panel {
+      background: var(--surface-base);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      min-height: 0;
+    }
+
+    .noc-panel.hero-ingress {
+      flex: 1.6; /* Dominant hero table */
+    }
+    .noc-panel.hero-decisions {
+      flex: 1;
+    }
+    .noc-panel.chart-panel {
+      height: 155px;
+      min-height: 155px;
+      max-height: 155px;
+    }
+    .noc-panel.topology-panel {
+      flex: 1;
+    }
+
+    /* Panel Header Bar */
+    .panel-bar {
+      height: 34px;
+      min-height: 34px;
+      padding: 0 14px;
+      background: var(--surface-base);
+      border-bottom: 1px solid var(--hairline-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-meta {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Stream Paused Pill */
+    .stream-paused-pill {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(245, 158, 11, 0.16);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      animation: pulse-dot 1.8s infinite var(--ease-linear);
+    }
+    .stream-paused-pill.show {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Filter Chips Bar */
+    .filter-strip {
+      padding: 6px 14px;
+      background: var(--surface-canvas);
+      border-bottom: 1px solid var(--hairline-subtle);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .filter-chip {
+      font-family: var(--font-mono);
+      font-size: 0.64rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-base);
+      border: 1px solid var(--hairline-subtle);
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--anim-hover);
+    }
+    .filter-chip:hover {
+      color: var(--text-primary);
+      border-color: var(--hairline-strong);
+      background: var(--surface-elevated);
+    }
+    .filter-chip.active {
+      color: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.08);
+    }
+
+    .chip-divider {
+      width: 1px;
+      height: 12px;
+      background: var(--hairline-subtle);
+      margin: 0 4px;
+    }
+
+    .btn-export {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--text-secondary);
+      background: var(--surface-base);
+      border: 1px solid var(--hairline-subtle);
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--anim-hover);
+    }
+    .btn-export:hover {
+      color: var(--text-primary);
+      border-color: var(--hairline-strong);
+      background: var(--surface-elevated);
+    }
+
+    /* --------------------------------------------------------------------------
+       DATA TABLES (Internally Scrolling, 2px Action Border, Arrival Flash)
+       -------------------------------------------------------------------------- */
+    .table-viewport {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 0;
+    }
+
+    .noc-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+      text-align: left;
+    }
+
+    .noc-table th {
+      position: sticky;
+      top: 0;
+      background: var(--surface-base);
+      color: var(--text-muted);
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--hairline-subtle);
+      z-index: 10;
+    }
+
+    .noc-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--hairline-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      transition: background-color var(--anim-hover);
+    }
+
+    .noc-table tr:hover td {
+      background-color: var(--surface-elevated);
+      color: var(--text-primary);
+    }
+
+    /* 2px Action Left Border */
+    .row-border-approve { border-left: 2px solid var(--action-approve); }
+    .row-border-modify  { border-left: 2px solid var(--action-modify); }
+    .row-border-delay   { border-left: 2px solid var(--action-delay); }
+    .row-border-reject  { border-left: 2px solid var(--action-reject); }
+
+    /* 400ms Arrival Flash */
+    @keyframes arrival-flash {
+      0%   { opacity: 0; transform: translateY(-4px); background-color: rgba(255, 255, 255, 0.08); }
+      30%  { opacity: 1; transform: translateY(0); }
+      100% { background-color: transparent; }
+    }
+    .row-new {
+      animation: arrival-flash 400ms var(--ease-linear) forwards;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 0.64rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+    }
+
+    .badge-approve   { background: var(--action-approve-tint); color: var(--action-approve); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-modify    { background: var(--action-modify-tint);  color: var(--action-modify);  border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-delay     { background: var(--action-delay-tint);   color: var(--action-delay);   border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-reject    { background: var(--action-reject-tint);  color: var(--action-reject);  border: 1px solid rgba(239, 68, 68, 0.35); box-shadow: 0 0 8px var(--action-reject-glow); }
+    .badge-synthetic { background: var(--badge-purple-bg);     color: var(--badge-purple-fg); border: 1px solid rgba(168, 85, 247, 0.3); }
+
+    /* --------------------------------------------------------------------------
+       STACKED CANVAS CHARTS (Right Column)
+       -------------------------------------------------------------------------- */
+    .chart-container {
+      position: relative;
+      flex: 1;
+      padding: 6px 12px 10px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .chart-crosshair-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--surface-overlay);
+      border: 1px solid var(--hairline-strong);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 0.64rem;
+      color: var(--text-primary);
+      display: none;
+      z-index: 20;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    /* --------------------------------------------------------------------------
+       COMPACT 7-CELL TOPOLOGY HONEYCOMB (Right Column Bottom)
+       -------------------------------------------------------------------------- */
+    .topology-split {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 180px;
+      gap: 1px;
+      background: var(--hairline-subtle);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .topology-canvas-wrap {
+      background: var(--surface-base);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      position: relative;
+    }
+
+    .hex-cell {
+      cursor: pointer;
+      transform-origin: center;
+      transition: all var(--anim-hover);
+    }
+
+    .hex-polygon {
+      stroke-width: 1.2;
+      transition: all var(--anim-hover);
+    }
+
+    /* Single-hue heat ramp for cell loads */
+    .load-heat-0  .hex-polygon { fill: rgba(0, 229, 255, 0.04); stroke: rgba(0, 229, 255, 0.25); }
+    .load-heat-25 .hex-polygon { fill: rgba(0, 229, 255, 0.10); stroke: rgba(0, 229, 255, 0.50); }
+    .load-heat-50 .hex-polygon { fill: rgba(0, 229, 255, 0.18); stroke: rgba(0, 229, 255, 0.75); }
+    .load-heat-75 .hex-polygon { fill: rgba(0, 229, 255, 0.28); stroke: #00e5ff; filter: drop-shadow(0 0 6px var(--accent-glow)); }
+    .hex-cell.sleeping .hex-polygon { fill: rgba(20, 24, 34, 0.4); stroke: var(--text-muted); stroke-dasharray: 3 3; }
+    .hex-cell.selected .hex-polygon { stroke: var(--action-approve); stroke-width: 2.2; filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4)); }
+
+    .hex-text-id {
+      font-family: var(--font-mono);
+      font-size: 8.5px;
+      font-weight: 700;
+      fill: var(--text-primary);
+      text-anchor: middle;
+      pointer-events: none;
+    }
+    .hex-text-load {
+      font-family: var(--font-mono);
+      font-size: 7px;
+      fill: var(--text-secondary);
+      text-anchor: middle;
+      pointer-events: none;
+    }
+
+    /* Inspector Card */
+    .cell-inspector {
+      background: var(--surface-base);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.68rem;
+    }
+
+    .inspector-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--hairline-subtle);
+    }
+
+    .inspector-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+    }
+    .inspector-val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .branch3-stub-note {
+      margin-top: auto;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--hairline-subtle);
+      padding-top: 4px;
+      line-height: 1.3;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      padding: 24px !important;
+      font-family: var(--font-mono);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
 </head>
 <body>
 
-  <!-- Top Mock Data Banner (?mock=1) -->
-  <div id="mockBanner" class="mock-banner">
-    ⚠️ MOCK TELEMETRY MODE ACTIVE — Using client-side synthetic tick generator (Spec §6) — NOT LIVE ARBITER DATA
-  </div>
-
-  <!-- Header -->
-  <header class="dashboard-header">
-    <div class="brand">
-      <h1>ARBITER</h1>
-      <span class="brand-badge">2 AM COLLISION MONITOR</span>
-      <span id="provenanceBadge" class="badge badge-synthetic" style="display: none;">SYNTHETIC</span>
+  <!-- Top NOC Header Bar (Neutral Chrome) -->
+  <header class="noc-header">
+    <div class="brand-cluster">
+      <div class="brand-title">
+        <span>ARBITER</span>
+        <span class="brand-tag">2 AM COLLISION MONITOR</span>
+        <span id="mockBanner" class="mock-pill">MOCK SIMULATION</span>
+        <span id="provenanceBadge" class="badge badge-synthetic" style="display: none;">SYNTHETIC</span>
+      </div>
     </div>
-    <div class="status-bar">
+
+    <div class="header-status-cluster">
       <div id="connectionStatus" class="status-indicator status-disconnected">
         <span class="status-dot"></span>
         <span id="connectionText">Connecting...</span>
       </div>
-      <div id="clockDisplay" style="font-family: monospace;">00:00:00.000</div>
+      <div id="clockDisplay" class="clock-display num">00:00:00.000</div>
     </div>
   </header>
 
-  <!-- Top Aggregate KPI Cards (Spec §4.2 page 6) -->
-  <section class="kpi-grid">
-    <div class="kpi-card">
-      <span class="kpi-label">Total Dropped Users</span>
-      <span id="kpiDroppedUsers" class="kpi-value">—</span>
-      <span class="kpi-subtext">Sum across active cells</span>
+  <!-- KPI Strip (Fixed 70px) -->
+  <section class="kpi-strip">
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Total Dropped Users</span>
+        <span id="trendDropped" class="delta-chip"></span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiDroppedUsers" class="kpi-value num">—</div>
+        <canvas id="sparklineDrops" class="kpi-sparkline" width="60" height="18"></canvas>
+      </div>
     </div>
-    <div class="kpi-card">
-      <span class="kpi-label">Total Power (kW)</span>
-      <span id="kpiTotalPower" class="kpi-value">—</span>
-      <span class="kpi-subtext">Cluster nocturnal energy</span>
+
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Total Power (kW)</span>
+        <span id="trendPower" class="delta-chip"></span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiTotalPower" class="kpi-value num">—</div>
+        <canvas id="sparklinePower" class="kpi-sparkline" width="60" height="18"></canvas>
+      </div>
     </div>
-    <div class="kpi-card">
-      <span class="kpi-label">Mean SINR (dB)</span>
-      <span id="kpiMeanSinr" class="kpi-value">—</span>
-      <span class="kpi-subtext">Signal interference ratio</span>
+
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Mean SINR (dB)</span>
+        <span id="trendSinr" class="delta-chip"></span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiMeanSinr" class="kpi-value num">—</div>
+        <canvas id="sparklineSinr" class="kpi-sparkline" width="60" height="18"></canvas>
+      </div>
     </div>
-    <div class="kpi-card">
-      <span class="kpi-label">Twin MAPE (%)</span>
-      <span id="kpiTwinMape" class="kpi-value">—</span>
-      <span id="kpiMapeSubtext" class="kpi-subtext">Guard floor &lt; 10.0%</span>
+
+    <div class="kpi-cell">
+      <div class="kpi-header">
+        <span>Twin MAPE (%)</span>
+        <span id="kpiMapeSubtext" style="font-size: 0.6rem; color: var(--text-muted);">Floor &lt; 10%</span>
+      </div>
+      <div class="kpi-body">
+        <div id="kpiTwinMape" class="kpi-value num">—</div>
+        <div class="mape-track-wrapper">
+          <div class="mape-track">
+            <div id="mapeFillBar" class="mape-fill"></div>
+            <div class="mape-tick-10"></div>
+            <div class="mape-tick-label">10%</div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- Main Workspace Grid -->
-  <main class="dashboard-grid">
+  <!-- Fixed 100vh Dense NOC Grid -->
+  <main class="noc-workspace">
 
-    <!-- Panel 1: Live Ingress Stream & ARBITER Badges (Spec §5.1 page 6) -->
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Live Ingress &amp; Action Badges</h2>
-        <span id="ingressTickCounter" style="font-size: 0.75rem; font-family: monospace; color: var(--text-muted);">Tick: —</span>
-      </div>
-      <div class="panel-body data-table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Ctrl</th>
-              <th>Target</th>
-              <th>Param</th>
-              <th>Req</th>
-              <th>Action Badge</th>
-              <th>Reason</th>
-            </tr>
-          </thead>
-          <tbody id="ingressTableBody">
-            <tr>
-              <td colspan="7" class="empty-state">Waiting for live tick stream from ws://...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <!-- Column Hero (Left ~60%): Live Ingress Stream & Audit Decisions -->
+    <div class="column-hero">
 
-    <!-- Panel 2: Comparative KPI Live Charts (Spec §5.1 page 7) -->
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Comparative KPI Live Charts</h2>
-        <span style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">ARBITER vs Baseline</span>
-      </div>
-      <div class="panel-body chart-wrapper">
-        <!-- Dropped Users Chart -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <span class="chart-title">Instantaneous Dropped Users</span>
-            <div class="chart-legend">
-              <span class="legend-item"><span class="legend-line legend-arbiter"></span>ARBITER</span>
-              <span class="legend-item"><span class="legend-line legend-uncoordinated"></span>Uncoordinated</span>
-            </div>
+      <!-- Panel 1: Live Ingress Stream (Hero 60%) -->
+      <section class="noc-panel hero-ingress" id="ingressPanelContainer">
+        <div class="panel-bar">
+          <div class="panel-title">
+            <span>Live Ingress &amp; Action Badges</span>
+            <span id="streamPausedPill" class="stream-paused-pill">⏸ Stream paused (0 new)</span>
           </div>
-          <canvas id="chartDroppedUsers" class="chart-canvas" width="600" height="110"></canvas>
-          <div id="chartDroppedNote" class="chart-note"></div>
+          <div class="panel-actions">
+            <span id="ingressTickCounter" class="panel-meta">Tick: —</span>
+          </div>
         </div>
 
-        <!-- Power kW Chart -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <span class="chart-title">Cluster Power Consumption (kW)</span>
-            <div class="chart-legend">
-              <span class="legend-item"><span class="legend-line legend-arbiter"></span>ARBITER</span>
-              <span class="legend-item"><span class="legend-line legend-uncoordinated"></span>Uncoordinated</span>
+        <!-- Filter bar -->
+        <div class="filter-strip">
+          <span class="filter-chip active" data-filter-type="ctrl" data-filter-val="ALL">ALL</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="ES">ES</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="LB">LB</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="CC">CC</span>
+          <span class="filter-chip" data-filter-type="ctrl" data-filter-val="PS">PS</span>
+          <div class="chip-divider"></div>
+          <span class="filter-chip active" data-filter-type="action" data-filter-val="ALL">ALL</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="APPROVE">APPROVE</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="MODIFY">MODIFY</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="DELAY">DELAY</span>
+          <span class="filter-chip" data-filter-type="action" data-filter-val="REJECT">REJECT</span>
+          <button id="btnExportIngressCsv" class="btn-export">Export CSV</button>
+        </div>
+
+        <div class="table-viewport" id="ingressTableViewport">
+          <table class="noc-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Ctrl</th>
+                <th>Target</th>
+                <th>Param</th>
+                <th>Req</th>
+                <th>Verdict</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="ingressTableBody">
+              <tr>
+                <td colspan="7" class="empty-state">Waiting for live tick stream from ws://...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Panel 2: Arbitration Decisions Audit History (Bottom 40%) -->
+      <section class="noc-panel hero-decisions">
+        <div class="panel-bar">
+          <div class="panel-title">Arbitration Decisions History</div>
+          <div class="panel-actions">
+            <button id="btnExportDecisionsJson" class="btn-export">Export JSON</button>
+            <span class="panel-meta">audit_decisions (50)</span>
+          </div>
+        </div>
+
+        <div class="table-viewport">
+          <table class="noc-table">
+            <thead>
+              <tr>
+                <th>Tick</th>
+                <th>Action</th>
+                <th>Approved</th>
+                <th>&Delta;U</th>
+                <th>Reason</th>
+                <th>Hold</th>
+                <th>Decided At</th>
+              </tr>
+            </thead>
+            <tbody id="decisionsTableBody">
+              <tr>
+                <td colspan="7" class="empty-state">Loading audit decisions...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Column Secondary (Right ~40%): Stacked Charts & Compact Topology -->
+    <div class="column-secondary">
+
+      <!-- Chart 1: Instantaneous Dropped Users -->
+      <section class="noc-panel chart-panel">
+        <div class="panel-bar">
+          <div class="panel-title">Instantaneous Dropped Users</div>
+          <span id="chartDroppedNote" class="panel-meta">ARBITER vs Baseline</span>
+        </div>
+        <div class="chart-container" id="chartDropsContainer">
+          <canvas id="chartDroppedUsers" class="chart-canvas" width="500" height="110"></canvas>
+          <div id="chartDropsTooltip" class="chart-crosshair-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Chart 2: Cluster Power kW -->
+      <section class="noc-panel chart-panel">
+        <div class="panel-bar">
+          <div class="panel-title">Cluster Power Consumption (kW)</div>
+          <span id="chartPowerNote" class="panel-meta">Nocturnal energy curve</span>
+        </div>
+        <div class="chart-container" id="chartPowerContainer">
+          <canvas id="chartPowerKw" class="chart-canvas" width="500" height="110"></canvas>
+          <div id="chartPowerTooltip" class="chart-crosshair-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Panel 3: Physical Cell Topology (Compact 7-Hex Honeycomb) -->
+      <section class="noc-panel topology-panel">
+        <div class="panel-bar">
+          <div class="panel-title">Physical Cell Topology (7-Cell Grid)</div>
+          <span class="panel-meta">GET /api/v1/state/cells</span>
+        </div>
+
+        <div class="topology-split">
+          <div class="topology-canvas-wrap">
+            <svg id="hexTopologySvg" viewBox="0 0 320 220" width="100%" height="100%">
+              <!-- Rendered via JS -->
+            </svg>
+          </div>
+
+          <!-- Inspector -->
+          <div class="cell-inspector" id="cellInspector">
+            <div class="inspector-title">
+              <span id="inspectCellId">Cell A</span>
+              <span id="inspectSleepBadge" class="badge badge-approve">ACTIVE</span>
+            </div>
+            <div class="inspector-row"><span>TX Power</span><span id="inspectTx" class="inspector-val">43.0 dBm</span></div>
+            <div class="inspector-row"><span>Tilt</span><span id="inspectTilt" class="inspector-val">6.0°</span></div>
+            <div class="inspector-row"><span>Load Ratio</span><span id="inspectLoad" class="inspector-val">42%</span></div>
+            <div class="inspector-row"><span>Users</span><span id="inspectUsers" class="inspector-val">128</span></div>
+            <div class="branch3-stub-note" id="cellStateContainer">
+              Awaiting Branch 3 storage merge.
             </div>
           </div>
-          <canvas id="chartPowerKw" class="chart-canvas" width="600" height="110"></canvas>
-          <div id="chartPowerNote" class="chart-note"></div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Panel 3: Cell State & Topology (Spec §4.1 page 5) -->
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Physical Cell Topology</h2>
-        <span style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">GET /api/v1/state/cells</span>
-      </div>
-      <div class="panel-body" id="cellStateContainer">
-        <!-- Will be populated or show 'Awaiting Branch 3' -->
-      </div>
-    </section>
-
-    <!-- Panel 4: Arbitration Decisions Audit History (Spec §4.1 page 5) -->
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Arbitration Decisions History</h2>
-        <span style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;">audit_decisions (limit 50)</span>
-      </div>
-      <div class="panel-body data-table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Tick</th>
-              <th>Action</th>
-              <th>Approved</th>
-              <th>&Delta;U</th>
-              <th>Reason</th>
-              <th>Hold</th>
-              <th>Decided At</th>
-            </tr>
-          </thead>
-          <tbody id="decisionsTableBody">
-            <tr>
-              <td colspan="7" class="empty-state">Loading audit decisions...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </div>
 
   </main>
 
+  <script>
+    /**
+     * PROJECT ARBITER — 2 AM Collision Monitor Frontend Engine
+     * Dense Linear NOC Interface, Pause-on-Hover, Crosshair Tooltips, Tweening
+     */
+
+    const CONFIG = {
+      WS_RECONNECT_INITIAL_MS: 1000,
+      WS_RECONNECT_MAX_MS: 16000,
+      WS_RECONNECT_FACTOR: 2.0,
+
+      DECISIONS_POLL_INTERVAL_MS: 2000,
+      DECISIONS_POLL_BACKOFF_FACTOR: 1.5,
+      DECISIONS_POLL_MAX_INTERVAL_MS: 15000,
+
+      MAX_INGRESS_TABLE_ROWS: 50,
+      CHART_HISTORY_TICKS: 30,
+      MOCK_TICK_CADENCE_MS: 600,
+
+      MAPE_GUARD_THRESHOLD_PCT: 10.0
+    };
+
+    const STATE = {
+      ws: null,
+      wsReconnectDelay: CONFIG.WS_RECONNECT_INITIAL_MS,
+      wsReconnectTimer: null,
+      decisionsPollInterval: CONFIG.DECISIONS_POLL_INTERVAL_MS,
+      decisionsPollTimer: null,
+      isMockMode: false,
+      mockTickIndex: 0,
+      mockIntervalTimer: null,
+
+      activeFilters: { ctrl: "ALL", action: "ALL" },
+      rawIngressRows: [],
+      rawDecisions: [],
+
+      // Pause-on-hover mechanics
+      isIngressPaused: false,
+      pausedIngressBuffer: [],
+
+      // Number tweening store
+      prevKPIs: { drops: 0, power: 0, sinr: 0, mape: 0 },
+      sparklineHistory: { drops: [], power: [], sinr: [] },
+
+      // 7-Cell Honeycomb coordinates & states
+      cells: [
+        { id: "cell_A", name: "Cell A (Core)", x: 160, y: 110, tx: 43.0, tilt: 6.0, load: 0.42, users: 128, sleeping: false },
+        { id: "cell_B", name: "Cell B (North)", x: 160, y: 52,  tx: 38.0, tilt: 8.0, load: 0.18, users: 44,  sleeping: true },
+        { id: "cell_C", name: "Cell C (NE)",    x: 210, y: 81,  tx: 41.0, tilt: 6.0, load: 0.35, users: 95,  sleeping: false },
+        { id: "cell_D", name: "Cell D (SE)",    x: 210, y: 139, tx: 43.0, tilt: 7.0, load: 0.48, users: 142, sleeping: false },
+        { id: "cell_E", name: "Cell E (South)", x: 160, y: 168, tx: 35.0, tilt: 9.0, load: 0.12, users: 28,  sleeping: true },
+        { id: "cell_F", name: "Cell F (SW)",    x: 110, y: 139, tx: 42.0, tilt: 6.0, load: 0.39, users: 110, sleeping: false },
+        { id: "cell_G", name: "Cell G (NW)",    x: 110, y: 81,  tx: 40.0, tilt: 7.0, load: 0.29, users: 76,  sleeping: false }
+      ],
+      selectedCellId: "cell_A",
+
+      history: {
+        ticks: [],
+        arbiterDrops: [],
+        uncoordDrops: [],
+        arbiterPower: [],
+        uncoordPower: []
+      }
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    STATE.isMockMode = urlParams.get("mock") === "1";
+
+    const DOM = {
+      mockBanner: document.getElementById("mockBanner"),
+      provenanceBadge: document.getElementById("provenanceBadge"),
+      connectionStatus: document.getElementById("connectionStatus"),
+      connectionText: document.getElementById("connectionText"),
+      clockDisplay: document.getElementById("clockDisplay"),
+
+      kpiDroppedUsers: document.getElementById("kpiDroppedUsers"),
+      kpiTotalPower: document.getElementById("kpiTotalPower"),
+      kpiMeanSinr: document.getElementById("kpiMeanSinr"),
+      kpiTwinMape: document.getElementById("kpiTwinMape"),
+      kpiMapeSubtext: document.getElementById("kpiMapeSubtext"),
+      mapeFillBar: document.getElementById("mapeFillBar"),
+
+      trendDropped: document.getElementById("trendDropped"),
+      trendPower: document.getElementById("trendPower"),
+      trendSinr: document.getElementById("trendSinr"),
+
+      sparklineDrops: document.getElementById("sparklineDrops"),
+      sparklinePower: document.getElementById("sparklinePower"),
+      sparklineSinr: document.getElementById("sparklineSinr"),
+
+      ingressTickCounter: document.getElementById("ingressTickCounter"),
+      ingressTableBody: document.getElementById("ingressTableBody"),
+      ingressTableViewport: document.getElementById("ingressTableViewport"),
+      streamPausedPill: document.getElementById("streamPausedPill"),
+
+      cellStateContainer: document.getElementById("cellStateContainer"),
+      decisionsTableBody: document.getElementById("decisionsTableBody"),
+
+      chartDroppedUsers: document.getElementById("chartDroppedUsers"),
+      chartPowerKw: document.getElementById("chartPowerKw"),
+      chartDropsTooltip: document.getElementById("chartDropsTooltip"),
+      chartPowerTooltip: document.getElementById("chartPowerTooltip"),
+      chartDroppedNote: document.getElementById("chartDroppedNote"),
+      chartPowerNote: document.getElementById("chartPowerNote"),
+
+      hexTopologySvg: document.getElementById("hexTopologySvg"),
+      inspectCellId: document.getElementById("inspectCellId"),
+      inspectSleepBadge: document.getElementById("inspectSleepBadge"),
+      inspectTx: document.getElementById("inspectTx"),
+      inspectTilt: document.getElementById("inspectTilt"),
+      inspectLoad: document.getElementById("inspectLoad"),
+      inspectUsers: document.getElementById("inspectUsers"),
+
+      btnExportIngressCsv: document.getElementById("btnExportIngressCsv"),
+      btnExportDecisionsJson: document.getElementById("btnExportDecisionsJson")
+    };
+
+    function clearChildren(el) {
+      while (el && el.firstChild) el.removeChild(el.firstChild);
+    }
+
+    function createTextCell(text) {
+      const td = document.createElement("td");
+      td.textContent = String(text ?? "—");
+      return td;
+    }
+
+    function createActionBadge(badgeType, labelText) {
+      const span = document.createElement("span");
+      span.className = "badge";
+      const typeUpper = String(badgeType || "").toUpperCase();
+
+      if (typeUpper.includes("APPROVE")) span.classList.add("badge-approve");
+      else if (typeUpper.includes("MODIFY")) span.classList.add("badge-modify");
+      else if (typeUpper.includes("DELAY")) span.classList.add("badge-delay");
+      else if (typeUpper.includes("REJECT")) span.classList.add("badge-reject");
+      else if (typeUpper === "SYNTHETIC") span.classList.add("badge-synthetic");
+
+      span.textContent = labelText || typeUpper || "ACTION";
+      return span;
+    }
+
+    // ---------------------------------------------------------------------------
+    // NUMBER TWEENING & SPARKLINE RENDERING
+    // ---------------------------------------------------------------------------
+    function tweenValue(element, start, end, decimals = 0, suffix = "") {
+      if (!element) return;
+      const startTime = performance.now();
+      const duration = 240;
+
+      function animate(time) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / duration, 1.0);
+        const factor = 1 - Math.pow(1 - progress, 3);
+        const current = start + (end - start) * factor;
+
+        element.textContent = current.toFixed(decimals) + suffix;
+        if (progress < 1.0) requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function setTrendChip(el, delta, reverse = false) {
+      if (!el) return;
+      if (Math.abs(delta) < 0.05) {
+        el.className = "delta-chip";
+        return;
+      }
+      const isUp = delta > 0;
+      const isBad = reverse ? !isUp : isUp;
+      el.textContent = isUp ? `▲ +${Math.abs(delta).toFixed(1)}` : `▼ -${Math.abs(delta).toFixed(1)}`;
+      el.className = `delta-chip show ${isBad ? "delta-up" : "delta-down"}`;
+    }
+
+    function drawSparkline(canvas, data, strokeColor) {
+      if (!canvas || data.length < 2) return;
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const min = Math.min(...data);
+      const max = Math.max(...data, min + 1);
+
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      data.forEach((val, i) => {
+        const x = (i / (data.length - 1)) * w;
+        const y = h - ((val - min) / (max - min)) * (h - 2) - 1;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    function updateAggregateKPIs(kpis) {
+      if (!kpis) return;
+
+      if (kpis.total_dropped_users !== undefined) {
+        const val = Number(kpis.total_dropped_users);
+        setTrendChip(DOM.trendDropped, val - STATE.prevKPIs.drops, false);
+        tweenValue(DOM.kpiDroppedUsers, STATE.prevKPIs.drops, val, 0);
+        STATE.prevKPIs.drops = val;
+
+        STATE.sparklineHistory.drops.push(val);
+        if (STATE.sparklineHistory.drops.length > 20) STATE.sparklineHistory.drops.shift();
+        drawSparkline(DOM.sparklineDrops, STATE.sparklineHistory.drops, "#10b981");
+      }
+
+      if (kpis.total_power_kw !== undefined) {
+        const val = Number(kpis.total_power_kw);
+        setTrendChip(DOM.trendPower, val - STATE.prevKPIs.power, false);
+        tweenValue(DOM.kpiTotalPower, STATE.prevKPIs.power, val, 2);
+        STATE.prevKPIs.power = val;
+
+        STATE.sparklineHistory.power.push(val);
+        if (STATE.sparklineHistory.power.length > 20) STATE.sparklineHistory.power.shift();
+        drawSparkline(DOM.sparklinePower, STATE.sparklineHistory.power, "#3b82f6");
+      }
+
+      if (kpis.mean_sinr_db !== undefined) {
+        const val = Number(kpis.mean_sinr_db);
+        setTrendChip(DOM.trendSinr, val - STATE.prevKPIs.sinr, true);
+        tweenValue(DOM.kpiMeanSinr, STATE.prevKPIs.sinr, val, 1);
+        STATE.prevKPIs.sinr = val;
+
+        STATE.sparklineHistory.sinr.push(val);
+        if (STATE.sparklineHistory.sinr.length > 20) STATE.sparklineHistory.sinr.shift();
+        drawSparkline(DOM.sparklineSinr, STATE.sparklineHistory.sinr, "#00e5ff");
+      }
+
+      if (kpis.twin_mape_pct !== undefined) {
+        const val = Number(kpis.twin_mape_pct);
+        tweenValue(DOM.kpiTwinMape, STATE.prevKPIs.mape, val, 1, "%");
+        STATE.prevKPIs.mape = val;
+
+        // Scale bar on 0–20% range
+        const pctWidth = Math.min(100, Math.max(0, (val / 20.0) * 100));
+        DOM.mapeFillBar.style.width = `${pctWidth}%`;
+
+        if (val >= CONFIG.MAPE_GUARD_THRESHOLD_PCT) {
+          DOM.kpiTwinMape.style.color = "var(--action-reject)";
+          DOM.mapeFillBar.classList.add("breach");
+          DOM.kpiMapeSubtext.textContent = "⚠️ Guard Breach";
+          DOM.kpiMapeSubtext.style.color = "var(--action-reject)";
+        } else {
+          DOM.kpiTwinMape.style.color = "var(--action-approve)";
+          DOM.mapeFillBar.classList.remove("breach");
+          DOM.kpiMapeSubtext.textContent = "Safe (< 10.0%)";
+          DOM.kpiMapeSubtext.style.color = "var(--text-muted)";
+        }
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // HERO INGRESS STREAM (Pause on Hover, 2px Left Border, Arrival Flash)
+    // ---------------------------------------------------------------------------
+    function appendIngressRow(timestamp, proposal, badge) {
+      const item = { timestamp, proposal, badge };
+
+      if (STATE.isIngressPaused) {
+        STATE.pausedIngressBuffer.unshift(item);
+        DOM.streamPausedPill.textContent = `⏸ Stream paused (${STATE.pausedIngressBuffer.length} new) — Click to resume`;
+        DOM.streamPausedPill.classList.add("show");
+        return;
+      }
+
+      STATE.rawIngressRows.unshift(item);
+      if (STATE.rawIngressRows.length > CONFIG.MAX_INGRESS_TABLE_ROWS) {
+        STATE.rawIngressRows.pop();
+      }
+
+      renderIngressTable();
+    }
+
+    function flushPausedIngress() {
+      if (STATE.pausedIngressBuffer.length > 0) {
+        STATE.rawIngressRows = [...STATE.pausedIngressBuffer, ...STATE.rawIngressRows].slice(0, CONFIG.MAX_INGRESS_TABLE_ROWS);
+        STATE.pausedIngressBuffer = [];
+      }
+      STATE.isIngressPaused = false;
+      DOM.streamPausedPill.classList.remove("show");
+      renderIngressTable();
+    }
+
+    DOM.ingressTableViewport.addEventListener("mouseenter", () => {
+      STATE.isIngressPaused = true;
+    });
+
+    DOM.ingressTableViewport.addEventListener("mouseleave", () => {
+      if (STATE.isIngressPaused) {
+        flushPausedIngress();
+      }
+    });
+
+    DOM.streamPausedPill.addEventListener("click", () => {
+      flushPausedIngress();
+    });
+
+    function renderIngressTable() {
+      clearChildren(DOM.ingressTableBody);
+
+      const filtered = STATE.rawIngressRows.filter(row => {
+        const ctrlMatch = STATE.activeFilters.ctrl === "ALL" || (row.proposal && row.proposal.controller === STATE.activeFilters.ctrl);
+        const actionMatch = STATE.activeFilters.action === "ALL" || (row.badge && row.badge.badge_type && row.badge.badge_type.toUpperCase().includes(STATE.activeFilters.action));
+        return ctrlMatch && actionMatch;
+      });
+
+      if (filtered.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.className = "empty-state";
+        td.textContent = "No proposals match active filter.";
+        tr.appendChild(td);
+        DOM.ingressTableBody.appendChild(tr);
+        return;
+      }
+
+      filtered.forEach((row, index) => {
+        const tr = document.createElement("tr");
+        if (index === 0) tr.classList.add("row-new");
+
+        // Action border mapping
+        const bType = row.badge ? String(row.badge.badge_type).toUpperCase() : "";
+        if (bType.includes("APPROVE")) tr.classList.add("row-border-approve");
+        else if (bType.includes("MODIFY")) tr.classList.add("row-border-modify");
+        else if (bType.includes("DELAY")) tr.classList.add("row-border-delay");
+        else if (bType.includes("REJECT")) tr.classList.add("row-border-reject");
+
+        tr.appendChild(createTextCell(row.timestamp));
+        tr.appendChild(createTextCell(row.proposal ? row.proposal.controller : "—"));
+        tr.appendChild(createTextCell(row.proposal ? row.proposal.target : "—"));
+        tr.appendChild(createTextCell(row.proposal ? row.proposal.param : "—"));
+        tr.appendChild(createTextCell(row.proposal ? row.proposal.value : "—"));
+
+        const tdBadge = document.createElement("td");
+        if (row.badge) tdBadge.appendChild(createActionBadge(row.badge.badge_type, row.badge.label));
+        else tdBadge.textContent = "—";
+        tr.appendChild(tdBadge);
+
+        tr.appendChild(createTextCell(row.badge ? row.badge.reason : "—"));
+        DOM.ingressTableBody.appendChild(tr);
+      });
+    }
+
+    // ---------------------------------------------------------------------------
+    // STACKED CANVAS CHARTS (Accent line, Area fill, Glowing Head, Crosshair Tooltip)
+    // ---------------------------------------------------------------------------
+    function renderCanvasChart(canvas, tooltipEl, seriesA, seriesB, labelA, labelB, colorA) {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+      const n = seriesA.length;
+      if (n < 2) return;
+
+      let allVals = [...seriesA];
+      if (seriesB && seriesB.length > 0) allVals = allVals.concat(seriesB);
+      const minVal = 0;
+      const maxVal = Math.max(...allVals, 1.0) * 1.15;
+
+      const padL = 32, padR = 12, padB = 18, padT = 8;
+      const plotW = width - padL - padR;
+      const plotH = height - padT - padB;
+
+      const getX = (idx) => padL + (idx / (CONFIG.CHART_HISTORY_TICKS - 1)) * plotW;
+      const getY = (val) => padT + plotH - ((val - minVal) / (maxVal - minVal)) * plotH;
+
+      // Subtle horizontal hairlines
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let y = 0; y < height; y += height / 3) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+      }
+      ctx.stroke();
+
+      // Axis label
+      ctx.fillStyle = "#4c5566";
+      ctx.font = "8.5px 'JetBrains Mono', monospace";
+      ctx.fillText(maxVal.toFixed(1), 4, padT + 7);
+      ctx.fillText("0", 12, height - 4);
+
+      // Baseline Series B (Grey Dashed)
+      if (seriesB && seriesB.length > 1) {
+        ctx.save();
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        for (let i = 0; i < seriesB.length; i++) {
+          const x = getX(i), y = getY(seriesB[i]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // ARBITER Series A: Faint Area Fill
+      ctx.save();
+      const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+      grad.addColorStop(0, "rgba(0, 229, 255, 0.14)");
+      grad.addColorStop(1, "rgba(0, 229, 255, 0.0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(getX(0), getY(seriesA[0]));
+      for (let i = 1; i < n; i++) ctx.lineTo(getX(i), getY(seriesA[i]));
+      ctx.lineTo(getX(n - 1), padT + plotH);
+      ctx.lineTo(getX(0), padT + plotH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // ARBITER Series A: Accent Solid Line
+      ctx.strokeStyle = colorA;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = getX(i), y = getY(seriesA[i]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Glowing Head Dot on Live Leading Edge
+      if (n > 0) {
+        const headX = getX(n - 1);
+        const headY = getY(seriesA[n - 1]);
+
+        ctx.fillStyle = "rgba(0, 229, 255, 0.4)";
+        ctx.beginPath();
+        ctx.arc(headX, headY, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(headX, headY, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Setup Crosshair & Tooltip Listener
+      canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const boundedX = Math.max(padL, Math.min(padL + plotW, mouseX));
+        const ratio = (boundedX - padL) / plotW;
+        const tickIdx = Math.min(n - 1, Math.max(0, Math.round(ratio * (CONFIG.CHART_HISTORY_TICKS - 1))));
+
+        if (tickIdx < seriesA.length) {
+          const valA = seriesA[tickIdx];
+          const valB = seriesB && seriesB[tickIdx] !== undefined ? seriesB[tickIdx] : null;
+
+          tooltipEl.style.display = "block";
+          tooltipEl.style.left = `${Math.min(width - 110, mouseX + 10)}px`;
+          tooltipEl.style.top = "15px";
+          tooltipEl.textContent = `Tick: ${valA.toFixed(1)} ${valB !== null ? `| Base: ${valB.toFixed(1)}` : ""}`;
+        }
+      };
+
+      canvas.onmouseleave = () => {
+        tooltipEl.style.display = "none";
+      };
+    }
+
+    function updateCharts(batchTick, arbiterDrops, uncoordDrops, arbiterPower, uncoordPower) {
+      STATE.history.ticks.push(batchTick);
+      STATE.history.arbiterDrops.push(arbiterDrops);
+      if (uncoordDrops !== null) STATE.history.uncoordDrops.push(uncoordDrops);
+      STATE.history.arbiterPower.push(arbiterPower);
+      if (uncoordPower !== null) STATE.history.uncoordPower.push(uncoordPower);
+
+      if (STATE.history.ticks.length > CONFIG.CHART_HISTORY_TICKS) {
+        STATE.history.ticks.shift();
+        STATE.history.arbiterDrops.shift();
+        if (STATE.history.uncoordDrops.length > 0) STATE.history.uncoordDrops.shift();
+        STATE.history.arbiterPower.shift();
+        if (STATE.history.uncoordPower.length > 0) STATE.history.uncoordPower.shift();
+      }
+
+      renderCanvasChart(
+        DOM.chartDroppedUsers,
+        DOM.chartDropsTooltip,
+        STATE.history.arbiterDrops,
+        STATE.isMockMode ? STATE.history.uncoordDrops : [],
+        "ARBITER", "Uncoordinated", "#00e5ff"
+      );
+
+      renderCanvasChart(
+        DOM.chartPowerKw,
+        DOM.chartPowerTooltip,
+        STATE.history.arbiterPower,
+        STATE.isMockMode ? STATE.history.uncoordPower : [],
+        "ARBITER", "Uncoordinated", "#00e5ff"
+      );
+    }
+
+    // ---------------------------------------------------------------------------
+    // COMPACT 7-CELL TOPOLOGY HONEYCOMB (Single-Hue Heat Ramp)
+    // ---------------------------------------------------------------------------
+    function getHexPoints(cx, cy, r = 26) {
+      const pts = [];
+      for (let i = 0; i < 6; i++) {
+        const rad = (Math.PI / 3) * i - (Math.PI / 6);
+        pts.push(`${(cx + r * Math.cos(rad)).toFixed(1)},${(cy + r * Math.sin(rad)).toFixed(1)}`);
+      }
+      return pts.join(" ");
+    }
+
+    function renderHexTopology() {
+      if (!DOM.hexTopologySvg) return;
+      clearChildren(DOM.hexTopologySvg);
+
+      STATE.cells.forEach(cell => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const isSelected = cell.id === STATE.selectedCellId;
+
+        // Single-hue load heat class
+        let heatClass = "load-heat-0";
+        if (cell.load >= 0.75) heatClass = "load-heat-75";
+        else if (cell.load >= 0.50) heatClass = "load-heat-50";
+        else if (cell.load >= 0.20) heatClass = "load-heat-25";
+
+        g.setAttribute("class", `hex-cell ${heatClass} ${cell.sleeping ? "sleeping" : ""} ${isSelected ? "selected" : ""}`);
+        g.setAttribute("data-cell-id", cell.id);
+
+        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        poly.setAttribute("class", "hex-polygon");
+        poly.setAttribute("points", getHexPoints(cell.x, cell.y, 28));
+        g.appendChild(poly);
+
+        const textId = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        textId.setAttribute("class", "hex-text-id");
+        textId.setAttribute("x", cell.x);
+        textId.setAttribute("y", cell.y - 2);
+        textId.textContent = cell.id.replace("cell_", "C-");
+        g.appendChild(textId);
+
+        const textLoad = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        textLoad.setAttribute("class", "hex-text-load");
+        textLoad.setAttribute("x", cell.x);
+        textLoad.setAttribute("y", cell.y + 10);
+        textLoad.textContent = cell.sleeping ? "SLEEP" : `${Math.round(cell.load * 100)}%`;
+        g.appendChild(textLoad);
+
+        g.addEventListener("click", () => {
+          STATE.selectedCellId = cell.id;
+          renderHexTopology();
+          updateInspector(cell);
+        });
+
+        DOM.hexTopologySvg.appendChild(g);
+      });
+    }
+
+    function updateInspector(cell) {
+      if (!cell || !DOM.inspectCellId) return;
+      DOM.inspectCellId.textContent = cell.name;
+      DOM.inspectSleepBadge.textContent = cell.sleeping ? "SLEEPING" : "ACTIVE";
+      DOM.inspectSleepBadge.className = `badge ${cell.sleeping ? "badge-delay" : "badge-approve"}`;
+      DOM.inspectTx.textContent = `${cell.tx.toFixed(1)} dBm`;
+      DOM.inspectTilt.textContent = `${cell.tilt.toFixed(1)}°`;
+      DOM.inspectLoad.textContent = `${Math.round(cell.load * 100)}%`;
+      DOM.inspectUsers.textContent = cell.users;
+    }
+
+    // ---------------------------------------------------------------------------
+    // WEBSOCKET & REST INTEGRATION
+    // ---------------------------------------------------------------------------
+    function connectWebSocket() {
+      if (STATE.isMockMode) {
+        startMockGenerator();
+        return;
+      }
+
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/api/v1/ws/live`;
+      updateConnectionStatus("reconnecting", "Connecting...");
+
+      try {
+        STATE.ws = new WebSocket(wsUrl);
+      } catch (err) {
+        scheduleReconnect();
+        return;
+      }
+
+      STATE.ws.onopen = () => {
+        STATE.wsReconnectDelay = CONFIG.WS_RECONNECT_INITIAL_MS;
+        updateConnectionStatus("connected", "Live WebSocket");
+      };
+
+      STATE.ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleTickUpdate(msg);
+        } catch (err) {
+          console.error("WS tick parse failure", err);
+        }
+      };
+
+      STATE.ws.onclose = () => {
+        updateConnectionStatus("disconnected", `Reconnecting (${(STATE.wsReconnectDelay / 1000).toFixed(0)}s)`);
+        scheduleReconnect();
+      };
+    }
+
+    function scheduleReconnect() {
+      if (STATE.wsReconnectTimer) clearTimeout(STATE.wsReconnectTimer);
+      STATE.wsReconnectTimer = setTimeout(() => {
+        STATE.wsReconnectDelay = Math.min(STATE.wsReconnectDelay * CONFIG.WS_RECONNECT_FACTOR, CONFIG.WS_RECONNECT_MAX_MS);
+        connectWebSocket();
+      }, STATE.wsReconnectDelay);
+    }
+
+    function updateConnectionStatus(type, label) {
+      DOM.connectionStatus.className = `status-indicator status-${type}`;
+      DOM.connectionText.textContent = label;
+    }
+
+    function handleTickUpdate(msg) {
+      if (!msg || msg.type !== "TICK_UPDATE") return;
+
+      if (msg.timestamp) DOM.clockDisplay.textContent = msg.timestamp;
+      if (msg.batch_tick !== undefined) DOM.ingressTickCounter.textContent = `Tick: #${msg.batch_tick}`;
+
+      if (msg.aggregate_kpis) {
+        updateAggregateKPIs(msg.aggregate_kpis);
+        const arbDrop = msg.aggregate_kpis.total_dropped_users || 0;
+        const arbPower = msg.aggregate_kpis.total_power_kw || 0;
+        updateCharts(msg.batch_tick || 0, arbDrop, null, arbPower, null);
+      }
+
+      const proposals = msg.ingress_proposals || [];
+      const badges = msg.arbitration_badges || [];
+      const count = Math.max(proposals.length, badges.length);
+
+      for (let i = 0; i < count; i++) {
+        appendIngressRow(msg.timestamp, proposals[i], badges[i]);
+      }
+    }
+
+    async function fetchCellStates() {
+      try {
+        const res = await fetch("/api/v1/state/cells");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const cells = await res.json();
+        if (cells && cells.length > 0) {
+          cells.forEach((liveCell, idx) => {
+            if (STATE.cells[idx]) {
+              STATE.cells[idx].tx = liveCell.current_tx_power_dbm;
+              STATE.cells[idx].tilt = liveCell.antenna_tilt_deg;
+              STATE.cells[idx].load = liveCell.load_ratio;
+              STATE.cells[idx].sleeping = liveCell.is_sleeping;
+            }
+          });
+          renderHexTopology();
+        }
+      } catch (err) {
+        // Safe fallback in stub mode
+      }
+    }
+
+    async function pollDecisionsHistory() {
+      if (document.hidden) return;
+      try {
+        const res = await fetch("/api/v1/decisions/history?limit=50");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const decisions = await res.json();
+        STATE.rawDecisions = decisions;
+        renderDecisionsTable(decisions);
+        STATE.decisionsPollInterval = CONFIG.DECISIONS_POLL_INTERVAL_MS;
+      } catch (err) {
+        STATE.decisionsPollInterval = Math.min(STATE.decisionsPollInterval * CONFIG.DECISIONS_POLL_BACKOFF_FACTOR, CONFIG.DECISIONS_POLL_MAX_INTERVAL_MS);
+      } finally {
+        if (STATE.decisionsPollTimer) clearTimeout(STATE.decisionsPollTimer);
+        STATE.decisionsPollTimer = setTimeout(pollDecisionsHistory, STATE.decisionsPollInterval);
+      }
+    }
+
+    function renderDecisionsTable(decisions) {
+      clearChildren(DOM.decisionsTableBody);
+      if (!decisions || decisions.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.className = "empty-state";
+        td.textContent = "No audit decisions recorded yet.";
+        tr.appendChild(td);
+        DOM.decisionsTableBody.appendChild(tr);
+        return;
+      }
+
+      decisions.forEach(d => {
+        const tr = document.createElement("tr");
+        tr.appendChild(createTextCell(`#${d.batch_tick}`));
+
+        const tdAction = document.createElement("td");
+        tdAction.appendChild(createActionBadge(d.action, d.action));
+        tr.appendChild(tdAction);
+
+        tr.appendChild(createTextCell(d.approved_value !== null ? Number(d.approved_value).toFixed(1) : "—"));
+
+        const tdDelta = createTextCell(d.delta_utility !== undefined ? Number(d.delta_utility).toFixed(2) : "—");
+        if (d.delta_utility > 0) tdDelta.style.color = "var(--action-approve)";
+        tr.appendChild(tdDelta);
+
+        tr.appendChild(createTextCell(d.reason_code));
+        tr.appendChild(createTextCell(d.hold_count !== undefined ? d.hold_count : "0"));
+
+        const dateStr = d.decided_at_epoch_ms ? new Date(d.decided_at_epoch_ms).toISOString().substring(11, 23) : "—";
+        tr.appendChild(createTextCell(dateStr));
+        DOM.decisionsTableBody.appendChild(tr);
+      });
+    }
+
+    // ---------------------------------------------------------------------------
+    // EXPORT BUTTONS & FILTER INTERACTIONS
+    // ---------------------------------------------------------------------------
+    function exportToCsv(filename, rows) {
+      if (!rows || !rows.length) return;
+      const keys = ["timestamp", "controller", "target", "param", "value", "action", "reason"];
+      const csv = [
+        keys.join(","),
+        ...rows.map(r => [
+          r.timestamp,
+          r.proposal ? r.proposal.controller : "",
+          r.proposal ? r.proposal.target : "",
+          r.proposal ? r.proposal.param : "",
+          r.proposal ? r.proposal.value : "",
+          r.badge ? r.badge.badge_type : "",
+          r.badge ? `"${r.badge.reason}"` : ""
+        ].join(","))
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function exportToJson(filename, data) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    if (DOM.btnExportIngressCsv) {
+      DOM.btnExportIngressCsv.addEventListener("click", () => {
+        exportToCsv(`arbiter_ingress_${Date.now()}.csv`, STATE.rawIngressRows);
+      });
+    }
+
+    if (DOM.btnExportDecisionsJson) {
+      DOM.btnExportDecisionsJson.addEventListener("click", () => {
+        exportToJson(`arbiter_decisions_${Date.now()}.json`, STATE.rawDecisions);
+      });
+    }
+
+    document.querySelectorAll(".filter-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const type = chip.getAttribute("data-filter-type");
+        const val = chip.getAttribute("data-filter-val");
+
+        document.querySelectorAll(`.filter-chip[data-filter-type="${type}"]`).forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+
+        STATE.activeFilters[type] = val;
+        renderIngressTable();
+      });
+    });
+
+    // ---------------------------------------------------------------------------
+    // MOCK GENERATOR (?mock=1)
+    // ---------------------------------------------------------------------------
+    function startMockGenerator() {
+      DOM.mockBanner.style.display = "inline-block";
+      DOM.provenanceBadge.style.display = "inline-block";
+      DOM.provenanceBadge.textContent = "SYNTHETIC";
+      updateConnectionStatus("connected", "MOCK ACTIVE");
+
+      const controllers = ["ES", "LB", "CC", "PS"];
+      const targetCells = ["cell_A", "cell_B", "cell_C", "cell_D"];
+      const params = ["SLEEP_STATE", "OFFLOAD_RATIO", "TX_POWER_DBM", "TILT_DEG"];
+      const badgeTemplates = [
+        { badge_type: "APPROVE", label: "APPROVE", reason: "NONE" },
+        { badge_type: "MODIFY",  label: "MODIFY (15%)", reason: "HEADROOM_CONSTRAINT" },
+        { badge_type: "DELAY",   label: "DELAY (hold 2)", reason: "ACTIVE_HANDOVER" },
+        { badge_type: "REJECT",  label: "REJECT (cyclic)", reason: "PING_PONG_DETECTED" }
+      ];
+
+      STATE.mockIntervalTimer = setInterval(() => {
+        STATE.mockTickIndex++;
+        const now = new Date();
+        const timeStr = now.toTimeString().split(" ")[0] + "." + String(now.getMilliseconds()).padStart(3, "0");
+
+        const idx = STATE.mockTickIndex % 4;
+        const mockProposal = {
+          controller: controllers[idx],
+          target: targetCells[idx % targetCells.length],
+          param: params[idx],
+          value: Number(((idx + 1) * 2.5).toFixed(1))
+        };
+        const mockBadge = badgeTemplates[idx];
+
+        const baseDrops = 5.5 + Math.sin(STATE.mockTickIndex * 0.18) * 3;
+        const arbDrops = Math.max(0, baseDrops * 0.55);
+        const uncoordDrops = Math.max(0, baseDrops * 1.45);
+
+        const basePower = 18.0 + Math.cos(STATE.mockTickIndex * 0.12) * 2.0;
+        const arbPower = basePower * 0.88;
+        const uncoordPower = basePower * 1.15;
+
+        const mockMsg = {
+          type: "TICK_UPDATE",
+          batch_tick: STATE.mockTickIndex,
+          timestamp: timeStr,
+          ingress_proposals: [mockProposal],
+          arbitration_badges: [mockBadge],
+          aggregate_kpis: {
+            total_dropped_users: Math.round(arbDrops),
+            total_power_kw: Number(arbPower.toFixed(2)),
+            mean_sinr_db: Number((14.5 + Math.sin(STATE.mockTickIndex * 0.1) * 1.8).toFixed(1)),
+            twin_mape_pct: Number((5.0 + Math.sin(STATE.mockTickIndex * 0.25) * 1.4).toFixed(1))
+          }
+        };
+
+        DOM.clockDisplay.textContent = timeStr;
+        DOM.ingressTickCounter.textContent = `Tick: #${STATE.mockTickIndex} (MOCK)`;
+        updateAggregateKPIs(mockMsg.aggregate_kpis);
+        appendIngressRow(timeStr, mockProposal, mockBadge);
+        updateCharts(STATE.mockTickIndex, arbDrops, uncoordDrops, arbPower, uncoordPower);
+
+        if (STATE.mockTickIndex % 3 === 0) {
+          const c = STATE.cells[STATE.mockTickIndex % STATE.cells.length];
+          c.load = Math.min(0.85, Math.max(0.1, c.load + (Math.random() - 0.5) * 0.08));
+          renderHexTopology();
+          if (c.id === STATE.selectedCellId) updateInspector(c);
+        }
+      }, CONFIG.MOCK_TICK_CADENCE_MS);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderHexTopology();
+      updateInspector(STATE.cells[0]);
+      connectWebSocket();
+      fetchCellStates();
+      pollDecisionsHistory();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        if (STATE.decisionsPollTimer) clearTimeout(STATE.decisionsPollTimer);
+      } else {
+        pollDecisionsHistory();
+        fetchCellStates();
+      }
+    });
+  </script>
 </body>
 </html>
