@@ -29,7 +29,7 @@ from arbiter.telemetry.monitor import DB_PATH
 from arbiter.api.routes import router as rest_router
 from arbiter.api.websocket import router as ws_router
 
-# CORS origins — from env (see .env.example::CORS_ORIGINS) or hardcoded default.
+# CORS origins — from env (see .env.example) or hardcoded default.
 _cors_raw: str = os.environ.get(
     "CORS_ORIGINS",
     '["http://localhost:8000","http://127.0.0.1:8000"]',
@@ -68,11 +68,16 @@ app.add_middleware(
 app.include_router(rest_router)
 app.include_router(ws_router)
 
-# Dashboard static files — MUST be mounted LAST (catch-all "/" route).
+# Dashboard static files — mounted at /dashboard and / (catch-all route).
 _DASHBOARD_DIR: str = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "dashboard")
 )
 os.makedirs(_DASHBOARD_DIR, exist_ok=True)
+app.mount(
+    "/dashboard",
+    StaticFiles(directory=_DASHBOARD_DIR, html=True),
+    name="dashboard_prefix",
+)
 app.mount(
     "/",
     StaticFiles(directory=_DASHBOARD_DIR, html=True),
