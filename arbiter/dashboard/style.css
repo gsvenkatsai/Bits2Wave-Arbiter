@@ -702,3 +702,472 @@ body {
     transition: none !important;
   }
 }
+
+/* ==============================================================================
+   PROJECT ARBITER v2 — STYLES FOR RECORDER, UNCERTAINTY, RISK DIAL, IMPACT
+   ============================================================================== */
+
+/* Drift Demo Button */
+.btn-drift {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-drift:hover {
+  background: rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+/* Uncertainty intervals on KPI cards */
+.kpi-interval {
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.badge-uncalibrated {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  font-size: 0.60rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  animation: pulse-warn 2s infinite;
+}
+.badge-calibrated {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  font-size: 0.60rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+@keyframes pulse-warn {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+}
+
+/* Secondary Column Tab Navigation */
+.panel-tabs-bar {
+  display: flex;
+  background: var(--bg-surface-elevated, #161922);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 8px;
+  gap: 4px;
+}
+.tab-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+.tab-btn.active {
+  color: var(--accent-primary, #00e5ff);
+  border-bottom-color: var(--accent-primary, #00e5ff);
+}
+.tab-panel-view {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 8px 12px;
+}
+.tab-panel-view.active {
+  display: flex;
+}
+
+/* Flight Recorder Modal Backdrop & Dialog */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 7, 11, 0.82);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-dialog.flight-recorder-dialog {
+  background: #0f121a;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 24px rgba(0, 229, 255, 0.15);
+  border-radius: 10px;
+  width: 90vw;
+  max-width: 960px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background: #141822;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.modal-title-cluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.modal-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 6px;
+  transition: color 0.15s ease;
+}
+.btn-close-modal:hover {
+  color: #fff;
+}
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Side-by-side Counterfactual Layout */
+.counterfactual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.cf-column {
+  background: #131722;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cf-column.cf-with-arbiter {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.04);
+}
+.cf-column.cf-without-arbiter {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.04);
+}
+.cf-column.cf-deltas {
+  border-color: rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.03);
+}
+.cf-column-header {
+  font-size: 0.76rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 6px;
+}
+.cf-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.cf-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: #fff;
+}
+.delta-good {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.70rem;
+}
+.delta-bad {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.70rem;
+}
+.delta-neutral {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.70rem;
+}
+
+.cf-explanation-card, .plan-timeline-card {
+  background: #131722;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.cf-card-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.cf-explanation-text {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #e2e8f0;
+}
+
+.plan-steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plan-step-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0b0e16;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.70rem;
+}
+.plan-step-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+}
+.step-num-badge {
+  background: var(--surface-overlay, #1d212d);
+  color: var(--accent-primary, #00e5ff);
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.precondition-tag {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+/* Risk Dial & Pareto UI */
+.risk-dial-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.risk-presets-cluster {
+  display: flex;
+  gap: 6px;
+}
+.btn-preset {
+  background: #161b26;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.70rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-preset:hover {
+  background: #202737;
+  color: #fff;
+}
+.btn-preset.active {
+  background: rgba(0, 229, 255, 0.12);
+  color: #00e5ff;
+  border-color: rgba(0, 229, 255, 0.4);
+}
+.weights-display-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+}
+.weight-card {
+  background: #11151f;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 4px 6px;
+  text-align: center;
+}
+.weight-card span {
+  display: block;
+  font-size: 0.60rem;
+  color: var(--text-muted);
+}
+.pareto-chart-wrap {
+  background: #0a0d14;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+/* Optimality Panel UI */
+.optimality-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.opt-metric-card {
+  background: #11151f;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+}
+.opt-metric-val {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #00e5ff;
+}
+.opt-metric-label {
+  font-size: 0.60rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.opt-bars-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.opt-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.opt-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+.opt-bar-track {
+  height: 12px;
+  background: #161b26;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.opt-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.opt-fill-baseline { background: #ef4444; width: 35.2%; }
+.opt-fill-arbiter { background: #00e5ff; width: 81.5%; }
+.opt-fill-optimum { background: #10b981; width: 84.5%; }
+
+/* Impact Panel UI */
+.impact-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.impact-stat-card {
+  background: #11151f;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.impact-stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #10b981;
+}
+.impact-stat-lbl {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+}
+.extrapolation-card {
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.extrapolation-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #10b981;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.extrap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.extrap-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #fff;
+}
+.extrap-lbl {
+  font-size: 0.60rem;
+  color: var(--text-secondary);
+}
+.extrap-disclaimer {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.3;
+}
+
