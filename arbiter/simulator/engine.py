@@ -8,6 +8,7 @@ from arbiter.shared.models import (
     ParameterType,
     TelemetrySample,
 )
+from arbiter.shared.v2_contracts import SimulationSnapshot
 from arbiter.simulator.cell import (
     CellConfiguration,
     CellEntity,
@@ -15,8 +16,10 @@ from arbiter.simulator.cell import (
 )
 from arbiter.simulator.grid import HexagonalGrid
 from arbiter.simulator.propagation import Cost231PropagationModel
+from arbiter.simulator.snapshot import SnapshotRing
 from arbiter.simulator.traffic import (
     CELL_CAPACITY_MBPS,
+    MilanTrafficGenerator,
     ScenarioType,
     TrafficDistributionModel,
 )
@@ -35,6 +38,8 @@ class SimulationEngine:
         proposal_sink: Optional[Any] = None,
         use_real_queue: bool = False,
         use_real_telemetry: bool = False,
+        snapshot_capacity: int = 600,
+        auto_snapshot: bool = True,
     ) -> None:
         self.topology = topology
         self.scenario = (
@@ -92,6 +97,10 @@ class SimulationEngine:
         # Offload overrides: ue_id -> pinned target_cell_id
         self.offload_overrides: Dict[str, str] = {}
 
+        # Snapshot ring buffer
+        self.auto_snapshot = auto_snapshot
+        self.snapshot_ring = SnapshotRing(capacity=snapshot_capacity)
+
     @classmethod
     def create_integrated(cls, **kwargs: Any) -> "SimulationEngine":
         """Factory for SimulationEngine wired to real ProposalQueue."""
@@ -103,6 +112,10 @@ class SimulationEngine:
 
     def step(self) -> List[TelemetrySample]:
         """Advance simulation by 1 tick (100 ms) and emit samples."""
+        # 0. Capture snapshot before advancing if auto_snapshot is enabled
+        if self.auto_snapshot:
+            self.snapshot_ring.push(self.snapshot())
+
         # 1. Mobility update on the entire user pool
         self.traffic_model.generator.step_mobility(self.users, self.bounds)
 
@@ -287,6 +300,109 @@ class SimulationEngine:
                 sinrs = [u.sinr_db for u in cell_users]
                 edge_sinr[cell_id] = float(np.percentile(sinrs, 10))
         return edge_sinr
+
+    def snapshot(self) -> SimulationSnapshot:
+        """Capture an opaque state snapshot of the running simulation."""
+        return SimulationSnapshot(
+            tick=self.tick,
+            payload={
+                "simulated_epoch_ms": self.simulated_epoch_ms,
+                "seed": self.seed,
+                "topology": self.topology,
+                "scenario": (
+                    self.scenario.value
+                    if hasattr(self.scenario, "value")
+                    else str(self.scenario)
+                ),
+                "cells": {
+                    cid: cell.config.model_dump()
+                    for cid, cell in self.cells.items()
+                },
+                "users": [ue.model_dump() for ue in self.users],
+                "offload_overrides": dict(self.offload_overrides),
+                "rng_state": (
+                    self.traffic_model.generator.rng.bit_generator.state
+                ),
+            },
+        )
+
+    def restore(self, snap: SimulationSnapshot) -> None:
+        """Restore engine state from a previously captured snapshot."""
+        p = snap.payload
+        self.tick = snap.tick
+        self.simulated_epoch_ms = int(p["simulated_epoch_ms"])
+        self.offload_overrides = dict(p.get("offload_overrides", {}))
+
+        for cid, cfg_data in p["cells"].items():
+            if cid in self.cells:
+                self.cells[cid].config = CellConfiguration(**cfg_data)
+            else:
+                self.cells[cid] = CellEntity(
+                    config=CellConfiguration(**cfg_data)
+                )
+
+        self.users = [UserEquipment(**ud) for ud in p["users"]]
+        self.traffic_model.pool = self.users
+        self.traffic_model.generator.rng.bit_generator.state = p["rng_state"]
+
+    def fork(self, seed: Optional[int] = None) -> "SimulationEngine":
+        """Fork an independent, identically stateful copy of the simulator."""
+        forked = SimulationEngine.__new__(SimulationEngine)
+        forked.topology = self.topology
+        forked.scenario = self.scenario
+        forked.seed = self.seed if seed is None else seed
+        forked.simulated_epoch_ms = self.simulated_epoch_ms
+        forked.tick = self.tick
+        forked.telemetry_sink = None
+        forked.proposal_sink = None
+        forked.propagation = self.propagation
+        forked.bounds = self.bounds
+        forked.auto_snapshot = self.auto_snapshot
+        forked.snapshot_ring = SnapshotRing(
+            capacity=self.snapshot_ring.capacity
+        )
+
+        forked.cells = {
+            cid: CellEntity(config=cell.config.model_copy(deep=True))
+            for cid, cell in self.cells.items()
+        }
+
+        forked.traffic_model = TrafficDistributionModel.__new__(
+            TrafficDistributionModel
+        )
+        forked.traffic_model.topology = self.traffic_model.topology
+        forked.traffic_model.scenario = self.traffic_model.scenario
+        forked.traffic_model.seed = forked.seed
+        forked.traffic_model.cells = self.traffic_model.cells
+        forked.traffic_model.bounds = self.traffic_model.bounds
+        forked.traffic_model.pool_size = self.traffic_model.pool_size
+        forked.traffic_model.profile_scale = (
+            self.traffic_model.profile_scale
+        )
+
+        forked.traffic_model.generator = MilanTrafficGenerator.__new__(
+            MilanTrafficGenerator
+        )
+        forked.traffic_model.generator.scenario = (
+            self.traffic_model.generator.scenario
+        )
+        forked.traffic_model.generator.seed = forked.seed
+        forked.traffic_model.generator.profile = (
+            self.traffic_model.generator.profile
+        )
+        if seed is None:
+            new_rng = np.random.default_rng()
+            new_rng.bit_generator.state = (
+                self.traffic_model.generator.rng.bit_generator.state
+            )
+            forked.traffic_model.generator.rng = new_rng
+        else:
+            forked.traffic_model.generator.rng = np.random.default_rng(seed)
+
+        forked.users = [ue.model_copy(deep=True) for ue in self.users]
+        forked.traffic_model.pool = forked.users
+        forked.offload_overrides = dict(self.offload_overrides)
+        return forked
 
 
 def main() -> None:
