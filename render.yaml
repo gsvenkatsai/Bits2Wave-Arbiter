@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: arbiter
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "bash start_render.sh"
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: FASTAPI_HOST
+        value: "0.0.0.0"
+      - key: SQLITE_DB_PATH
+        value: "./arbiter_production.db"
+      - key: SQLITE_WAL_MODE
+        value: "true"
+      - key: CORS_ORIGINS
+        value: '["*"]'

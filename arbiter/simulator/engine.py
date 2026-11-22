@@ -660,7 +660,21 @@ def main() -> None:
         default=None,
         help="Wire to Branch 2 ProposalQueue (retained for compatibility)",
     )
+    parser.add_argument(
+        "--api-url",
+        type=str,
+        default=None,
+        help="Target API server base URL for telemetry/frame ingest",
+    )
     args = parser.parse_args()
+
+    import os
+    api_port = os.environ.get("PORT", os.environ.get("FASTAPI_PORT", "8000"))
+    api_base = (
+        args.api_url.rstrip("/")
+        if args.api_url
+        else f"http://127.0.0.1:{api_port}"
+    )
 
     topology = "19_CELL" if args.cells == 19 else "5_CELL_CORE"
 
@@ -993,7 +1007,7 @@ def main() -> None:
             if args.stream_ws:
                 try:
                     req_frame = urllib.request.Request(
-                        "http://localhost:8000/api/v1/frames/ingest",
+                        f"{api_base}/api/v1/frames/ingest",
                         data=json.dumps(fr).encode("utf-8"),
                         headers={"Content-Type": "application/json"},
                         method="POST",
@@ -1084,7 +1098,7 @@ def main() -> None:
                 }
                 try:
                     req_tel = urllib.request.Request(
-                        "http://localhost:8000/api/v1/telemetry/ingest",
+                        f"{api_base}/api/v1/telemetry/ingest",
                         data=json.dumps(post_data).encode("utf-8"),
                         headers={"Content-Type": "application/json"},
                         method="POST",
