@@ -40,6 +40,7 @@ class SimulationEngine:
         use_real_telemetry: bool = False,
         snapshot_capacity: int = 600,
         auto_snapshot: bool = True,
+        twin_kind: str = "real",
     ) -> None:
         self.topology = topology
         self.scenario = (
@@ -49,6 +50,7 @@ class SimulationEngine:
         self.seed = seed
         self.simulated_epoch_ms = start_epoch_ms
         self.tick = 0
+        self.twin_kind = str(twin_kind)
 
         if telemetry_sink is not None:
             self.telemetry_sink = telemetry_sink
@@ -105,6 +107,39 @@ class SimulationEngine:
     def create_integrated(cls, **kwargs: Any) -> "SimulationEngine":
         """Factory for SimulationEngine wired to real ProposalQueue."""
         return cls(use_real_queue=True, **kwargs)
+
+    @property
+    def sink_kind(self) -> str:
+        """Return 'queue' or 'mock' depending on active proposal sink."""
+        if type(self.proposal_sink).__name__ == "ProposalQueueSink":
+            return "queue"
+        return "mock"
+
+    def cell_states(self) -> List[Dict[str, Any]]:
+        """Return live per-cell data conforming to contract C2:
+        id, x, y, tx_power_dbm, tilt_deg, is_sleeping, active_users,
+        load_ratio, energy_w, neighbors.
+        """
+        active_users = self.traffic_model.get_active_users(self.tick)
+        loads = self.get_cell_loads()
+        states: List[Dict[str, Any]] = []
+        for cid, cell in self.cells.items():
+            attached_count = sum(
+                1 for u in active_users if u.attached_cell_id == cid
+            )
+            states.append({
+                "id": str(cid),
+                "x": round(float(cell.x_coord), 2),
+                "y": round(float(cell.y_coord), 2),
+                "tx_power_dbm": round(float(cell.current_tx_power_dbm), 2),
+                "tilt_deg": round(float(cell.antenna_tilt_deg), 2),
+                "is_sleeping": bool(cell.is_sleeping),
+                "active_users": int(attached_count),
+                "load_ratio": round(float(loads.get(cid, 0.0)), 4),
+                "energy_w": round(float(cell.energy_consumption_w()), 2),
+                "neighbors": list(cell.neighbor_cell_ids),
+            })
+        return states
 
     def get_cell_configs(self) -> List[CellConfiguration]:
         """Return raw CellConfiguration models."""
@@ -402,6 +437,7 @@ class SimulationEngine:
         forked.users = [ue.model_copy(deep=True) for ue in self.users]
         forked.traffic_model.pool = forked.users
         forked.offload_overrides = dict(self.offload_overrides)
+        forked.twin_kind = getattr(self, "twin_kind", "real")
         return forked
 
     def frame(
@@ -414,6 +450,7 @@ class SimulationEngine:
         conflicts: Optional[Sequence[Any]] = None,
         plans: Optional[Sequence[Any]] = None,
         twin: Optional[Dict[str, Any]] = None,
+        meta: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Produce a complete discrete frame conforming to the 3D contract."""
         frame_tick = self.tick if tick is None else tick
@@ -421,26 +458,11 @@ class SimulationEngine:
             self.simulated_epoch_ms if sim_time_ms is None else sim_time_ms
         )
         active_users = self.traffic_model.get_active_users(frame_tick)
-        loads = self.get_cell_loads()
 
-        cells_payload: List[Dict[str, Any]] = []
-        for cid, cell in self.cells.items():
-            attached_count = sum(
-                1 for u in active_users if u.attached_cell_id == cid
-            )
-            cells_payload.append({
-                "id": cid,
-                "x": round(float(cell.config.x_coord), 2),
-                "y": round(float(cell.config.y_coord), 2),
-                "tx_power_dbm": round(float(cell.current_tx_power_dbm), 2),
-                "tilt_deg": round(
-                    float(getattr(cell.config, "antenna_tilt_deg", 6.0)), 2
-                ),
-                "is_sleeping": bool(cell.is_sleeping),
-                "active_users": attached_count,
-                "load_ratio": round(float(loads.get(cid, 0.0)), 4),
-                "energy_w": round(float(cell.energy_consumption_w()), 2),
-            })
+        cells_payload: List[Dict[str, Any]] = [
+            {k: v for k, v in cs.items() if k != "neighbors"}
+            for cs in self.cell_states()
+        ]
 
         users_payload: List[Dict[str, Any]] = []
         for u in active_users:
@@ -541,6 +563,14 @@ class SimulationEngine:
                     "delta_utility": float(du),
                 })
 
+        sink_str = self.sink_kind
+        frame_meta: Dict[str, str] = {
+            "twin_kind": getattr(self, "twin_kind", "real"),
+            "sink": sink_str,
+        }
+        if meta:
+            frame_meta.update(meta)
+
         return {
             "type": "frame",
             "tick": frame_tick,
@@ -557,12 +587,17 @@ class SimulationEngine:
             "decisions": formatted_decisions,
             "conflicts": list(conflicts) if conflicts else [],
             "plans": list(plans) if plans else [],
-            "twin": twin,
+            "twin": (
+                twin
+                if twin is not None
+                else {"calibrated": False, "intervals": []}
+            ),
             "kpis": {
                 "dropped_users": total_dropped,
                 "mean_sinr_db": round(mean_sinr, 2),
                 "energy_w": round(total_energy_w, 2),
             },
+            "meta": frame_meta,
         }
 
 
@@ -590,7 +625,10 @@ def main() -> None:
         "--pace",
         type=float,
         default=1.0,
-        help="Pace: real seconds per simulated second (1.0 = 100ms ticks, 0 = max speed)",
+        help=(
+            "Pace: real seconds per simulated second "
+            "(1.0 = 100ms ticks, 0 = max speed)"
+        ),
     )
     parser.add_argument(
         "--loop",
@@ -604,31 +642,67 @@ def main() -> None:
         help="Record simulation frames to a JSON file",
     )
     parser.add_argument(
+        "--twin",
+        type=str,
+        default="real",
+        choices=["real", "scripted"],
+        help="Digital twin backend: 'real' (default) or 'scripted' toy twin",
+    )
+    parser.add_argument(
+        "--mock-sink",
+        action="store_true",
+        default=False,
+        help="Use mock proposal sink instead of real Branch 2 ProposalQueue",
+    )
+    parser.add_argument(
         "--use-real-queue",
         action="store_true",
-        help="Wire to Branch 2 ProposalQueue instead of mock sink",
+        default=None,
+        help="Wire to Branch 2 ProposalQueue (retained for compatibility)",
     )
     args = parser.parse_args()
 
     topology = "19_CELL" if args.cells == 19 else "5_CELL_CORE"
+
+    if args.mock_sink:
+        use_real_queue = False
+    elif args.use_real_queue is not None:
+        use_real_queue = args.use_real_queue
+    else:
+        use_real_queue = True
+
+    sink_name = "mock" if not use_real_queue else "queue"
+    print(f"[SIMULATOR] Twin: {args.twin} | Sink: {sink_name}")
+
+    if args.twin == "scripted":
+        print(
+            "\n" + "=" * 78 + "\n"
+            "[WARNING] RUNNING IN SCRIPTED TWIN MODE: "
+            "Using analytical toy model, not real DigitalTwinEvaluator!\n"
+            + "=" * 78 + "\n",
+            flush=True,
+        )
 
     while True:
         engine = SimulationEngine(
             topology=topology,
             scenario=args.scenario,
             seed=args.seed,
-            use_real_queue=args.use_real_queue,
+            use_real_queue=use_real_queue,
+            twin_kind=args.twin,
         )
         engine_uncoord = SimulationEngine(
             topology=topology,
             scenario=args.scenario,
             seed=args.seed,
             use_real_queue=False,
+            twin_kind=args.twin,
         )
 
         if args.stream_ws:
             print(
-                f"[SIMULATOR] --stream-ws active (pace={args.pace:.2f}, ticks={args.ticks})"
+                f"[SIMULATOR] --stream-ws active "
+                f"(pace={args.pace:.2f}, ticks={args.ticks})"
             )
 
         print(
@@ -654,7 +728,21 @@ def main() -> None:
         from arbiter.engine.contracts import CommandProposal as EngineProposal
         from arbiter.queue.orchestrator import QueueOrchestrator
         from arbiter.shared.database import init_database
-        from tests.branch2.test_decision_ladder import _scenario_twin
+
+        # Digital twin resolution (Contract C1)
+        try:
+            from arbiter.engine.default_twin import (  # type: ignore[import-not-found]  # noqa: E501
+                make_default_twin,
+            )
+        except (ImportError, ModuleNotFoundError) as exc:
+            if args.twin == "real":
+                raise RuntimeError(
+                    "Contract C1: 'arbiter.engine.default_twin' does not "
+                    "exist yet. The real digital twin requires Pranav's "
+                    "branch to merge. Specify --twin scripted to run with "
+                    "the analytical scripted twin."
+                ) from exc
+            make_default_twin = None
 
         decisions: List[Any] = []
         proposals: List[Any] = []
@@ -714,8 +802,30 @@ def main() -> None:
                     cid: cell.config.neighbor_cell_ids
                     for cid, cell in engine.cells.items()
                 }
+                if args.twin == "scripted":
+                    if make_default_twin is not None:
+                        twin = make_default_twin(
+                            topology=topology, kind="scripted"
+                        )
+                    else:
+                        from arbiter.simulator.toy_twin import (
+                            get_scripted_twin,
+                        )
+
+                        twin = get_scripted_twin(topology=topology)
+                else:
+                    if make_default_twin is None:
+                        raise RuntimeError(
+                            "Contract C1: 'arbiter.engine.default_twin' does "
+                            "not exist yet. The real digital twin requires "
+                            "Pranav's branch to merge."
+                        )
+                    twin = make_default_twin(
+                        topology=topology, kind="real"
+                    )
+
                 orchestrator = QueueOrchestrator(
-                    twin=_scenario_twin(), adjacency=adj, max_workers=2
+                    twin=twin, adjacency=adj, max_workers=2
                 )
                 for p in proposals:
                     orchestrator.submit(
@@ -723,7 +833,8 @@ def main() -> None:
                     )
 
                 res = orchestrator.on_tick(
-                    current_tick=t, timestamp_epoch_ms=engine.simulated_epoch_ms
+                    current_tick=t,
+                    timestamp_epoch_ms=engine.simulated_epoch_ms,
                 )
                 decisions = res["decisions"]
                 tick_decisions = decisions
@@ -752,7 +863,11 @@ def main() -> None:
                                 d.approved_value
                             )
                         elif "OFFLOAD" in norm_p:
-                            pass
+                            engine.apply_actuation_deltas([{
+                                "target_cell_id": target_cid,
+                                "parameter": "OFFLOAD_RATIO",
+                                "value": d.approved_value,
+                            }])
 
                 # Build conflict edges from detector
                 try:
@@ -785,9 +900,10 @@ def main() -> None:
                             conn.execute(
                                 """
                                 INSERT OR REPLACE INTO audit_decisions (
-                                    decision_id, command_id, batch_tick, action,
-                                    approved_value, delta_utility, reason_code,
-                                    hold_count, decided_at_epoch_ms
+                                    decision_id, command_id, batch_tick,
+                                    action, approved_value, delta_utility,
+                                    reason_code, hold_count,
+                                    decided_at_epoch_ms
                                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 """,
                                 (
@@ -836,7 +952,9 @@ def main() -> None:
                                     parameter=p_name,
                                     old_value=old_val,
                                     new_value=float(d.approved_value),
-                                    applied_at_epoch_ms=engine.simulated_epoch_ms,
+                                    applied_at_epoch_ms=(
+                                        engine.simulated_epoch_ms
+                                    ),
                                 )
                 except Exception as exc:
                     print(f"[SIMULATOR] DB notice: {exc}")
@@ -890,7 +1008,9 @@ def main() -> None:
                 cell_states_payload = [
                     engine.cells[cid].to_cell_state(
                         active_users=sum(
-                            1 for u in active_users if u.attached_cell_id == cid
+                            1
+                            for u in active_users
+                            if u.attached_cell_id == cid
                         ),
                         load_ratio=loads.get(cid, 0.0),
                     ).model_dump()
@@ -1020,8 +1140,9 @@ def main() -> None:
 
             meta_data = {
                 "command": (
-                    f"python -m arbiter.simulator.engine --scenario {args.scenario} "
-                    f"--seed {args.seed} --ticks {args.ticks} --record {args.record}"
+                    f"python -m arbiter.simulator.engine "
+                    f"--scenario {args.scenario} --seed {args.seed} "
+                    f"--ticks {args.ticks} --record {args.record}"
                 ),
                 "scenario": args.scenario,
                 "seed": args.seed,
@@ -1033,7 +1154,8 @@ def main() -> None:
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump(meta_data, f, indent=2)
             print(
-                f"[SIMULATOR] Recorded {len(recorded_arbiter)} frames to {args.record}"
+                f"[SIMULATOR] Recorded {len(recorded_arbiter)} frames "
+                f"to {args.record}"
             )
             print(f"[SIMULATOR] Written provenance metadata to {meta_path}")
 

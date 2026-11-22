@@ -29,7 +29,7 @@ from arbiter.shared.models import (
     ParameterType,
 )
 from arbiter.simulator.engine import SimulationEngine
-from tests.branch2.test_decision_ladder import _scenario_twin
+from arbiter.simulator.toy_twin import get_scripted_twin
 
 CELL_IDS = ["cell_A", "cell_B", "cell_C", "cell_D", "cell_E"]
 
@@ -208,7 +208,7 @@ def search_collisions(
         cid: cell.config.neighbor_cell_ids
         for cid, cell in base_engine.cells.items()
     }
-    twin = _scenario_twin()
+    twin = get_scripted_twin()
     orchestrator = QueueOrchestrator(
         twin=twin, adjacency=adj, max_workers=2
     )
