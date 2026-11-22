@@ -8,7 +8,14 @@ from arbiter.twin.schemas import (
     NetworkActuationTarget,
 )
 from arbiter.twin.analytical_model import AnalyticalPropagationChain
-from arbiter.twin.evaluator import DigitalTwinEvaluator, handle_twin_evaluate
+from arbiter.twin.evaluator import (
+    DigitalTwinEvaluator,
+    SimulatorStateProvider,
+    ensure_global_evaluator,
+    get_global_evaluator,
+    handle_twin_evaluate,
+    set_global_evaluator,
+)
 from arbiter.twin.calibration import OnlineTwinCalibrator, MAPECalculator
 from arbiter.twin.conformal import (
     ConformalPredictor,
@@ -26,6 +33,10 @@ __all__ = [
     "NetworkActuationTarget",
     "AnalyticalPropagationChain",
     "DigitalTwinEvaluator",
+    "SimulatorStateProvider",
+    "ensure_global_evaluator",
+    "get_global_evaluator",
+    "set_global_evaluator",
     "handle_twin_evaluate",
     "OnlineTwinCalibrator",
     "MAPECalculator",

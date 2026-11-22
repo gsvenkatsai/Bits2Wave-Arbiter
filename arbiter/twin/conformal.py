@@ -26,7 +26,7 @@ import math
 import sqlite3
 import time
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from arbiter.shared.v2_contracts import PredictionInterval, TwinPredictionV2
 
@@ -171,6 +171,24 @@ class ConformalPredictor:
         q = sorted_res[idx]
 
         return float(q), True, n
+
+    def calibration_status(
+        self, kpi: str = "mean_sinr_db", alpha: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """Contract C3: Report conformal calibration status.
+
+        Returns:
+            calibrated flag, n_calibration, and interval_halfwidth_db.
+        """
+        effective_alpha = self.default_alpha if alpha is None else alpha
+        q, is_calibrated, n_cal = self.compute_quantile(kpi, effective_alpha)
+        return {
+            "calibrated": is_calibrated,
+            "n_calibration": n_cal,
+            "interval_halfwidth_db": (
+                float(round(q, 4)) if is_calibrated else None
+            ),
+        }
 
     def predict_intervals(
         self,

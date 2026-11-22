@@ -23,7 +23,11 @@ from arbiter.twin.conformal import (
     DEFAULT_CONSERVATIVE_INTERVALS,
     record_v2_calibration_event,
 )
-from arbiter.twin.evaluator import DigitalTwinEvaluator
+from arbiter.twin.evaluator import (
+    DigitalTwinEvaluator,
+    SimulatorStateProvider,
+    ensure_global_evaluator,
+)
 from arbiter.twin.mocks.mock_twin_v2 import MockDigitalTwinV2
 from arbiter.twin.schemas import CandidateDelta
 
@@ -283,3 +287,200 @@ def test_conformal_rolling_window_pruning() -> None:
     assert cp.get_calibration_count("dropped_users") == 50
     # Oldest retained residual should be 20.0 (0 to 19 pruned)
     assert cp._residuals["dropped_users"][0] == 20.0
+
+
+def test_calibration_status_contract_c3_uncalibrated_and_calibrated(
+    mock_state_provider: Any,
+) -> None:
+    """Verify Contract C3 calibration_status() before and after warm-up."""
+    cp = ConformalPredictor(
+        window_size=200, min_calibration_points=30, alpha=0.1
+    )
+    evaluator = DigitalTwinEvaluator(
+        state_provider=mock_state_provider, conformal_predictor=cp
+    )
+
+    # 1. Uncalibrated state
+    status_uncal = evaluator.calibration_status()
+    assert status_uncal["calibrated"] is False
+    assert status_uncal["n_calibration"] == 0
+    assert status_uncal["interval_halfwidth_db"] is None
+
+    # Predictor returns calibrated=False and wide conservative intervals
+    pred_uncal = evaluator.predict_v2(
+        [
+            CandidateDelta(
+                cell_id="cell_A", parameter="TX_POWER_DBM", proposed_value=43.0
+            )
+        ]
+    )
+    assert pred_uncal.calibrated is False
+    sinr_uncal = next(
+        i for i in pred_uncal.intervals if i.kpi == "mean_sinr_db"
+    )
+    assert sinr_uncal.upper - sinr_uncal.lower >= 12.0
+
+    # 2. Add 35 calibration points
+    for i in range(35):
+        cp.add_observation(
+            "mean_sinr_db", predicted=10.0, actual=10.2 + (i % 3) * 0.1
+        )
+
+    status_cal = evaluator.calibration_status()
+    assert status_cal["calibrated"] is True
+    assert status_cal["n_calibration"] == 35
+    assert isinstance(status_cal["interval_halfwidth_db"], float)
+    assert status_cal["interval_halfwidth_db"] > 0.0
+
+
+def test_ensure_global_evaluator_real_simulator_warmup() -> None:
+    """Verify ensure_global_evaluator runs real simulator warm-up under 3 s."""
+    t0 = time.perf_counter()
+    evaluator = ensure_global_evaluator(
+        topology="5_CELL_CORE", warm_up=True, n_samples=60, seed=42
+    )
+    elapsed = time.perf_counter() - t0
+
+    assert elapsed < 3.0, f"Warm-up took {elapsed:.3f} s, exceeding 3 s budget"
+    assert isinstance(evaluator.state_provider, SimulatorStateProvider)
+
+    status = evaluator.calibration_status()
+    assert status["calibrated"] is True
+    assert status["n_calibration"] == 60
+    assert status["interval_halfwidth_db"] is not None
+    assert status["interval_halfwidth_db"] > 0.0
+
+    # Test predict_v2 returns calibrated prediction
+    pred = evaluator.predict_v2(
+        [
+            CandidateDelta(
+                cell_id="cell_B", parameter="TX_POWER_DBM", proposed_value=44.0
+            )
+        ]
+    )
+    assert pred.calibrated is True
+    assert pred.n_calibration == 60
+
+
+def test_ensure_global_evaluator_uncalibrated_when_warmup_false() -> None:
+    """Verify ensure_global_evaluator with warm_up=False reports honestly."""
+    evaluator = ensure_global_evaluator(
+        topology="5_CELL_CORE", warm_up=False, seed=99
+    )
+    status = evaluator.calibration_status()
+
+    assert status["calibrated"] is False
+    assert status["n_calibration"] == 0
+    assert status["interval_halfwidth_db"] is None
+
+    pred = evaluator.predict_v2(
+        [
+            CandidateDelta(
+                cell_id="cell_A", parameter="TX_POWER_DBM", proposed_value=43.0
+            )
+        ]
+    )
+    assert pred.calibrated is False
+
+
+def test_drift_injection_widens_status_and_intervals() -> None:
+    """Verify drift injection hook widens status interval_halfwidth_db."""
+    evaluator = ensure_global_evaluator(
+        topology="5_CELL_CORE", warm_up=True, n_samples=60, seed=42
+    )
+    status_baseline = evaluator.calibration_status()
+    baseline_hw = status_baseline["interval_halfwidth_db"]
+    assert baseline_hw is not None
+
+    # Inject substantial drift bias on mean_sinr_db
+    evaluator.conformal_predictor.set_drift(
+        "mean_sinr_db", bias=10.0, noise_std=2.0
+    )
+
+    # Ingest new drift-impacted observations
+    for i in range(40):
+        drifted_pred = evaluator.conformal_predictor.apply_drift(
+            "mean_sinr_db", 10.0, seed=i
+        )
+        evaluator.conformal_predictor.add_observation(
+            "mean_sinr_db", predicted=drifted_pred, actual=10.0
+        )
+
+    status_drifted = evaluator.calibration_status()
+    assert status_drifted["interval_halfwidth_db"] is not None
+    assert status_drifted["interval_halfwidth_db"] > baseline_hw * 1.5
+
+
+def test_held_out_simulator_coverage_above_88_pct() -> None:
+    """Verify empirical coverage on held-out simulator stream exceeds 88%."""
+    evaluator = ensure_global_evaluator(
+        topology="5_CELL_CORE", warm_up=True, n_samples=60, seed=42
+    )
+
+    try:
+        from arbiter.simulator.engine import SimulationEngine
+    except ImportError:
+        import pytest
+        pytest.skip("arbiter.simulator not available")
+
+    heldout_engine = SimulationEngine(topology="5_CELL_CORE", seed=777)
+    heldout_engine.step()
+
+    rng = np.random.default_rng(777)
+    cell_ids = list(heldout_engine.cells.keys())
+    n_test = 50
+    covered = 0
+
+    for i in range(n_test):
+        cid = str(rng.choice(cell_ids))
+        param = str(
+            rng.choice([
+                "TX_POWER_DBM",
+                "TILT_DEG",
+                "SLEEP_STATE",
+                "OFFLOAD_RATIO",
+            ])
+        )
+        if param == "TX_POWER_DBM":
+            val = float(rng.uniform(33.0, 46.0))
+        elif param == "TILT_DEG":
+            val = float(rng.uniform(2.0, 8.0))
+        elif param == "SLEEP_STATE":
+            non_anchor = [c for c in cell_ids if c != "cell_A"]
+            cid = str(rng.choice(non_anchor)) if non_anchor else cid
+            val = 1.0 if rng.random() < 0.25 else 0.0
+        else:
+            val = float(rng.uniform(0.0, 0.4))
+
+        delta = [
+            CandidateDelta(cell_id=cid, parameter=param, proposed_value=val)
+        ]
+        pred = evaluator.predict_v2(delta, apply_drift=False)
+        sinr_intv = next(
+            item for item in pred.intervals if item.kpi == "mean_sinr_db"
+        )
+
+        forked = heldout_engine.fork(seed=8000 + i)
+        forked.apply_actuation_deltas([
+            {
+                "target_cell_id": d.cell_id,
+                "parameter": d.parameter,
+                "requested_value": d.proposed_value,
+            }
+            for d in delta
+        ])
+        samples = forked.step()
+        meas_ues = forked.traffic_model.get_active_users(forked.tick)
+        meas_sinr = (
+            float(np.mean([u.sinr_db for u in meas_ues]))
+            if meas_ues
+            else float(np.mean([s.sinr_db for s in samples]))
+        )
+
+        if sinr_intv.lower <= meas_sinr <= sinr_intv.upper:
+            covered += 1
+
+    coverage = covered / float(n_test)
+    assert coverage >= 0.88, (
+        f"Empirical coverage {coverage:.4f} fell below 0.88"
+    )
