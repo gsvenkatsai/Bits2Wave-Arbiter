@@ -92,10 +92,27 @@ export class ArbitrationSceneLayer {
       halo.rotation.x = Math.PI / 2;
       nodeGroup.add(halo);
 
-      // Label sprite
+      // Label sprite (untruncated full pill style)
       const labelSprite = this.createControllerLabel(spec.abbrev, spec.name, spec.color);
       labelSprite.position.set(0, 24, 0);
       nodeGroup.add(labelSprite);
+
+      // Thin dotted network connection line to ARBITER Core
+      const linePoints = [
+        new THREE.Vector3(pos.x, pos.y, pos.z),
+        new THREE.Vector3(this.corePosition.x, this.corePosition.y, this.corePosition.z),
+      ];
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
+      const lineMat = new THREE.LineDashedMaterial({
+        color: 0xFFC800,
+        dashSize: 14,
+        gapSize: 9,
+        transparent: true,
+        opacity: 0.35,
+      });
+      const netLine = new THREE.Line(lineGeo, lineMat);
+      netLine.computeLineDistances();
+      this.layerGroup.add(netLine);
 
       this.layerGroup.add(nodeGroup);
       this.controllerNodes.set(key, { group: nodeGroup, mesh, mat, halo, pos, spec });
@@ -105,28 +122,30 @@ export class ArbitrationSceneLayer {
 
   createControllerLabel(abbrev, name, color) {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 80;
+    canvas.width = 512;
+    canvas.height = 110;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    // Dark gold glass pill style
+    ctx.fillStyle = 'rgba(10, 10, 13, 0.92)';
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.roundRect(6, 6, 244, 68, 12);
+    ctx.roundRect(8, 8, 496, 94, 47);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 26px sans-serif';
+    // Full untruncated name
+    ctx.fillStyle = '#F5F5F7';
+    ctx.font = 'bold 36px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${abbrev} • ${name}`, 128, 48);
+    ctx.fillText(name, 256, 62);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
-    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
     const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(70, 22, 1);
+    sprite.scale.set(160, 36, 1);
     return sprite;
   }
 
@@ -144,12 +163,12 @@ export class ArbitrationSceneLayer {
     this.coreGroup = new THREE.Group();
     this.coreGroup.position.copy(this.corePosition);
 
-    // 1. Concentric rotating outer ring
+    // 1. Concentric rotating outer ring (Gold)
     const outerRingGeo = new THREE.TorusGeometry(60, 2.5, 12, 48);
     this.outerRingMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.9,
+      color: 0xFFC800,
+      emissive: 0xB38600,
+      emissiveIntensity: 1.0,
       roughness: 0.2,
       metalness: 0.9,
     });
@@ -157,35 +176,59 @@ export class ArbitrationSceneLayer {
     this.coreOuterRing.rotation.x = Math.PI / 2.3;
     this.coreGroup.add(this.coreOuterRing);
 
-    // 2. Counter-rotating inner ring
+    // 2. Counter-rotating inner ring (Warm Gold)
     const innerRingGeo = new THREE.TorusGeometry(42, 2.0, 12, 36);
     this.innerRingMat = new THREE.MeshStandardMaterial({
-      color: 0x10b981,
-      emissive: 0x059669,
-      emissiveIntensity: 0.8,
-      roughness: 0.3,
-      metalness: 0.8,
+      color: 0xFFD84A,
+      emissive: 0xFFB020,
+      emissiveIntensity: 0.9,
+      roughness: 0.25,
+      metalness: 0.85,
     });
     this.coreInnerRing = new THREE.Mesh(innerRingGeo, this.innerRingMat);
     this.coreInnerRing.rotation.x = -Math.PI / 3;
     this.coreGroup.add(this.coreInnerRing);
 
-    // 3. Central rotating crystalline prism (Octahedron)
+    // 3. Central rotating crystalline prism (Octahedron in Bright Gold)
     const prismGeo = new THREE.OctahedronGeometry(20, 0);
     this.prismMat = new THREE.MeshStandardMaterial({
-      color: 0x60a5fa,
-      emissive: 0x1d4ed8,
-      emissiveIntensity: 0.8,
+      color: 0xFFFBEB,
+      emissive: 0xFFC800,
+      emissiveIntensity: 1.5,
       roughness: 0.1,
-      metalness: 0.9,
+      metalness: 0.95,
       wireframe: false,
     });
     this.corePrism = new THREE.Mesh(prismGeo, this.prismMat);
     this.coreGroup.add(this.corePrism);
 
-    // 4. Central luminous core light
-    this.coreLight = new THREE.PointLight(0x38bdf8, 3.5, 500);
+    // 4. Central luminous core light (Gold)
+    this.coreLight = new THREE.PointLight(0xFFC800, 4.5, 700);
     this.coreGroup.add(this.coreLight);
+
+    // 4b. Soft bloom-like glow sprite (Additive blending, no post-processing lib)
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 256;
+    glowCanvas.height = 256;
+    const gCtx = glowCanvas.getContext('2d');
+    const gGrad = gCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gGrad.addColorStop(0, 'rgba(255, 235, 120, 0.95)');
+    gGrad.addColorStop(0.25, 'rgba(255, 200, 0, 0.50)');
+    gGrad.addColorStop(0.55, 'rgba(255, 180, 0, 0.16)');
+    gGrad.addColorStop(1, 'rgba(255, 160, 0, 0.0)');
+    gCtx.fillStyle = gGrad;
+    gCtx.fillRect(0, 0, 256, 256);
+    const glowTex = new THREE.CanvasTexture(glowCanvas);
+    this.coreGlowSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: glowTex,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    this.coreGlowSprite.scale.set(190, 190, 1);
+    this.coreGroup.add(this.coreGlowSprite);
 
     // 5. Digital Twin Shimmer Badge (billboard)
     this.twinShimmerSprite = this.createTwinShimmerSprite();
@@ -602,7 +645,7 @@ export class ArbitrationSceneLayer {
   update(deltaSec) {
     const dt = Math.min(0.1, deltaSec);
 
-    // 1. Rotate ARBITER Core
+    // 1. Rotate ARBITER Core & Pulse Bloom Glow
     if (this.coreOuterRing) {
       this.coreOuterRing.rotation.z += 0.015;
     }
@@ -612,6 +655,10 @@ export class ArbitrationSceneLayer {
     if (this.corePrism) {
       this.corePrism.rotation.y += 0.025;
       this.corePrism.rotation.x += 0.01;
+    }
+    if (this.coreGlowSprite) {
+      const pulse = 185 + 14 * Math.sin(performance.now() * 0.003);
+      this.coreGlowSprite.scale.set(pulse, pulse, 1);
     }
 
     // 2. Twin Shimmer Fade

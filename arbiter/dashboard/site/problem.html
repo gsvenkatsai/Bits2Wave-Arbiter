@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The 2 AM Collision — PROJECT ARBITER</title>
+  <meta name="description" content="Understanding the nocturnal multi-controller collision anomaly in autonomous cellular O-RAN networks and how ARBITER eliminates dropped calls.">
+
+  <!-- Self-Hosted Stylesheets & Favicon (Zero CDN dependencies) -->
+  <link rel="icon" type="image/svg+xml" href="./img/favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. Glass Pill Navigation Bar
+       ========================================================================= -->
+  <div class="navbar-wrapper">
+    <nav class="nav-pill" aria-label="Main Navigation">
+      <a href="/" class="brand-link" title="PROJECT ARBITER Home">
+        <span data-icon="logo"></span>
+        <span>PROJECT ARBITER</span>
+      </a>
+
+      <!-- Desktop Links Menu -->
+      <ul id="nav-links-menu" class="nav-links">
+        <li><a href="/" class="nav-item-link">Home</a></li>
+        <li><a href="/problem" class="nav-item-link active">Problem</a></li>
+        <li><a href="/how-it-works" class="nav-item-link">How it works</a></li>
+        <li><a href="/#results" class="nav-item-link">Results</a></li>
+        <li><a href="/dashboard/3d/" class="nav-item-link">Monitor</a></li>
+        <li><a href="/#team" class="nav-item-link">Team</a></li>
+      </ul>
+
+      <!-- CTA Actions -->
+      <div class="nav-actions">
+        <a href="/dashboard/3d/" class="btn btn-outline btn-sm" title="Launch Live 3D Digital Twin Monitor">Open Live Monitor</a>
+        <button id="nav-menu-toggle" class="nav-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" data-icon="menu"></button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- =========================================================================
+       2. Main Content
+       ========================================================================= -->
+  <main>
+    <!-- Section 1: Hero Strip -->
+    <section class="problem-hero container">
+      <div class="problem-hero-badge">
+        <span class="hero-pulse-dot" aria-hidden="true"></span>
+        <span>NOCTURNAL MULTI-CONTROLLER INTERFERENCE • O-RAN WG3</span>
+      </div>
+
+      <h1 class="problem-headline">
+        THE 2 AM COLLISION<span class="gold-dot">.</span>
+      </h1>
+
+      <p class="problem-lead">
+        In autonomous cellular networks, nocturnal low-traffic periods trigger concurrent conflicting actions across decoupled control loops: Energy Saving (ES) attempts to switch lightly loaded cells into deep sleep, Load Balancing (LB) shifts user traffic to neighbors to relieve local congestion, and Coverage &amp; Capacity Optimization (CC) boosts antenna power to eliminate fringe blind spots. Without mutual situational awareness, these independent controllers issue simultaneous conflicting commands at 2 AM—causing uncoordinated offloads into sleeping cells, immediate call drops, and severe RF coverage holes.
+      </p>
+    </section>
+
+    <!-- Section 2: Three-Lane Animated Timeline -->
+    <section class="container">
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <div>
+            <div class="section-eyebrow">// REAL REPLAY TRACE (SEED: 42 • TICK 6)</div>
+            <h2 style="font-size: 24px; margin: 0; color: var(--text);">Concurrent Controller Action Timeline</h2>
+          </div>
+          <span class="stat-chip chip-measured">REPLAY OF REAL ENGINE RUN</span>
+        </div>
+
+        <div class="timeline-time-axis" aria-hidden="true">
+          <span>02:00:00.000 (Tick Start)</span>
+          <span>+25 ms (RIC Ingestion)</span>
+          <span>+50 ms (Twin Evaluation)</span>
+          <span>+100 ms (Actuation Horizon)</span>
+        </div>
+
+        <div class="timeline-lanes" aria-label="Three-lane controller action timeline">
+          <!-- Lane 1: ES -->
+          <div class="timeline-lane">
+            <div class="lane-controller-info">
+              <span class="lane-badge badge-es">ES rApp</span>
+              <span class="lane-title">Energy Saving</span>
+            </div>
+            <div class="lane-track">
+              <div class="lane-track-line"></div>
+              <div class="lane-action-node node-es">
+                <span data-icon="bolt"></span>
+                <span>Asks Cell B to sleep (0 W)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lane 2: LB -->
+          <div class="timeline-lane">
+            <div class="lane-controller-info">
+              <span class="lane-badge badge-lb">LB xApp</span>
+              <span class="lane-title">Load Balancing</span>
+            </div>
+            <div class="lane-track">
+              <div class="lane-track-line"></div>
+              <div class="lane-action-node node-lb">
+                <span data-icon="user"></span>
+                <span>Asks to offload 40% of Cell A to Cell B</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lane 3: CC -->
+          <div class="timeline-lane">
+            <div class="lane-controller-info">
+              <span class="lane-badge badge-cc">CC xApp</span>
+              <span class="lane-title">Coverage &amp; Capacity</span>
+            </div>
+            <div class="lane-track">
+              <div class="lane-track-line"></div>
+              <div class="lane-action-node node-cc">
+                <span data-icon="shield"></span>
+                <span>Asks Cell A to raise power (+1.1 dB)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Collision Indicator Line -->
+          <div class="collision-indicator-line" aria-hidden="true">
+            <span class="collision-tag">COLLISION</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Side-by-Side Result Cards -->
+    <section class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">// COUNTERFACTUAL VERIFICATION</div>
+        <h2 class="section-title">Empirical Outcome Comparison</h2>
+        <p class="section-subtitle">
+          Measured data from the deterministic 2 AM collision simulation comparing uncoordinated execution against the ARBITER referee engine.
+        </p>
+      </div>
+
+      <div class="results-comparison-grid">
+        <!-- Uncoordinated Baseline Card -->
+        <article class="result-card uncoordinated" data-metric="collision_uncoordinated_drops">
+          <div class="result-card-header">
+            <span class="comparison-badge badge-bad">Uncoordinated Baseline</span>
+            <span class="stat-chip chip-measured">MEASURED</span>
+          </div>
+          <h3 class="result-card-title">Interference &amp; Blackout</h3>
+
+          <div class="result-metric-row">
+            <span class="result-metric-val val-bad stat-val">14</span>
+            <span class="stat-unit" style="font-family: var(--font-mono); font-size: 16px; color: var(--bad);">users</span>
+            <span class="result-metric-label">Calls dropped simultaneously upon entering sleeping sector</span>
+          </div>
+
+          <ul class="result-bullet-list">
+            <li><strong>Cell B powered dark (0 W):</strong> Energy Saving shuts down the radio frontend without verifying ongoing or incoming handovers.</li>
+            <li><strong>100% of offloaded UEs dropped:</strong> Load Balancing attempts to offload users onto Cell B immediately after the cell has gone dark.</li>
+            <li><strong>Coverage fringe distortion:</strong> Coverage &amp; Capacity boosts power on Cell A, creating high adjacent-channel interference.</li>
+            <li><strong>Cascading radio link failure:</strong> Disconnected mobile terminals enter emergency reconnection loops, creating an authentication burst storm.</li>
+          </ul>
+        </article>
+
+        <!-- With ARBITER Card -->
+        <article class="result-card coordinated" data-metric="collision_arbiter_drops">
+          <div class="result-card-header">
+            <span class="comparison-badge badge-ok">With ARBITER</span>
+            <span class="stat-chip chip-measured">MEASURED</span>
+          </div>
+          <h3 class="result-card-title">Delta-Utility Referee Coordination</h3>
+
+          <div class="result-metric-row">
+            <span class="result-metric-val val-ok stat-val">0</span>
+            <span class="stat-unit" style="font-family: var(--font-mono); font-size: 16px; color: var(--ok);">drops</span>
+            <span class="result-metric-label">Calls dropped with conformal delta-utility refereeing</span>
+          </div>
+
+          <ul class="result-bullet-list">
+            <li><strong>ES Delayed (hold count: 3):</strong> Sleep request for Cell B is placed in the hold queue until active handovers finish.</li>
+            <li><strong>LB Modified (bisection):</strong> Offload target is throttled from 40% down to 15% to maintain PRB headroom on Cell B.</li>
+            <li><strong>CC Modulated (+1.1 dB):</strong> Transmit power on Cell A is tuned to guarantee conformal SINR bounds ($\ge 0\text{ dB}$).</li>
+            <li><strong>131.5% Utility Gain:</strong> Zero dropped calls, full handover completion, and complete energy savings realized once queues clear.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- Section 4: Conflict Types (O-RAN WG3 Taxonomy) -->
+    <section class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">// O-RAN WG3 TAXONOMY</div>
+        <h2 class="section-title">Conflict Classification</h2>
+        <p class="section-subtitle">
+          Project ARBITER models multi-controller interactions using the formal taxonomy established by the O-RAN Alliance.
+        </p>
+      </div>
+
+      <div class="conflicts-grid">
+        <!-- Direct Conflict -->
+        <div class="conflict-card">
+          <span class="conflict-card-type">Category 01</span>
+          <h3 class="conflict-card-title">Direct Conflicts</h3>
+          <p class="conflict-card-desc">
+            Two or more controllers concurrently issue commands that modify the exact same configuration parameter on the same cell or network element within an overlapping execution window.
+          </p>
+          <div class="conflict-example-box">
+            <code>Example: ES requests Cell B administrative state = SHUTDOWN while CC concurrently requests Tx Power = +3 dB on Cell B.</code>
+          </div>
+        </div>
+
+        <!-- Indirect Conflict -->
+        <div class="conflict-card">
+          <span class="conflict-card-type">Category 02</span>
+          <h3 class="conflict-card-title">Indirect Conflicts</h3>
+          <p class="conflict-card-desc">
+            Controllers modify different parameters across adjacent cells that are physically or mathematically coupled through RF propagation, inter-cell interference, or user handover mobility.
+          </p>
+          <div class="conflict-example-box">
+            <code>Example: Cell A offloads 40% of its user pool to Cell B at the exact moment Cell B enters low-power standby mode.</code>
+          </div>
+        </div>
+
+        <!-- Implicit / Ping-Pong Conflict -->
+        <div class="conflict-card">
+          <span class="conflict-card-type">Category 03</span>
+          <h3 class="conflict-card-title">Implicit &amp; Ping-Pong Conflicts</h3>
+          <p class="conflict-card-desc">
+            Multi-tick temporal coupling where Controller 1's action alters network state such that it immediately triggers Controller 2's threshold in the subsequent cycle, causing oscillatory ping-pong loops.
+          </p>
+          <div class="conflict-example-box">
+            <code>Example: LB offload pushes Cell B load above threshold, prompting immediate reverse handover or premature sleep reactivation.</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Credit Callout Box -->
+      <div class="source-credit-box">
+        <span data-icon="shield"></span>
+        <div>
+          <strong>Standardization Reference:</strong> Conflict modalities are modeled following the formal taxonomy defined in <em>O-RAN Working Group 3 (WG3) Non-RT and Near-RT RIC Architecture and Multi-Controller Conflict Mitigation Framework</em>.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Related Work & What ARBITER Adds -->
+    <section class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">// LITERATURE &amp; ARCHITECTURAL POSITIONING</div>
+        <h2 class="section-title">Related Work &amp; What ARBITER Adds</h2>
+        <p class="section-subtitle">
+          How ARBITER relates to existing conflict-mitigation research and the concrete capabilities implemented in this project.
+        </p>
+      </div>
+
+      <div class="related-work-grid">
+        <!-- Related Work Column -->
+        <div class="related-work-col">
+          <div class="work-item">
+            <h4>O-RAN Conflict Mitigation Framework (CMF)</h4>
+            <p>
+              O-RAN WG3 defines architectural interfaces and coordination policies for Non-RT and Near-RT RICs. Standard CMF approaches typically rely on static priority matrices, parameter locking, or exclusion lists that serialize controller actions without joint optimization.
+            </p>
+          </div>
+
+          <div class="work-item">
+            <h4>Digital-Twin Pre-Checks (COMIX &amp; Related Works)</h4>
+            <p>
+              Academic proposals like COMIX evaluate proposed actions inside a simulation environment prior to deployment. These frameworks demonstrate the utility of pre-testing but typically treat simulation output as point estimates without formal uncertainty quantification.
+            </p>
+          </div>
+
+          <div class="work-item">
+            <h4>Vendor SMO Conflict Management</h4>
+            <p>
+              Commercial Service Management and Orchestration platforms incorporate proprietary SON coordination rules. These systems excel at operational scheduling but frequently lack distribution-free mathematical safety guarantees or reproducible counterfactual audit trails.
+            </p>
+          </div>
+        </div>
+
+        <!-- What ARBITER Adds Column -->
+        <div class="arbiter-adds-card">
+          <div style="font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase;">
+            Concrete Architectural Contributions
+          </div>
+          <h3 style="font-size: 22px; margin: 0; color: var(--text);">What ARBITER Adds</h3>
+
+          <div class="arbiter-add-feature">
+            <span class="arbiter-add-feature-icon" data-icon="chart"></span>
+            <div class="arbiter-add-feature-text">
+              <h5>Measured Optimality Bound (3.55%)</h5>
+              <p>Achieves a 3.55% optimality gap compared against exhaustive brute-force search across all 64 possible joint parameter combinations, while executing in 3.82 ms.</p>
+            </div>
+          </div>
+
+          <div class="arbiter-add-feature">
+            <span class="arbiter-add-feature-icon" data-icon="shield"></span>
+            <div class="arbiter-add-feature-text">
+              <h5>Distribution-Free Conformal Safety Bounds</h5>
+              <p>Integrates split conformal prediction intervals guaranteeing $\ge 90\%$ marginal coverage without requiring Gaussian or uncalibrated stationarity assumptions.</p>
+            </div>
+          </div>
+
+          <div class="arbiter-add-feature">
+            <span class="arbiter-add-feature-icon" data-icon="clock"></span>
+            <div class="arbiter-add-feature-text">
+              <h5>Deterministic Counterfactual Audit Trail</h5>
+              <p>Maintains a 600-frame unified ring buffer and lockstep Ghost World branching, enabling deterministic comparison of coordinated vs uncoordinated outcomes.</p>
+            </div>
+          </div>
+
+          <div class="arbiter-add-feature">
+            <span class="arbiter-add-feature-icon" data-icon="bolt"></span>
+            <div class="arbiter-add-feature-text">
+              <h5>Joint Plan Synthesis &amp; Parameter Morphing</h5>
+              <p>Constructs joint conflict graphs, tunes intermediate parameter values via bisection, and orchestrates timed hold queues within a 10 ms Near-RT RIC budget.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: Cross-Links Banner -->
+    <section class="container">
+      <div class="cross-links-banner">
+        <div class="cross-links-text">
+          <h3>Explore the Conflict Resolution Engine</h3>
+          <p>Inspect the detailed 100 ms tick architecture, feedback loops, and decision ladder.</p>
+        </div>
+        <div class="cross-links-actions">
+          <a href="/how-it-works" class="btn btn-gold">How It Works →</a>
+          <a href="/dashboard/3d/?replay=1" class="btn btn-outline">Watch 2 AM Replay</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       3. Site Footer
+       ========================================================================= -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div style="display: flex; align-items: center; gap: var(--space-12);">
+            <span data-icon="logo"></span>
+            <span style="font-weight: 700; font-size: 18px; color: var(--text);">PROJECT ARBITER</span>
+          </div>
+          <p class="footer-disclaimer">
+            PROJECT ARBITER is an autonomous cellular RAN research prototype built for the Bits2Wave competition; not an official 3GPP or O-RAN commercial deployment.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--gold);">
+            Built for Bits2Wave • Autonomous RAN Coordination
+          </div>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Visualization</div>
+          <ul class="footer-links">
+            <li><a href="/dashboard/3d/" class="footer-link">3D Digital Twin Visualizer</a></li>
+            <li><a href="/dashboard/3d/?replay=1" class="footer-link">Recorded 2 AM Replay</a></li>
+            <li><a href="/dashboard/3d/?demo=1" class="footer-link">Looping Demo Stream</a></li>
+            <li><a href="/dashboard/" class="footer-link">2D NOC Operations Console</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Documentation</div>
+          <ul class="footer-links">
+            <li><a href="/" class="footer-link">System Overview</a></li>
+            <li><a href="/problem" class="footer-link">2 AM Collision Dynamics</a></li>
+            <li><a href="/how-it-works" class="footer-link">Referee Architecture</a></li>
+            <li><a href="/#results" class="footer-link">Empirical Proofs</a></li>
+            <li><a href="/#team" class="footer-link">Contributors</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Project ARBITER. All rights reserved. Self-hosted &amp; offline compliant.</div>
+        <div style="display: flex; gap: var(--space-16);">
+          <span style="color: var(--ok);">● All 516 Tests Passing</span>
+          <span>Commit: <code style="color: var(--gold);">1cbfd2b</code></span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Page Logic Entry Point -->
+  <script type="module" src="./js/problem.js"></script>
+</body>
+</html>

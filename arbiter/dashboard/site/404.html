@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — Page Not Found • PROJECT ARBITER</title>
+  <meta name="description" content="The requested page could not be found within Project ARBITER.">
+  <link rel="icon" type="image/svg+xml" href="./img/favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+  <style>
+    .error-hero {
+      min-height: calc(100vh - 240px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: var(--space-72) var(--space-24);
+    }
+    .error-code {
+      font-family: var(--font-mono);
+      font-size: clamp(4rem, 12vw, 8rem);
+      font-weight: 700;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: var(--space-16);
+      text-shadow: 0 0 30px var(--gold-glow);
+    }
+    .error-title {
+      font-family: var(--font-sans);
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-16);
+    }
+    .error-desc {
+      max-width: 540px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+      margin-bottom: var(--space-32);
+    }
+    .error-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-16);
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Glass Pill Navbar -->
+  <div class="navbar-wrapper">
+    <nav class="nav-pill" aria-label="Main Navigation">
+      <a href="/" class="brand-link" title="PROJECT ARBITER Home">
+        <span data-icon="logo"></span>
+        <span>PROJECT ARBITER</span>
+      </a>
+
+      <!-- Desktop Links Menu -->
+      <ul id="nav-links-menu" class="nav-links">
+        <li><a href="/" class="nav-item-link">Home</a></li>
+        <li><a href="/problem" class="nav-item-link">Problem</a></li>
+        <li><a href="/how-it-works" class="nav-item-link">How it works</a></li>
+        <li><a href="/results" class="nav-item-link">Results</a></li>
+        <li><a href="/monitor" class="nav-item-link">Monitor</a></li>
+        <li><a href="/team" class="nav-item-link">Team</a></li>
+      </ul>
+
+      <!-- CTA Actions -->
+      <div class="nav-actions">
+        <a href="/dashboard/3d/" class="btn btn-outline btn-sm" title="Launch Live 3D Digital Twin Monitor">Open Live Monitor</a>
+        <button id="nav-menu-toggle" class="nav-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" data-icon="menu"></button>
+      </div>
+    </nav>
+  </div>
+
+  <main>
+    <section class="error-hero container">
+      <div class="error-code">404</div>
+      <h1 class="error-title">PAGE NOT FOUND<span class="gold-dot">.</span></h1>
+      <p class="error-desc">
+        The requested routing endpoint or document could not be located in the PROJECT ARBITER deployment. It may have been relocated or removed.
+      </p>
+      <div class="error-actions">
+        <a href="/" class="btn btn-primary">Return to Home</a>
+        <a href="/monitor" class="btn btn-outline">Open Monitor Hub</a>
+        <a href="/how-it-works" class="btn btn-ghost">How It Works &rarr;</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Shared Footer -->
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-brand-col">
+        <div class="footer-logo">
+          <span data-icon="logo"></span>
+          <span>PROJECT ARBITER</span>
+        </div>
+        <p class="footer-tagline">
+          Conflict-resolution referee for multi-agent autonomous cellular RAN control loops.
+        </p>
+        <div class="footer-credit">
+          Built for <strong style="color: var(--gold-soft);">Bits2Wave</strong> • Autonomous Cellular RAN Competition
+        </div>
+      </div>
+
+      <div class="footer-links-col">
+        <div class="footer-heading">NAVIGATION</div>
+        <ul class="footer-nav-list">
+          <li><a href="/">Home</a></li>
+          <li><a href="/problem">Problem Statement</a></li>
+          <li><a href="/how-it-works">Architecture &amp; Algorithm</a></li>
+          <li><a href="/results">Empirical Results</a></li>
+          <li><a href="/monitor">Live Telemetry Hub</a></li>
+          <li><a href="/team">Engineering Team</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-col">
+        <div class="footer-heading">CONSOLES</div>
+        <ul class="footer-nav-list">
+          <li><a href="/dashboard/">2D Operations Console (NOC)</a></li>
+          <li><a href="/dashboard/3d/">3D Digital Twin Environment</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <div class="prototype-disclaimer">
+        Simulation-based prototype. Metrics derived from deterministic trace replays under seed 42.
+      </div>
+      <div class="copyright-notice">
+        &copy; 2026 PROJECT ARBITER Contributors. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./js/components.js"></script>
+</body>
+</html>

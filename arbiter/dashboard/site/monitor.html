@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operations Monitor Hub — PROJECT ARBITER</title>
+  <meta name="description" content="Central operations hub for launching the 2D NOC Operations Console and 3D Digital Twin Visualizer of Project ARBITER.">
+
+  <!-- Self-Hosted Stylesheets & Favicon (Zero CDN dependencies) -->
+  <link rel="icon" type="image/svg+xml" href="./img/favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. Glass Pill Navigation Bar
+       ========================================================================= -->
+  <div class="navbar-wrapper">
+    <nav class="nav-pill" aria-label="Main Navigation">
+      <a href="/" class="brand-link" title="PROJECT ARBITER Home">
+        <span data-icon="logo"></span>
+        <span>PROJECT ARBITER</span>
+      </a>
+
+      <!-- Desktop Links Menu -->
+      <ul id="nav-links-menu" class="nav-links">
+        <li><a href="/" class="nav-item-link">Home</a></li>
+        <li><a href="/problem" class="nav-item-link">Problem</a></li>
+        <li><a href="/how-it-works" class="nav-item-link">How it works</a></li>
+        <li><a href="/results" class="nav-item-link">Results</a></li>
+        <li><a href="/monitor" class="nav-item-link active">Monitor</a></li>
+        <li><a href="/team" class="nav-item-link">Team</a></li>
+      </ul>
+
+      <!-- CTA Actions -->
+      <div class="nav-actions">
+        <a href="/dashboard/3d/" class="btn btn-outline btn-sm" title="Launch Live 3D Digital Twin Monitor">Open Live Monitor</a>
+        <button id="nav-menu-toggle" class="nav-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" data-icon="menu"></button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- =========================================================================
+       2. Main Content
+       ========================================================================= -->
+  <main>
+    <!-- Section 1: Hero -->
+    <section class="monitor-hero container">
+      <div class="hero-pill-badge">
+        <span class="hero-pulse-dot" aria-hidden="true"></span>
+        <span>OPERATIONS HUB • 2D NOC &amp; 3D DIGITAL TWIN CONSOLES</span>
+      </div>
+
+      <h1 class="monitor-headline">
+        OPERATIONS MONITOR<span class="gold-dot">.</span>
+      </h1>
+
+      <p class="monitor-lead">
+        Launch the Project ARBITER operations consoles. Inspect real-time 3D radio frequency propagation, antenna down-tilt actuation, active user SINR distributions, and referee verdicts, or monitor cellular Key Performance Indicators in the 2D NOC console.
+      </p>
+    </section>
+
+    <!-- Section 2: Live Engine Status Line -->
+    <section class="container">
+      <div class="live-status-bar" id="engine-status-bar" aria-live="polite">
+        <div class="status-badge-wrap">
+          <span id="engine-status-dot" class="status-indicator-dot dot-idle" aria-hidden="true"></span>
+          <div>
+            <div id="engine-status-text" class="status-state-text">CONNECTING...</div>
+            <div id="engine-status-desc" class="status-sub-desc">Probing backend server at /api/v1/health</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: var(--space-8); align-items: center;">
+          <span style="font-family: var(--font-mono); font-size: 11px; color: var(--gold);">REFRESH: 2.5s</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Two Large Dashboard Cards -->
+    <section class="container">
+      <div class="dashboard-cards-grid">
+        <!-- Dashboard Card 1: 2D NOC Console -->
+        <article class="dashboard-hub-card">
+          <div class="card-thumb-wrap">
+            <img src="./img/noc_2d_thumb.png" alt="2D NOC Dashboard Screenshot" class="card-thumb-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="card-thumb-fallback" style="display: none;">
+              <span data-icon="chart"></span>
+              <span style="margin-left: var(--space-8); font-family: var(--font-mono); font-size: 14px;">2D NOC CONSOLE PREVIEW</span>
+            </div>
+          </div>
+
+          <div class="card-content-body">
+            <div>
+              <div class="card-title-row">
+                <h3 class="card-main-title">NOC Dashboard (2D)</h3>
+                <span class="stat-chip chip-measured">WEB CONSOLE</span>
+              </div>
+              <p class="card-main-desc">
+                Tabular NOC operations console displaying active cell states, per-sector PRB capacity meters, SINR distribution histograms, and live referee decision logs with filterable reason codes.
+              </p>
+            </div>
+
+            <div class="card-actions-row">
+              <a href="/dashboard/" class="btn btn-gold" title="Open 2D NOC Console">
+                <span>Open 2D NOC Console</span>
+                <span data-icon="arrowRight"></span>
+              </a>
+              <a href="/dashboard/?replay=1" class="btn btn-outline" title="Start recorded 2 AM replay in 2D console">
+                <span class="stat-chip chip-measured" style="font-size: 9px; padding: 2px 6px;">REPLAY</span>
+                <span>Start a Replay</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Dashboard Card 2: 3D Digital Twin Visualizer -->
+        <article class="dashboard-hub-card">
+          <div class="card-thumb-wrap">
+            <img src="./img/3d_twin_thumb.png" alt="3D Digital Twin Visualizer Screenshot" class="card-thumb-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="card-thumb-fallback" style="display: none;">
+              <span data-icon="globe"></span>
+              <span style="margin-left: var(--space-8); font-family: var(--font-mono); font-size: 14px;">3D DIGITAL TWIN PREVIEW</span>
+            </div>
+          </div>
+
+          <div class="card-content-body">
+            <div>
+              <div class="card-title-row">
+                <h3 class="card-main-title">3D Digital Twin</h3>
+                <span class="stat-chip chip-measured">WEBGL GPU</span>
+              </div>
+              <p class="card-main-desc">
+                GPU-accelerated Three.js visualizer rendering 350+ mobile terminals with sub-second Lerp interpolation, dynamic antenna down-tilt radiation lobes, and Ghost World counterfactual overlay.
+              </p>
+            </div>
+
+            <div class="card-actions-row">
+              <a href="/dashboard/3d/" class="btn btn-gold" title="Launch 3D Digital Twin Visualizer">
+                <span>Launch 3D Twin</span>
+                <span data-icon="arrowRight"></span>
+              </a>
+              <a href="/dashboard/3d/?replay=1" class="btn btn-outline" title="Start recorded 2 AM collision replay in 3D">
+                <span class="stat-chip chip-measured" style="font-size: 9px; padding: 2px 6px;">REPLAY</span>
+                <span>Start a Replay</span>
+              </a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Section 4: Keyboard Shortcuts Card (Copied from 3D Help Overlay) -->
+    <section class="container">
+      <div class="shortcuts-card">
+        <div class="section-eyebrow">// POWER-USER CONTROLS</div>
+        <h3 style="font-size: 22px; color: var(--text); margin: var(--space-8) 0 0;">
+          3D Digital Twin Keyboard Shortcuts
+        </h3>
+        <p style="font-size: 14px; color: var(--muted); margin: 0;">
+          When interacting with the 3D twin, use these keyboard hotkeys to scrub timelines, jump to collisions, and inspect counterfactual branches:
+        </p>
+
+        <div class="shortcuts-grid">
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[J]</kbd>
+            <span class="shortcut-action"><strong>Jump to Collision:</strong> Scans forward directly to the 2 AM collision tick.</span>
+          </div>
+
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[G]</kbd>
+            <span class="shortcut-action"><strong>Ghost World:</strong> Toggles side-by-side or overlay counterfactual uncoordinated twin.</span>
+          </div>
+
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[Space]</kbd>
+            <span class="shortcut-action"><strong>Playback:</strong> Pauses or resumes real-time simulation streaming.</span>
+          </div>
+
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[←] / [→]</kbd>
+            <span class="shortcut-action"><strong>Scrubbing:</strong> Step single tick backward or forward in the 600-frame ring buffer.</span>
+          </div>
+
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[1] / [2]</kbd>
+            <span class="shortcut-action"><strong>Camera Presets:</strong> [1] Wide urban cluster overview; [2] Collision cell pair close-up.</span>
+          </div>
+
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[R]</kbd>
+            <span class="shortcut-action"><strong>Reset View:</strong> Returns camera orbit and focal target to default perspective.</span>
+          </div>
+
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[N]</kbd>
+            <span class="shortcut-action"><strong>NOC Overlay:</strong> Toggles compact 2D telemetry HUD in the 3D viewport.</span>
+          </div>
+
+          <div class="shortcut-item">
+            <kbd class="shortcut-key">[H]</kbd>
+            <span class="shortcut-action"><strong>Help Panel:</strong> Opens detailed on-screen guidance and controller color legend.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       3. Site Footer
+       ========================================================================= -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div style="display: flex; align-items: center; gap: var(--space-12);">
+            <span data-icon="logo"></span>
+            <span style="font-weight: 700; font-size: 18px; color: var(--text);">PROJECT ARBITER</span>
+          </div>
+          <p class="footer-disclaimer">
+            PROJECT ARBITER is an autonomous cellular RAN research prototype built for the Bits2Wave competition; not an official 3GPP or O-RAN commercial deployment.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--gold);">
+            Built for Bits2Wave • Autonomous RAN Coordination
+          </div>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Visualization</div>
+          <ul class="footer-links">
+            <li><a href="/dashboard/3d/" class="footer-link">3D Digital Twin Visualizer</a></li>
+            <li><a href="/dashboard/3d/?replay=1" class="footer-link">Recorded 2 AM Replay</a></li>
+            <li><a href="/dashboard/3d/?demo=1" class="footer-link">Looping Demo Stream</a></li>
+            <li><a href="/dashboard/" class="footer-link">2D NOC Operations Console</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Documentation</div>
+          <ul class="footer-links">
+            <li><a href="/" class="footer-link">System Overview</a></li>
+            <li><a href="/problem" class="footer-link">2 AM Collision Dynamics</a></li>
+            <li><a href="/how-it-works" class="footer-link">Referee Architecture</a></li>
+            <li><a href="/results" class="footer-link">Empirical Proofs</a></li>
+            <li><a href="/team" class="footer-link">Contributors</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Project ARBITER. All rights reserved. Self-hosted &amp; offline compliant.</div>
+        <div style="display: flex; gap: var(--space-16);">
+          <span style="color: var(--ok);">● All 528 Tests Passing</span>
+          <span>Commit: <code style="color: var(--gold);">1cbfd2b</code></span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Page Logic Entry Point -->
+  <script type="module" src="./js/monitor.js"></script>
+</body>
+</html>

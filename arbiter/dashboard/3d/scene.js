@@ -3,14 +3,16 @@
  * Module: arbiter/dashboard/3d/scene.js
  *
  * Responsibilities:
- * - Three.js WebGL scene, lighting, dark NOC ground plane & hex grid.
- * - Cell towers with dynamic load gauges, state coloring, and billboard labels.
- * - Coverage discs with monotonic power mapping and electrical down-tilt.
- * - Single InstancedMesh for 350+ users colored by SINR with dropped pulse.
+ * - Three.js WebGL scene, lighting, dark NOC ground plane & warm gold radial vignette.
+ * - Dynamic Voronoi cell footprint generation from real cell coordinates (non-overlapping).
+ * - Tower geometry visible from Overview preset (mast ~76m, tapered lattice, cabin, 3 sector panels).
+ * - Amber/white active pinnacle beacon (dark when sleeping) and base load gauge ring.
+ * - HTML/CSS2D glass pill labels (Outfit bold title, JetBrains Mono users/load, calibration tooltip).
+ * - Gold/white gradient coverage discs with additive blending.
+ * - InstancedMesh for 350+ users colored by SINR (radius 5.8m, y=4.0) with dropped pulse.
+ * - Subtle slow dust particles (CSS/reduced-motion safe).
  * - Single LineSegments buffer for user-to-tower RF links.
- * - Buttery-smooth 100 ms tick lerp interpolation at 60 FPS.
- * - Top-down tilted camera with OrbitControls and demo reset.
- * - Frame performance profiling (?stats=1).
+ * - 60 FPS tick lerp interpolation with clean resource disposal on reset.
  */
 
 import * as THREE from 'three';
@@ -39,23 +41,129 @@ export function computeCoverageRadius(txPowerDbm, isSleeping) {
 }
 
 /**
- * Color ramp based on SINR:
- * SINR <= -3.0 dB: Red (#ef4444)
- * SINR = 0.0 dB: Amber (#f59e0b)
- * SINR >= 12.0 dB: Emerald Green (#10b981)
+ * Color ramp based on SINR mapped to Site Semantic Tokens:
+ * SINR <= -3.0 dB: Bad Red (#FF4D5E / 0xFF4D5E)
+ * SINR = 0.0 dB: Amber (#FFB020 / 0xFFB020)
+ * SINR >= 12.0 dB: Emerald Green (#2EE6A6 / 0x2EE6A6)
  */
 export function sinrToColor(sinrDb, isDropped = false) {
   if (isDropped || sinrDb <= -3.0) {
-    return new THREE.Color(0xef4444); // Red
+    return new THREE.Color(0xFF4D5E); // Red
   }
   if (sinrDb < 4.0) {
     // Interpolate Red -> Amber
     const t = Math.max(0, (sinrDb + 3.0) / 7.0);
-    return new THREE.Color(0xef4444).lerp(new THREE.Color(0xf59e0b), t);
+    return new THREE.Color(0xFF4D5E).lerp(new THREE.Color(0xFFB020), t);
   }
   // Interpolate Amber -> Emerald Green
   const t = Math.min(1.0, (sinrDb - 4.0) / 10.0);
-  return new THREE.Color(0xf59e0b).lerp(new THREE.Color(0x10b981), t);
+  return new THREE.Color(0xFFB020).lerp(new THREE.Color(0x2EE6A6), t);
+}
+
+/**
+ * Sutherland-Hodgman polygon clipping against a 2D half-plane.
+ */
+function clipPolygonWithHalfPlane(poly, pLine, normal) {
+  const inside = (cp) => (cp.x - pLine.x) * normal.x + (cp.z - pLine.z) * normal.z <= 0;
+  const intersection = (cp1, cp2) => {
+    const dc = { x: cp1.x - cp2.x, z: cp1.z - cp2.z };
+    const dp = { x: cp1.x - pLine.x, z: cp1.z - pLine.z };
+    const denom = dc.x * normal.x + dc.z * normal.z;
+    if (Math.abs(denom) < 1e-9) return cp1;
+    const t = (dp.x * normal.x + dp.z * normal.z) / denom;
+    return { x: cp1.x - t * dc.x, z: cp1.z - t * dc.z };
+  };
+
+  const out = [];
+  if (!poly || poly.length === 0) return out;
+  let s = poly[poly.length - 1];
+  for (const e of poly) {
+    if (inside(e)) {
+      if (inside(s)) {
+        out.push(e);
+      } else {
+        out.push(intersection(s, e));
+        out.push(e);
+      }
+    } else if (inside(s)) {
+      out.push(intersection(s, e));
+    }
+    s = e;
+  }
+  return out;
+}
+
+/**
+ * Computes non-overlapping Voronoi footprint polygons for all cells
+ * clipped to a bounding circle around the cluster.
+ */
+export function computeVoronoiFootprints(cells, boundingRadius = 750) {
+  if (!cells || cells.length === 0) return new Map();
+
+  // Find cluster center
+  let sumX = 0;
+  let sumZ = 0;
+  for (const c of cells) {
+    sumX += Number(c.x) || 0;
+    sumZ += Number(c.y) || 0; // RAN y is 3D z
+  }
+  const centerX = sumX / cells.length;
+  const centerZ = sumZ / cells.length;
+
+  // Base bounding circle polygon (32 segments)
+  const segments = 32;
+  const basePolygon = [];
+  for (let i = 0; i < segments; i++) {
+    const angle = (i * 2 * Math.PI) / segments;
+    basePolygon.push({
+      x: centerX + boundingRadius * Math.cos(angle),
+      z: centerZ + boundingRadius * Math.sin(angle),
+    });
+  }
+
+  const voronoiMap = new Map();
+
+  for (let i = 0; i < cells.length; i++) {
+    const ci = cells[i];
+    const cix = Number(ci.x) || 0;
+    const ciz = Number(ci.y) || 0;
+
+    let poly = basePolygon.map((p) => ({ ...p }));
+
+    for (let j = 0; j < cells.length; j++) {
+      if (i === j) continue;
+      const cj = cells[j];
+      const cjx = Number(cj.x) || 0;
+      const cjz = Number(cj.y) || 0;
+
+      const mid = { x: (cix + cjx) / 2, z: (ciz + cjz) / 2 };
+      const norm = { x: cjx - cix, z: cjz - ciz };
+      poly = clipPolygonWithHalfPlane(poly, mid, norm);
+    }
+
+    voronoiMap.set(ci.id, poly);
+  }
+
+  return voronoiMap;
+}
+
+/**
+ * Generate a soft gold/white radial gradient canvas texture for coverage discs.
+ */
+function createCoverageDiscTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+  grad.addColorStop(0.35, 'rgba(255, 216, 74, 0.16)');
+  grad.addColorStop(0.75, 'rgba(255, 200, 0, 0.06)');
+  grad.addColorStop(1, 'rgba(255, 200, 0, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
 }
 
 export class Arbiter3DScene {
@@ -67,6 +175,12 @@ export class Arbiter3DScene {
     this.width = this.container.clientWidth || window.innerWidth;
     this.height = this.container.clientHeight || window.innerHeight;
 
+    // Check prefers-reduced-motion
+    this.prefersReducedMotion = false;
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
     // Camera preset
     this.cameraPreset = {
       position: new THREE.Vector3(0, 950, 1100),
@@ -74,9 +188,13 @@ export class Arbiter3DScene {
     };
 
     // State cache
-    this.cellEntities = new Map(); // id -> { group, mast, gauge, disc, sprite, hex, config }
+    this.cellEntities = new Map(); // id -> { group, mast, gaugeRing, disc, domLabel, footprintMesh, footprintOutline, config }
+    this.cachedVoronoiTopologyKey = '';
     this.userCount = 0;
     this.maxUsers = 2000;
+
+    // Coverage texture singleton
+    this.coverageDiscTexture = createCoverageDiscTexture();
 
     // Interpolation state
     this.lastTickTime = performance.now();
@@ -92,14 +210,23 @@ export class Arbiter3DScene {
     this.fps = 60;
     this.frameTimeMs = 16.6;
 
+    // HTML labels overlay container
+    this.labelsOverlay = document.getElementById('tower-labels-layer');
+    if (!this.labelsOverlay) {
+      this.labelsOverlay = document.createElement('div');
+      this.labelsOverlay.id = 'tower-labels-layer';
+      this.labelsOverlay.className = 'tower-labels-layer';
+      this.container.appendChild(this.labelsOverlay);
+    }
+
     this.init();
   }
 
   init() {
     // 1. Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x08090c);
-    this.scene.fog = new THREE.FogExp2(0x08090c, 0.00035);
+    this.scene.background = new THREE.Color(0x0A0A0D); // --bg
+    this.scene.fog = new THREE.FogExp2(0x0A0A0D, 0.00030); // fog uses --bg
 
     // 2. Camera
     this.camera = new THREE.PerspectiveCamera(
@@ -133,8 +260,11 @@ export class Arbiter3DScene {
     // 5. Lighting
     this.setupLighting();
 
-    // 6. Ground & Hex Grid
+    // 6. Ground, Warm Gold Radial Vignette & Grid
     this.setupGround();
+
+    // 6b. Slow Dust Particles
+    this.setupDustParticles();
 
     // 7. Users InstancedMesh
     this.setupUserInstances();
@@ -161,11 +291,12 @@ export class Arbiter3DScene {
   }
 
   setupLighting() {
-    const ambient = new THREE.AmbientLight(0x272e3d, 1.4);
+    // Warm ambient light matching dark gold theme
+    const ambient = new THREE.AmbientLight(0x1F1A12, 1.6);
     this.scene.add(ambient);
 
-    // Main key light
-    const keyLight = new THREE.DirectionalLight(0xe2e8f0, 2.2);
+    // Main key light (warm white)
+    const keyLight = new THREE.DirectionalLight(0xFFF5EA, 2.2);
     keyLight.position.set(600, 1400, 700);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
@@ -180,19 +311,19 @@ export class Arbiter3DScene {
     keyLight.shadow.bias = -0.0005;
     this.scene.add(keyLight);
 
-    // Subtle blue rim fill
-    const fillLight = new THREE.DirectionalLight(0x0284c7, 0.85);
+    // Subtle warm rim fill (replacing blue rim fill)
+    const fillLight = new THREE.DirectionalLight(0xFFC800, 0.40);
     fillLight.position.set(-800, 500, -700);
     this.scene.add(fillLight);
   }
 
   setupGround() {
-    // Infinite-feel dark NOC floor
+    // 1. Near-black ground plane (--bg: #0A0A0D)
     const groundGeo = new THREE.PlaneGeometry(6000, 6000);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x0a0c12,
-      roughness: 0.9,
-      metalness: 0.1,
+      color: 0x0A0A0D,
+      roughness: 0.95,
+      metalness: 0.05,
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -200,18 +331,88 @@ export class Arbiter3DScene {
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    // Subtle technological grid
-    const grid = new THREE.GridHelper(3500, 70, 0x1e293b, 0x0f172a);
+    // 2. Warm radial vignette (gold ~6% opacity fading to near-black)
+    const vignetteCanvas = document.createElement('canvas');
+    vignetteCanvas.width = 512;
+    vignetteCanvas.height = 512;
+    const vCtx = vignetteCanvas.getContext('2d');
+    const vGrad = vCtx.createRadialGradient(256, 256, 0, 256, 256, 256);
+    vGrad.addColorStop(0, 'rgba(255, 200, 0, 0.06)');
+    vGrad.addColorStop(0.4, 'rgba(255, 200, 0, 0.02)');
+    vGrad.addColorStop(0.85, 'rgba(10, 10, 13, 0.0)');
+    vGrad.addColorStop(1, 'rgba(10, 10, 13, 0.0)');
+    vCtx.fillStyle = vGrad;
+    vCtx.fillRect(0, 0, 512, 512);
+
+    const vignetteTex = new THREE.CanvasTexture(vignetteCanvas);
+    const vignetteGeo = new THREE.PlaneGeometry(4500, 4500);
+    const vignetteMat = new THREE.MeshBasicMaterial({
+      map: vignetteTex,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.NormalBlending,
+    });
+    const vignetteMesh = new THREE.Mesh(vignetteGeo, vignetteMat);
+    vignetteMesh.rotation.x = -Math.PI / 2;
+    vignetteMesh.position.y = -0.6;
+    this.scene.add(vignetteMesh);
+
+    // 3. Faint gold-tinted ground grid at ~4% opacity (removing teal/blue grid)
+    const grid = new THREE.GridHelper(3500, 70, 0x554415, 0x221B0A);
     grid.position.y = 0;
+    if (grid.material) {
+      grid.material.transparent = true;
+      grid.material.opacity = 0.04;
+    }
     this.scene.add(grid);
   }
 
+  setupDustParticles() {
+    const particleCount = 180;
+    const posArray = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+      posArray[i * 3 + 0] = (Math.random() - 0.5) * 2600; // X
+      posArray[i * 3 + 1] = 10 + Math.random() * 260;     // Y (above ground)
+      posArray[i * 3 + 2] = (Math.random() - 0.5) * 2600; // Z
+    }
+
+    this.dustGeometry = new THREE.BufferGeometry();
+    this.dustGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+    // Soft round dot texture for dust particles
+    const dCanvas = document.createElement('canvas');
+    dCanvas.width = 32;
+    dCanvas.height = 32;
+    const dCtx = dCanvas.getContext('2d');
+    const dGrad = dCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    dGrad.addColorStop(0, 'rgba(255, 216, 74, 0.85)');
+    dGrad.addColorStop(0.5, 'rgba(255, 200, 0, 0.35)');
+    dGrad.addColorStop(1, 'rgba(255, 200, 0, 0.0)');
+    dCtx.fillStyle = dGrad;
+    dCtx.fillRect(0, 0, 32, 32);
+    const dTex = new THREE.CanvasTexture(dCanvas);
+
+    this.dustMaterial = new THREE.PointsMaterial({
+      size: 4.5,
+      map: dTex,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    this.dustPoints = new THREE.Points(this.dustGeometry, this.dustMaterial);
+    this.scene.add(this.dustPoints);
+  }
+
   setupUserInstances() {
-    const userGeo = new THREE.SphereGeometry(3.6, 8, 8);
+    // Increased user radius to 5.8m (up from 3.6m per T0 visibility findings)
+    const userGeo = new THREE.SphereGeometry(5.8, 10, 10);
     this.userMaterial = new THREE.MeshStandardMaterial({
-      roughness: 0.3,
-      metalness: 0.2,
-      emissive: 0x000000,
+      roughness: 0.25,
+      metalness: 0.35,
+      emissive: 0x222222,
     });
 
     this.userInstancedMesh = new THREE.InstancedMesh(
@@ -318,72 +519,52 @@ export class Arbiter3DScene {
     const cz = Number(cellData.y) || 0; // Note: RAN y is 3D z
     cellGroup.position.set(cx, 0, cz);
 
-    // 1. Hexagonal ground tile under the cell
-    const hexRadius = 500.0 / Math.sqrt(3.0); // 288.68m
-    const hexGeo = new THREE.CylinderGeometry(hexRadius, hexRadius, 1.5, 6);
-    const hexMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      roughness: 0.7,
-      metalness: 0.3,
-      transparent: true,
-      opacity: 0.85,
-    });
-    const hexTile = new THREE.Mesh(hexGeo, hexMat);
-    hexTile.rotation.y = Math.PI / 6; // Pointy-top hex orientation
-    hexTile.position.y = 0.5;
-    hexTile.receiveShadow = true;
-    cellGroup.add(hexTile);
-
-    // Hex border wireframe
-    const hexEdges = new THREE.EdgesGeometry(hexGeo);
-    const hexLine = new THREE.LineSegments(
-      hexEdges,
-      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.35 })
-    );
-    hexLine.rotation.y = Math.PI / 6;
-    hexLine.position.y = 0.5;
-    cellGroup.add(hexLine);
+    // 1. Dynamic Voronoi Footprint placeholder group (populated via updateVoronoiFootprints)
+    const footprintGroup = new THREE.Group();
+    cellGroup.add(footprintGroup);
 
     // 2. Equipment Cabin at Tower Base
-    const slabGeo = new THREE.BoxGeometry(11, 1.0, 11);
-    const slabMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
-    const slab = new THREE.Mesh(slabGeo, slabMat);
-    slab.position.set(10, 0.5, 10);
-    cellGroup.add(slab);
-
-    const cabinGeo = new THREE.BoxGeometry(8, 6.5, 8);
-    const cabinMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.4 });
+    const cabinGeo = new THREE.BoxGeometry(12, 7.5, 12);
+    const cabinMat = new THREE.MeshStandardMaterial({
+      color: 0x1E222B,
+      roughness: 0.6,
+      metalness: 0.5,
+    });
     const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-    cabin.position.set(10, 4.25, 10);
+    cabin.position.set(8, 3.75, 8);
     cabin.castShadow = true;
     cellGroup.add(cabin);
 
-    // 3. Tapered Lattice Mast
-    const mastGeo = new THREE.CylinderGeometry(1.6, 4.8, 45, 4);
+    // 3. Tapered Lattice Mast (Height scaled to ~76m: 6-8% of cluster width)
+    const mastHeight = 76.0;
+    const mastGeo = new THREE.CylinderGeometry(1.8, 5.6, mastHeight, 4);
     const mastMat = new THREE.MeshStandardMaterial({
-      color: 0x64748b,
-      metalness: 0.7,
-      roughness: 0.35,
+      color: 0xE2E8F0, // Light grey-white metal
+      metalness: 0.8,
+      roughness: 0.25,
     });
     const mast = new THREE.Mesh(mastGeo, mastMat);
-    mast.position.y = 22.5;
+    mast.position.y = mastHeight / 2;
     mast.rotation.y = Math.PI / 4;
     mast.castShadow = true;
     cellGroup.add(mast);
 
     const mastEdges = new THREE.EdgesGeometry(mastGeo);
-    const mastWire = new THREE.LineSegments(mastEdges, new THREE.LineBasicMaterial({ color: 0x94a3b8 }));
-    mastWire.position.y = 22.5;
+    const mastWire = new THREE.LineSegments(
+      mastEdges,
+      new THREE.LineBasicMaterial({ color: 0xCBD5E1 })
+    );
+    mastWire.position.y = mastHeight / 2;
     mastWire.rotation.y = Math.PI / 4;
     cellGroup.add(mastWire);
 
     // Horizontal structural lattice ring braces
-    const braceHeights = [11, 22, 33, 44];
+    const braceHeights = [18, 36, 54, 72];
     for (const bh of braceHeights) {
-      const frac = (45 - bh) / 45;
-      const r = 1.6 + (4.8 - 1.6) * frac;
-      const braceGeo = new THREE.CylinderGeometry(r * 1.05, r * 1.05, 0.8, 4);
-      const braceMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 });
+      const frac = (mastHeight - bh) / mastHeight;
+      const r = 1.8 + (5.6 - 1.8) * frac;
+      const braceGeo = new THREE.CylinderGeometry(r * 1.05, r * 1.05, 0.9, 4);
+      const braceMat = new THREE.MeshStandardMaterial({ color: 0xCBD5E1, metalness: 0.8 });
       const brace = new THREE.Mesh(braceGeo, braceMat);
       brace.position.y = bh;
       brace.rotation.y = Math.PI / 4;
@@ -391,34 +572,39 @@ export class Arbiter3DScene {
     }
 
     // 4. Antenna Platform Platform Head & Three Tilted Sector Panels
-    const headGeo = new THREE.CylinderGeometry(3.6, 3.6, 1.2, 3);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+    const headY = 75.0;
+    const headGeo = new THREE.CylinderGeometry(4.2, 4.2, 1.6, 3);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 });
     const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = 44.5;
+    head.position.y = headY;
     head.castShadow = true;
     cellGroup.add(head);
 
     const sectorPanels = [];
     const sectorAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
     const initialTiltRad = THREE.MathUtils.degToRad(cellData.tilt_deg || 6.0);
-    const panelGeo = new THREE.BoxGeometry(1.2, 6.0, 0.6);
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.3, metalness: 0.2 });
+    const panelGeo = new THREE.BoxGeometry(2.0, 9.0, 0.8);
+    const panelMat = new THREE.MeshStandardMaterial({
+      color: 0xF8FAFC,
+      roughness: 0.3,
+      metalness: 0.2,
+    });
 
     for (let s = 0; s < 3; s++) {
       const azimuth = sectorAngles[s];
       const sectorGroup = new THREE.Group();
-      sectorGroup.position.set(0, 44.5, 0);
+      sectorGroup.position.set(0, headY, 0);
       sectorGroup.rotation.y = azimuth;
 
-      const armGeo = new THREE.CylinderGeometry(0.3, 0.3, 3.2, 8);
-      const armMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+      const armGeo = new THREE.CylinderGeometry(0.35, 0.35, 4.2, 8);
+      const armMat = new THREE.MeshStandardMaterial({ color: 0x64748B });
       const arm = new THREE.Mesh(armGeo, armMat);
       arm.rotation.z = Math.PI / 2;
-      arm.position.set(1.6, 0, 0);
+      arm.position.set(2.1, 0, 0);
       sectorGroup.add(arm);
 
       const panel = new THREE.Mesh(panelGeo, panelMat);
-      panel.position.set(3.2, 0, 0);
+      panel.position.set(4.2, 0, 0);
       panel.rotation.x = initialTiltRad;
       panel.castShadow = true;
       sectorGroup.add(panel);
@@ -427,49 +613,51 @@ export class Arbiter3DScene {
       cellGroup.add(sectorGroup);
     }
 
-    // 5. Red Obstacle Warning Beacon on Pinnacle Tip
-    const beaconGeo = new THREE.SphereGeometry(1.2, 8, 8);
+    // 5. Amber/White Active Pinnacle Beacon (Dark when sleeping)
+    const beaconGeo = new THREE.SphereGeometry(1.6, 12, 12);
     const beaconMat = new THREE.MeshStandardMaterial({
-      color: 0xef4444,
-      emissive: 0xef4444,
-      emissiveIntensity: 1.6,
+      color: 0xFFC800,
+      emissive: 0xFFD84A,
+      emissiveIntensity: 1.8,
+      roughness: 0.2,
     });
     const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-    beacon.position.y = 48.0;
+    beacon.position.y = 80.5;
     cellGroup.add(beacon);
 
-    // 6. Load Gauge Cylinder
-    const gaugeGeo = new THREE.CylinderGeometry(2.2, 2.2, 20, 16);
-    const gaugeMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.5,
+    // 6. Base Load Gauge Ring encircling tower base
+    const gaugeRingGeo = new THREE.TorusGeometry(14, 1.4, 8, 32);
+    const gaugeRingMat = new THREE.MeshStandardMaterial({
+      color: 0xFFC800,
+      emissive: 0xFFC800,
+      emissiveIntensity: 0.6,
       transparent: true,
       opacity: 0.9,
     });
-    const gauge = new THREE.Mesh(gaugeGeo, gaugeMat);
-    gauge.position.y = 25;
-    cellGroup.add(gauge);
+    const gaugeRing = new THREE.Mesh(gaugeRingGeo, gaugeRingMat);
+    gaugeRing.rotation.x = Math.PI / 2;
+    gaugeRing.position.y = 1.8;
+    cellGroup.add(gaugeRing);
 
-    // 7. Coverage Disc
+    // 7. Gold/White Coverage Disc with Additive Blending
     const discRadius = computeCoverageRadius(cellData.tx_power_dbm, cellData.is_sleeping);
-    const discGeo = new THREE.RingGeometry(0, discRadius, 32);
+    const discGeo = new THREE.PlaneGeometry(1, 1);
     const discMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
+      map: this.coverageDiscTexture,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.85,
       side: THREE.DoubleSide,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
     const coverageDisc = new THREE.Mesh(discGeo, discMat);
     coverageDisc.rotation.x = -Math.PI / 2;
-    coverageDisc.position.y = 2.0;
+    coverageDisc.position.y = 1.5;
+    coverageDisc.scale.set(discRadius * 2, discRadius * 2, 1.0);
     cellGroup.add(coverageDisc);
 
-    // 8. Billboard Label Sprite
-    const labelSprite = this.createCellLabelSprite(id, cellData);
-    labelSprite.position.set(0, 60, 0);
-    cellGroup.add(labelSprite);
+    // 8. HTML/CSS2D High-Resolution Glass Pill Label
+    const domLabel = this.createCellDomLabel(id, cellData);
 
     this.scene.add(cellGroup);
 
@@ -477,67 +665,119 @@ export class Arbiter3DScene {
       id,
       group: cellGroup,
       mast,
+      mastMat,
       cabin,
+      cabinMat,
       beacon,
+      beaconMat,
       sectorPanels,
-      gauge,
-      gaugeMat,
+      gaugeRing,
+      gaugeRingMat,
       coverageDisc,
       discMat,
-      labelSprite,
-      hexTile,
+      footprintGroup,
+      footprintMesh: null,
+      footprintOutline: null,
+      footprintMat: null,
+      footprintLineMat: null,
+      domLabel,
       config: cellData,
     };
     this.cellEntities.set(id, entity);
     return entity;
   }
 
-  createCellLabelSprite(id, data) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
+  createCellDomLabel(id, data) {
+    const pill = document.createElement('div');
+    pill.className = 'cell-label-pill';
+    pill.id = `cell-label-${id}`;
 
-    this.drawLabelCanvas(ctx, id, data);
+    const title = document.createElement('div');
+    title.className = 'cell-label-title';
+    title.textContent = id;
+    pill.appendChild(title);
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
-    const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(70, 35, 1);
-    sprite.userData = { canvas, ctx, texture };
-    return sprite;
-  }
-
-  drawLabelCanvas(ctx, id, data) {
-    ctx.clearRect(0, 0, 256, 128);
-
-    // Rounded background pill
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.strokeStyle = data.is_sleeping ? 'rgba(100, 116, 139, 0.6)' : 'rgba(56, 189, 248, 0.8)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.roundRect(8, 8, 240, 112, 16);
-    ctx.fill();
-    ctx.stroke();
-
-    // Cell ID
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 28px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(id, 128, 44);
-
-    // Users & Load status
+    const subtitle = document.createElement('div');
+    subtitle.className = 'cell-label-subtitle';
     const ues = data.active_users !== undefined ? data.active_users : 0;
     const loadPct = Math.round((data.load_ratio || 0) * 100);
-    ctx.font = '20px sans-serif';
+    subtitle.textContent = data.is_sleeping ? 'SLEEPING (0W)' : `${ues} users • ${loadPct}% load`;
+    pill.appendChild(subtitle);
 
-    if (data.is_sleeping) {
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('SLEEPING (0W)', 128, 80);
-    } else {
-      ctx.fillStyle = data.load_ratio > 0.75 ? '#ef4444' : '#38bdf8';
-      ctx.fillText(`${ues} UEs • ${loadPct}% Load`, 128, 80);
+    const tooltip = document.createElement('div');
+    tooltip.className = 'cell-label-tooltip';
+    tooltip.textContent = 'CALIBRATED ±0.30 dB';
+    pill.appendChild(tooltip);
+
+    if (this.labelsOverlay) {
+      this.labelsOverlay.appendChild(pill);
+    }
+    return { pill, title, subtitle, tooltip };
+  }
+
+  updateVoronoiFootprints(cells) {
+    if (!cells || cells.length === 0) return;
+
+    // Check if topology changed
+    const topologyKey = cells.map((c) => `${c.id}:${c.x}:${c.y}`).join('|');
+    if (topologyKey === this.cachedVoronoiTopologyKey) return;
+    this.cachedVoronoiTopologyKey = topologyKey;
+
+    const voronoiMap = computeVoronoiFootprints(cells, 750);
+
+    for (const cellData of cells) {
+      const entity = this.cellEntities.get(cellData.id);
+      if (!entity) continue;
+
+      const poly = voronoiMap.get(cellData.id);
+      if (!poly || poly.length < 3) continue;
+
+      // Clear previous footprint meshes
+      while (entity.footprintGroup.children.length > 0) {
+        const obj = entity.footprintGroup.children.pop();
+        if (obj.geometry) obj.geometry.dispose();
+      }
+
+      // Convert cluster-relative world coords to cellGroup-local coords
+      const cx = Number(cellData.x) || 0;
+      const cz = Number(cellData.y) || 0;
+
+      const shape = new THREE.Shape();
+      const firstPt = poly[0];
+      shape.moveTo(firstPt.x - cx, firstPt.z - cz);
+      for (let i = 1; i < poly.length; i++) {
+        shape.lineTo(poly[i].x - cx, poly[i].z - cz);
+      }
+      shape.closePath();
+
+      const footprintGeo = new THREE.ShapeGeometry(shape);
+      const footprintMat = new THREE.MeshBasicMaterial({
+        color: 0xFFC800,
+        transparent: true,
+        opacity: 0.04,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const footprintMesh = new THREE.Mesh(footprintGeo, footprintMat);
+      footprintMesh.rotation.x = -Math.PI / 2;
+      footprintMesh.position.y = 0.4;
+      entity.footprintGroup.add(footprintMesh);
+
+      // Thin outline wireframe
+      const linePts = poly.map((p) => new THREE.Vector3(p.x - cx, 0.45, p.z - cz));
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0xFFC800,
+        transparent: true,
+        opacity: 0.25,
+      });
+      const outlineLine = new THREE.LineLoop(lineGeo, lineMat);
+      entity.footprintGroup.add(outlineLine);
+
+      entity.footprintMesh = footprintMesh;
+      entity.footprintOutline = outlineLine;
+      entity.footprintMat = footprintMat;
+      entity.footprintLineMat = lineMat;
     }
   }
 
@@ -546,6 +786,9 @@ export class Arbiter3DScene {
       // When there are no cells in the frame, render nothing (no placeholder towers)
       for (const entity of this.cellEntities.values()) {
         entity.group.visible = false;
+        if (entity.domLabel && entity.domLabel.pill) {
+          entity.domLabel.pill.style.display = 'none';
+        }
       }
       return;
     }
@@ -554,46 +797,89 @@ export class Arbiter3DScene {
     for (const [id, entity] of this.cellEntities) {
       if (!activeIds.has(id)) {
         entity.group.visible = false;
+        if (entity.domLabel && entity.domLabel.pill) {
+          entity.domLabel.pill.style.display = 'none';
+        }
       }
     }
+
+    // Ensure non-overlapping Voronoi footprints are computed & cached
+    this.updateVoronoiFootprints(cells);
 
     for (const cellData of cells) {
       const entity = this.getOrCreateCellEntity(cellData);
       entity.group.visible = true;
       entity.config = cellData;
 
-      // Update Tower Load Gauge
+      const isSleeping = Boolean(cellData.is_sleeping);
       const load = Math.max(0.0, Math.min(1.0, cellData.load_ratio || 0.0));
-      entity.gauge.scale.set(1.0, Math.max(0.05, load), 1.0);
-      entity.gauge.position.y = 15 + (load * 10);
+      const isOverloaded = load > 0.75;
 
-      // Color by state
-      if (cellData.is_sleeping) {
-        // Dim grey sleeping
-        entity.gaugeMat.color.setHex(0x475569);
-        entity.gaugeMat.emissive.setHex(0x1e293b);
-        entity.gaugeMat.opacity = 0.35;
-      } else if (load > 0.75) {
-        // Overloaded Red/Amber
-        entity.gaugeMat.color.setHex(0xef4444);
-        entity.gaugeMat.emissive.setHex(0xb91c1c);
-        entity.gaugeMat.opacity = 0.95;
+      // Update Tower Materials & Load Ring
+      if (isSleeping) {
+        // Dimmed grey sleeping tower
+        entity.mastMat.color.setHex(0x475569);
+        entity.cabinMat.color.setHex(0x1E222B);
+        entity.beaconMat.color.setHex(0x334155);
+        entity.beaconMat.emissive.setHex(0x000000);
+        entity.beaconMat.emissiveIntensity = 0.0; // Completely dark
+        entity.gaugeRingMat.color.setHex(0x475569);
+        entity.gaugeRingMat.emissive.setHex(0x000000);
+        entity.gaugeRingMat.opacity = 0.3;
+
+        // Footprint tint: grey
+        if (entity.footprintMat) {
+          entity.footprintMat.color.setHex(0x475569);
+          entity.footprintMat.opacity = 0.04;
+          entity.footprintLineMat.color.setHex(0x64748B);
+          entity.footprintLineMat.opacity = 0.25;
+        }
+      } else if (isOverloaded) {
+        // Overloaded tower: amber load ring & footprint
+        entity.mastMat.color.setHex(0xE2E8F0);
+        entity.cabinMat.color.setHex(0x1E222B);
+        entity.beaconMat.color.setHex(0xFFC800);
+        entity.beaconMat.emissive.setHex(0xFFB020);
+        entity.beaconMat.emissiveIntensity = 1.8;
+        entity.gaugeRingMat.color.setHex(0xFFB020);
+        entity.gaugeRingMat.emissive.setHex(0xFFB020);
+        entity.gaugeRingMat.opacity = 0.95;
+
+        // Footprint tint: amber
+        if (entity.footprintMat) {
+          entity.footprintMat.color.setHex(0xFFB020);
+          entity.footprintMat.opacity = 0.08;
+          entity.footprintLineMat.color.setHex(0xFFB020);
+          entity.footprintLineMat.opacity = 0.50;
+        }
       } else {
-        // Active Cyan
-        entity.gaugeMat.color.setHex(0x38bdf8);
-        entity.gaugeMat.emissive.setHex(0x0284c7);
-        entity.gaugeMat.opacity = 0.9;
+        // Active balanced tower: white-metal mast, gold/cyan load ring, gold footprint
+        entity.mastMat.color.setHex(0xE2E8F0);
+        entity.cabinMat.color.setHex(0x1E222B);
+        entity.beaconMat.color.setHex(0xFFC800);
+        entity.beaconMat.emissive.setHex(0xFFD84A);
+        entity.beaconMat.emissiveIntensity = 1.6;
+        entity.gaugeRingMat.color.setHex(0xFFFFFF); // Balanced white/cyan
+        entity.gaugeRingMat.emissive.setHex(0xFFC800);
+        entity.gaugeRingMat.opacity = 0.85;
+
+        // Footprint tint: gold
+        if (entity.footprintMat) {
+          entity.footprintMat.color.setHex(0xFFC800);
+          entity.footprintMat.opacity = 0.04;
+          entity.footprintLineMat.color.setHex(0xFFC800);
+          entity.footprintLineMat.opacity = 0.25;
+        }
       }
 
       // Update Coverage Disc Radius & Tilt
-      const targetRadius = computeCoverageRadius(cellData.tx_power_dbm, cellData.is_sleeping);
-      if (targetRadius > 0) {
+      const targetRadius = computeCoverageRadius(cellData.tx_power_dbm, isSleeping);
+      if (targetRadius > 0 && !isSleeping) {
         entity.coverageDisc.visible = true;
-        entity.coverageDisc.scale.set(targetRadius, targetRadius, 1.0);
-        // Tilt beam representation
+        entity.coverageDisc.scale.set(targetRadius * 2, targetRadius * 2, 1.0);
         const tiltRad = THREE.MathUtils.degToRad(cellData.tilt_deg || 6.0);
         entity.coverageDisc.rotation.z = tiltRad * 0.5;
-        entity.discMat.opacity = cellData.is_sleeping ? 0.0 : 0.14;
+        entity.discMat.opacity = 0.85;
       } else {
         entity.coverageDisc.visible = false;
       }
@@ -606,10 +892,105 @@ export class Arbiter3DScene {
         }
       }
 
-      // Redraw Canvas Label
-      const { ctx, texture } = entity.labelSprite.userData;
-      this.drawLabelCanvas(ctx, entity.id, cellData);
-      texture.needsUpdate = true;
+      // Update HTML DOM Label Content
+      if (entity.domLabel) {
+        const { pill, title, subtitle } = entity.domLabel;
+        pill.style.display = 'flex';
+        title.textContent = entity.id;
+
+        const ues = cellData.active_users !== undefined ? cellData.active_users : 0;
+        const loadPct = Math.round(load * 100);
+
+        subtitle.className = 'cell-label-subtitle';
+        if (isSleeping) {
+          subtitle.textContent = 'SLEEPING (0W)';
+          subtitle.classList.add('sleeping');
+          pill.classList.add('sleeping');
+        } else {
+          subtitle.textContent = `${ues} users • ${loadPct}% load`;
+          pill.classList.remove('sleeping');
+          if (isOverloaded) {
+            subtitle.classList.add('overloaded');
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Update HTML label screen projections and perform collision avoidance.
+   */
+  updateLabels() {
+    if (!this.labelsOverlay || this.cellEntities.size === 0) return;
+
+    const visibleItems = [];
+
+    for (const [id, entity] of this.cellEntities.entries()) {
+      if (!entity.group.visible || !entity.domLabel) continue;
+
+      const worldPos = new THREE.Vector3();
+      entity.group.getWorldPosition(worldPos);
+      worldPos.y = 82.0; // Anchor above tower pinnacle beacon
+
+      const screenPos = worldPos.clone().project(this.camera);
+
+      // Frustum check
+      if (screenPos.z < -1 || screenPos.z > 1) {
+        entity.domLabel.pill.style.display = 'none';
+        continue;
+      }
+
+      const sx = (screenPos.x + 1) / 2 * this.width;
+      const sy = (1 - screenPos.y) / 2 * this.height;
+
+      // Off-screen check
+      if (sx < -80 || sx > this.width + 80 || sy < -50 || sy > this.height + 50) {
+        entity.domLabel.pill.style.display = 'none';
+        continue;
+      }
+
+      const camDist = this.camera.position.distanceTo(worldPos);
+      const isFar = camDist > 2000;
+
+      visibleItems.push({
+        id,
+        entity,
+        sx,
+        sy,
+        camDist,
+        isFar,
+      });
+    }
+
+    // Sort horizontally to detect overlaps
+    visibleItems.sort((a, b) => a.sx - b.sx);
+
+    // Screen-space collision avoidance: offset Y if two labels collide
+    for (let i = 0; i < visibleItems.length; i++) {
+      const itemA = visibleItems[i];
+      let offsetY = 0;
+
+      for (let j = 0; j < i; j++) {
+        const itemB = visibleItems[j];
+        const dx = Math.abs(itemA.sx - itemB.sx);
+        const dy = Math.abs((itemA.sy + offsetY) - itemB.sy);
+
+        if (dx < 110 && dy < 38) {
+          // Collision: nudge down
+          offsetY += 32;
+        }
+      }
+
+      const { entity, sx, sy, isFar } = itemA;
+      const pill = entity.domLabel.pill;
+      pill.style.display = 'flex';
+      pill.style.transform = `translate(${sx.toFixed(1)}px, ${(sy + offsetY).toFixed(1)}px) translate(-50%, -100%)`;
+
+      if (isFar) {
+        pill.classList.add('far');
+      } else {
+        pill.classList.remove('far');
+      }
     }
   }
 
@@ -660,7 +1041,7 @@ export class Arbiter3DScene {
     for (const u of users) {
       const targetPos = {
         x: Number(u.x) || 0,
-        y: 3.5,
+        y: 4.0, // Placed distinctly above ground at y=4.0
         z: Number(u.y) || 0, // Note: RAN y is 3D z
         cell: u.cell,
         sinr: Number(u.sinr_db) || 0,
@@ -695,6 +1076,29 @@ export class Arbiter3DScene {
 
     // Lerp User Positions & Lines
     this.renderInterpolatedUsers(alpha, now);
+
+    // Pulse Active Pinnacle Beacons (steady if reduced motion)
+    const beaconPulse = this.prefersReducedMotion ? 1.4 : 1.2 + 0.8 * Math.sin(now * 0.004);
+    for (const entity of this.cellEntities.values()) {
+      if (entity.config && !entity.config.is_sleeping && entity.beaconMat) {
+        entity.beaconMat.emissiveIntensity = beaconPulse;
+      }
+    }
+
+    // Update Dust Particles Drift (pause if reduced motion)
+    if (!this.prefersReducedMotion && this.dustPoints && this.dustGeometry) {
+      const positions = this.dustGeometry.attributes.position.array;
+      for (let i = 0; i < positions.length / 3; i++) {
+        positions[i * 3 + 1] += frameDeltaSec * 2.5; // Slow upward drift
+        if (positions[i * 3 + 1] > 260) {
+          positions[i * 3 + 1] = 10;
+        }
+      }
+      this.dustGeometry.attributes.position.needsUpdate = true;
+    }
+
+    // Update Screen-space HTML Labels
+    this.updateLabels();
 
     // Update Arbitration Layer animations
     if (this.arbitrationLayer) {
@@ -748,13 +1152,13 @@ export class Arbiter3DScene {
 
       // Linear interpolation between ticks
       position.x = prev.x + (target.x - prev.x) * alpha;
-      position.y = 3.5;
+      position.y = 4.0;
       position.z = prev.z + (target.z - prev.z) * alpha;
 
-      // Pulse dropped users
+      // Pulse dropped users (2.2x scale pulse)
       let userScale = 1.0;
       if (target.dropped) {
-        userScale = 1.3 + 0.5 * Math.sin(timestamp * 0.02);
+        userScale = this.prefersReducedMotion ? 2.0 : 1.6 + 0.6 * Math.sin(timestamp * 0.015);
       }
       scale.set(userScale, userScale, userScale);
 
@@ -767,7 +1171,7 @@ export class Arbiter3DScene {
 
       // Update RF Connection Line to Serving Cell Tower
       const servingEntity = this.cellEntities.get(target.cell);
-      if (servingEntity && !target.dropped) {
+      if (servingEntity && !target.dropped && servingEntity.group.visible) {
         const cellPos = servingEntity.group.position;
 
         // Vertex 1: User position
@@ -780,14 +1184,14 @@ export class Arbiter3DScene {
         this.lineColors[lineVertexIdx + 2] = color.b;
         lineVertexIdx += 3;
 
-        // Vertex 2: Tower mast head
+        // Vertex 2: Tower mast head (75m platform)
         this.linePositions[lineVertexIdx] = cellPos.x;
-        this.linePositions[lineVertexIdx + 1] = 22.0;
+        this.linePositions[lineVertexIdx + 1] = 75.0;
         this.linePositions[lineVertexIdx + 2] = cellPos.z;
 
-        this.lineColors[lineVertexIdx] = color.r * 0.6;
-        this.lineColors[lineVertexIdx + 1] = color.g * 0.6;
-        this.lineColors[lineVertexIdx + 2] = color.b * 0.6;
+        this.lineColors[lineVertexIdx] = color.r * 0.7;
+        this.lineColors[lineVertexIdx + 1] = color.g * 0.7;
+        this.lineColors[lineVertexIdx + 2] = color.b * 0.7;
         lineVertexIdx += 3;
       }
     }
@@ -818,6 +1222,33 @@ export class Arbiter3DScene {
     }
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onKeyDown);
+
+    // Clean up DOM labels
+    if (this.labelsOverlay) {
+      this.labelsOverlay.innerHTML = '';
+    }
+
+    // Dispose cell geometries & materials
+    for (const entity of this.cellEntities.values()) {
+      if (entity.footprintMesh && entity.footprintMesh.geometry) {
+        entity.footprintMesh.geometry.dispose();
+      }
+      if (entity.footprintOutline && entity.footprintOutline.geometry) {
+        entity.footprintOutline.geometry.dispose();
+      }
+    }
+    this.cellEntities.clear();
+
+    if (this.coverageDiscTexture) {
+      this.coverageDiscTexture.dispose();
+    }
+    if (this.dustGeometry) {
+      this.dustGeometry.dispose();
+    }
+    if (this.dustMaterial) {
+      this.dustMaterial.dispose();
+    }
+
     if (this.renderer && this.renderer.domElement) {
       this.renderer.dispose();
       this.renderer.domElement.remove();

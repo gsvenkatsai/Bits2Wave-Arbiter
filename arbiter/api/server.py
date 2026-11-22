@@ -21,9 +21,9 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from arbiter.shared.database import init_database
@@ -96,6 +96,85 @@ def get_3d_dashboard() -> FileResponse:
     return FileResponse(file_path)
 
 
+_SITE_DIR: str = os.path.abspath(
+    os.path.join(_DASHBOARD_DIR, "site")
+)
+os.makedirs(_SITE_DIR, exist_ok=True)
+
+
+@app.get("/problem", response_class=FileResponse)
+def get_site_problem_page() -> FileResponse:
+    file_path = os.path.join(_SITE_DIR, "problem.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="problem.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/how-it-works", response_class=FileResponse)
+def get_site_how_it_works_page() -> FileResponse:
+    file_path = os.path.join(_SITE_DIR, "how-it-works.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="how-it-works.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/results", response_class=FileResponse)
+def get_site_results_page() -> FileResponse:
+    file_path = os.path.join(_SITE_DIR, "results.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="results.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/monitor", response_class=FileResponse)
+def get_site_monitor_page() -> FileResponse:
+    file_path = os.path.join(_SITE_DIR, "monitor.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="monitor.html not found")
+    return FileResponse(file_path)
+
+
+@app.get("/team", response_class=FileResponse)
+def get_site_team_page() -> FileResponse:
+    file_path = os.path.join(_SITE_DIR, "team.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="team.html not found")
+    return FileResponse(file_path)
+
+
+@app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"], include_in_schema=False)
+def api_not_found(path: str):
+    raise HTTPException(status_code=404, detail="Not Found")
+
+
+@app.get("/404", response_class=FileResponse, include_in_schema=False)
+def get_site_404_page() -> FileResponse:
+    file_path = os.path.join(_SITE_DIR, "404.html")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="404.html not found")
+    return FileResponse(file_path, status_code=404)
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def get_favicon() -> FileResponse:
+    fav_path = os.path.join(_SITE_DIR, "img", "favicon.svg")
+    if os.path.exists(fav_path):
+        return FileResponse(fav_path, media_type="image/svg+xml")
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc: Exception):
+    if request.url.path.startswith("/api/"):
+        detail = getattr(exc, "detail", "Not Found")
+        return JSONResponse(status_code=404, content={"detail": detail})
+    file_path = os.path.join(_SITE_DIR, "404.html")
+    if os.path.exists(file_path):
+        return FileResponse(file_path, status_code=404)
+    detail = getattr(exc, "detail", "Not Found")
+    return JSONResponse(status_code=404, content={"detail": detail})
+
+
 app.mount(
     "/dashboard",
     StaticFiles(directory=_DASHBOARD_DIR, html=True),
@@ -103,8 +182,8 @@ app.mount(
 )
 app.mount(
     "/",
-    StaticFiles(directory=_DASHBOARD_DIR, html=True),
-    name="dashboard",
+    StaticFiles(directory=_SITE_DIR, html=True),
+    name="site_root",
 )
 
 

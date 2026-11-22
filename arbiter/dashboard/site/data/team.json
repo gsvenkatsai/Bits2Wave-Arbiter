@@ -1,0 +1,30 @@
+{
+  "team_name": "Bits2Wave Arbiter Team",
+  "description": "Autonomous Cellular RAN Multi-Controller Arbitration & Digital Twin System",
+  "members": [
+    {
+      "name": "Akshay A",
+      "module": "Simulator & RF Digital Twin",
+      "role": "Lead Simulator Engineer & RF Propagation Modeler",
+      "focus": "Discrete cellular engine, COST-231 Hata RF propagation, Voronoi user mobility, snapshot/fork state machine."
+    },
+    {
+      "name": "Aaditya V",
+      "module": "Digital Twin & Conformal Actuator",
+      "role": "Digital Twin & Conformal Inference Lead",
+      "focus": "Split conformal prediction intervals, rolling residual calibration, multi-objective risk dial, and actuator safety guards."
+    },
+    {
+      "name": "H M Pranav",
+      "module": "Conflict Detector & Arbitration Engine",
+      "role": "Arbitration Engine & Conflict Graph Architect",
+      "focus": "Graph-theoretic conflict detection (parameter, topology, resource), delta-utility referee optimization, and plan synthesis."
+    },
+    {
+      "name": "G S Venkat Sai",
+      "module": "Telemetry, REST/WS APIs & NOC Dashboard",
+      "role": "Telemetry Pipeline, API Systems & NOC Dashboard Architect",
+      "focus": "FastAPI REST/WS endpoints, 10 Hz frame streaming, real-time 2D NOC telemetry, and Pareto benchmarking runner."
+    }
+  ]
+}

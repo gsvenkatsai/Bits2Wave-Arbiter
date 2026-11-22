@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engineering Team &amp; Architecture Stack — PROJECT ARBITER</title>
+  <meta name="description" content="Meet the engineering team and explore the technology stack behind Project ARBITER, built for Bits2Wave.">
+
+  <!-- Self-Hosted Stylesheets & Favicon (Zero CDN dependencies) -->
+  <link rel="icon" type="image/svg+xml" href="./img/favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. Glass Pill Navigation Bar
+       ========================================================================= -->
+  <div class="navbar-wrapper">
+    <nav class="nav-pill" aria-label="Main Navigation">
+      <a href="/" class="brand-link" title="PROJECT ARBITER Home">
+        <span data-icon="logo"></span>
+        <span>PROJECT ARBITER</span>
+      </a>
+
+      <!-- Desktop Links Menu -->
+      <ul id="nav-links-menu" class="nav-links">
+        <li><a href="/" class="nav-item-link">Home</a></li>
+        <li><a href="/problem" class="nav-item-link">Problem</a></li>
+        <li><a href="/how-it-works" class="nav-item-link">How it works</a></li>
+        <li><a href="/results" class="nav-item-link">Results</a></li>
+        <li><a href="/monitor" class="nav-item-link">Monitor</a></li>
+        <li><a href="/team" class="nav-item-link active">Team</a></li>
+      </ul>
+
+      <!-- CTA Actions -->
+      <div class="nav-actions">
+        <a href="/dashboard/3d/" class="btn btn-outline btn-sm" title="Launch Live 3D Digital Twin Monitor">Open Live Monitor</a>
+        <button id="nav-menu-toggle" class="nav-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" data-icon="menu"></button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- =========================================================================
+       2. Main Content
+       ========================================================================= -->
+  <main>
+    <!-- Section 1: Hero -->
+    <section class="team-page-hero container">
+      <div class="hero-pill-badge">
+        <span class="hero-pulse-dot" aria-hidden="true"></span>
+        <span>PROJECT CONTRIBUTORS • BITS2WAVE COMPETITION</span>
+      </div>
+
+      <h1 class="team-headline">
+        ENGINEERING TEAM<span class="gold-dot">.</span>
+      </h1>
+
+      <p class="team-lead">
+        Built for the Bits2Wave Autonomous Cellular RAN Competition. Project ARBITER is developed by a collaborative team of systems, RF propagation, and machine learning researchers.
+      </p>
+    </section>
+
+    <!-- Section 2: Four Glass Cards from team.json -->
+    <section class="container">
+      <div id="team-members-container" class="team-members-grid" aria-label="Engineering Team Members">
+        <!-- Rendered statically for zero-JS fallback, dynamically hydrated via team.js -->
+        <!-- Member 1: Akshay A -->
+        <article class="team-member-card" data-member-name="Akshay A">
+          <div class="member-header">
+            <div class="member-avatar" aria-hidden="true">AA</div>
+            <div class="member-meta">
+              <h3 class="member-name">Akshay A</h3>
+              <span class="member-role">Lead Simulator Engineer &amp; RF Propagation Modeler</span>
+            </div>
+          </div>
+          <div class="member-module-badge">
+            <span data-icon="shield"></span>
+            <span>Simulator &amp; RF Digital Twin</span>
+          </div>
+          <p class="member-focus">Discrete cellular engine, COST-231 Hata RF propagation, Voronoi user mobility, snapshot/fork state machine.</p>
+        </article>
+
+        <!-- Member 2: Aaditya V -->
+        <article class="team-member-card" data-member-name="Aaditya V">
+          <div class="member-header">
+            <div class="member-avatar" aria-hidden="true">AV</div>
+            <div class="member-meta">
+              <h3 class="member-name">Aaditya V</h3>
+              <span class="member-role">Digital Twin &amp; Conformal Inference Lead</span>
+            </div>
+          </div>
+          <div class="member-module-badge">
+            <span data-icon="shield"></span>
+            <span>Digital Twin &amp; Conformal Actuator</span>
+          </div>
+          <p class="member-focus">Split conformal prediction intervals, rolling residual calibration, multi-objective risk dial, and actuator safety guards.</p>
+        </article>
+
+        <!-- Member 3: H M Pranav -->
+        <article class="team-member-card" data-member-name="H M Pranav">
+          <div class="member-header">
+            <div class="member-avatar" aria-hidden="true">HP</div>
+            <div class="member-meta">
+              <h3 class="member-name">H M Pranav</h3>
+              <span class="member-role">Arbitration Engine &amp; Conflict Graph Architect</span>
+            </div>
+          </div>
+          <div class="member-module-badge">
+            <span data-icon="shield"></span>
+            <span>Conflict Detector &amp; Arbitration Engine</span>
+          </div>
+          <p class="member-focus">Graph-theoretic conflict detection (parameter, topology, resource), delta-utility referee optimization, and plan synthesis.</p>
+        </article>
+
+        <!-- Member 4: G S Venkat Sai -->
+        <article class="team-member-card" data-member-name="G S Venkat Sai">
+          <div class="member-header">
+            <div class="member-avatar" aria-hidden="true">GV</div>
+            <div class="member-meta">
+              <h3 class="member-name">G S Venkat Sai</h3>
+              <span class="member-role">Telemetry Pipeline, API Systems &amp; NOC Dashboard Architect</span>
+            </div>
+          </div>
+          <div class="member-module-badge">
+            <span data-icon="shield"></span>
+            <span>Telemetry, REST/WS APIs &amp; NOC Dashboard</span>
+          </div>
+          <p class="member-focus">FastAPI REST/WS endpoints, 10 Hz frame streaming, real-time 2D NOC telemetry, and Pareto benchmarking runner.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Section 3: Technology Stack Section -->
+    <section class="container">
+      <div class="stack-section">
+        <div class="section-eyebrow">// CORE ARCHITECTURAL STACK</div>
+        <h2 style="font-size: 24px; color: var(--text); margin: var(--space-8) 0 0;">
+          Technologies &amp; Libraries
+        </h2>
+        <p style="font-size: 14px; color: var(--muted); margin: 0;">
+          Engineered with modern, deterministic, zero-CDN local libraries:
+        </p>
+
+        <div class="stack-grid">
+          <div class="stack-item">
+            <div class="stack-item-title">Python 3</div>
+            <p class="stack-item-desc">Core discrete-event simulator, async telemetry orchestration, and conformal mathematical interval routines.</p>
+          </div>
+
+          <div class="stack-item">
+            <div class="stack-item-title">NumPy</div>
+            <p class="stack-item-desc">Vectorized radio channel calculations, multi-cell SINR matrices, and fast split-conformal non-conformity scoring.</p>
+          </div>
+
+          <div class="stack-item">
+            <div class="stack-item-title">NetworkX</div>
+            <p class="stack-item-desc">Conflict graph modeling, bipartite matching algorithms, and Tarjan cycle detection for cyclic ping-pong prevention.</p>
+          </div>
+
+          <div class="stack-item">
+            <div class="stack-item-title">FastAPI &amp; Uvicorn</div>
+            <p class="stack-item-desc">High-throughput sub-10ms REST ingestion endpoints and bi-directional live WebSocket telemetry streams.</p>
+          </div>
+
+          <div class="stack-item">
+            <div class="stack-item-title">SQLite (WAL Mode)</div>
+            <p class="stack-item-desc">Deterministic 600-frame unified ring buffer, state checkpoint persistence, and forensic audit logging.</p>
+          </div>
+
+          <div class="stack-item">
+            <div class="stack-item-title">Three.js</div>
+            <p class="stack-item-desc">GPU-accelerated WebGL digital twin, InstancedMesh user rendering, and dynamic RF radiation lobe geometry.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Repository Link & Project Credits -->
+    <section class="container">
+      <div class="repo-credits-card">
+        <div class="credits-info">
+          <h3>Repository &amp; Reproducibility</h3>
+          <p>
+            Project ARBITER is entirely self-hosted, offline compliant, and reproducible from source.
+          </p>
+          <div style="margin-bottom: var(--space-8);">
+            <span style="font-size: 11px; color: var(--gold); font-family: var(--font-mono); display: block; margin-bottom: 4px;">REPOSITORY LINK (PLAIN TEXT):</span>
+            <code class="repo-plaintext-url">github.com/Bits2Wave/ARBITER</code>
+          </div>
+        </div>
+
+        <div style="text-align: right;">
+          <div style="font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--gold);">
+            Built for Bits2Wave
+          </div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+            Autonomous Cellular RAN Competition
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       3. Site Footer
+       ========================================================================= -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div style="display: flex; align-items: center; gap: var(--space-12);">
+            <span data-icon="logo"></span>
+            <span style="font-weight: 700; font-size: 18px; color: var(--text);">PROJECT ARBITER</span>
+          </div>
+          <p class="footer-disclaimer">
+            PROJECT ARBITER is an autonomous cellular RAN research prototype built for the Bits2Wave competition; not an official 3GPP or O-RAN commercial deployment.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--gold);">
+            Built for Bits2Wave • Autonomous RAN Coordination
+          </div>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Visualization</div>
+          <ul class="footer-links">
+            <li><a href="/dashboard/3d/" class="footer-link">3D Digital Twin Visualizer</a></li>
+            <li><a href="/dashboard/3d/?replay=1" class="footer-link">Recorded 2 AM Replay</a></li>
+            <li><a href="/dashboard/3d/?demo=1" class="footer-link">Looping Demo Stream</a></li>
+            <li><a href="/dashboard/" class="footer-link">2D NOC Operations Console</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Documentation</div>
+          <ul class="footer-links">
+            <li><a href="/" class="footer-link">System Overview</a></li>
+            <li><a href="/problem" class="footer-link">2 AM Collision Dynamics</a></li>
+            <li><a href="/how-it-works" class="footer-link">Referee Architecture</a></li>
+            <li><a href="/results" class="footer-link">Empirical Proofs</a></li>
+            <li><a href="/team" class="footer-link">Contributors</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Project ARBITER. All rights reserved. Self-hosted &amp; offline compliant.</div>
+        <div style="display: flex; gap: var(--space-16);">
+          <span style="color: var(--ok);">● All 528 Tests Passing</span>
+          <span>Commit: <code style="color: var(--gold);">1cbfd2b</code></span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Page Logic Entry Point -->
+  <script type="module" src="./js/team.js"></script>
+</body>
+</html>

@@ -1,0 +1,368 @@
+/**
+ * PROJECT ARBITER — How It Works Page Stylesheet
+ * Module: arbiter/dashboard/site/css/how-it-works.css
+ *
+ * Implements:
+ * - Interactive SVG architecture diagram with hover/focus cards
+ * - Flow dots along diagram edges (paused for prefers-reduced-motion)
+ * - The 100 ms tick feedback loops strip
+ * - Decision ladder & ReasonCode catalog
+ * - Cross-links to Monitor & Results
+ */
+
+/* -------------------------------------------------------------------------
+   1. How It Works Hero
+   ------------------------------------------------------------------------- */
+.how-hero {
+  padding-top: var(--space-48);
+  padding-bottom: var(--space-48);
+}
+
+.how-headline {
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0 0 var(--space-20);
+}
+
+.how-lead {
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--muted);
+  max-width: 820px;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   2. Interactive Architecture Diagram
+   ------------------------------------------------------------------------- */
+.arch-diagram-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+  margin-bottom: var(--space-72);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+}
+
+.arch-svg-container {
+  width: 100%;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.arch-svg {
+  width: 100%;
+  max-width: 1080px;
+  height: auto;
+  display: block;
+}
+
+.arch-node {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.arch-node rect {
+  transition: all var(--transition-fast);
+}
+
+.arch-node:hover rect,
+.arch-node:focus rect,
+.arch-node.active rect {
+  stroke: var(--gold) !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 12px var(--gold-glow));
+}
+
+.arch-node:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+}
+
+/* Flow dots along edge paths */
+.flow-dot {
+  fill: var(--gold);
+  filter: drop-shadow(0 0 4px var(--gold-glow));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-dot {
+    display: none !important;
+  }
+}
+
+/* Architecture Node Detail Glass Card */
+.node-detail-card {
+  background: rgba(10, 10, 13, 0.95);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-sm);
+  padding: var(--space-20) var(--space-24);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-20);
+  transition: all var(--transition-base);
+}
+
+.node-detail-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.node-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.node-detail-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.node-detail-module {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--gold);
+  background: var(--gold-dim);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-gold);
+}
+
+.node-detail-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   3. The 100 ms Tick Strip (Feedback Loops)
+   ------------------------------------------------------------------------- */
+.tick-strip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-20);
+  margin-bottom: var(--space-72);
+}
+
+.tick-loop-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  transition: border-color var(--transition-fast);
+}
+
+.tick-loop-card:hover {
+  border-color: var(--border-gold);
+}
+
+.tick-loop-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tick-loop-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.tick-loop-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   4. Decision Ladder & Reason Codes
+   ------------------------------------------------------------------------- */
+.ladder-section {
+  margin-bottom: var(--space-72);
+}
+
+.ladder-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-20);
+  margin-bottom: var(--space-48);
+}
+
+.ladder-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.ladder-tier {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tier-approve { color: var(--ok); }
+.tier-modify { color: var(--warn); }
+.tier-delay { color: var(--info); }
+.tier-reject { color: var(--bad); }
+
+.ladder-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.ladder-card-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Reason Codes Grid */
+.reasons-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+}
+
+.reasons-header {
+  margin-bottom: var(--space-24);
+}
+
+.reasons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-16);
+}
+
+.reason-item {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  transition: border-color var(--transition-fast);
+}
+
+.reason-item:hover {
+  border-color: var(--border-gold);
+}
+
+.reason-code-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  background: var(--gold-dim);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  width: fit-content;
+}
+
+.reason-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.reason-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   5. Cross-Links Banner
+   ------------------------------------------------------------------------- */
+.cross-links-banner {
+  background: linear-gradient(135deg, rgba(255, 200, 0, 0.08) 0%, rgba(10, 10, 13, 0.95) 100%);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-20);
+  margin-bottom: var(--space-72);
+}
+
+.cross-links-text h3 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 var(--space-6);
+}
+
+.cross-links-text p {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.cross-links-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .tick-strip-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ladder-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .reasons-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .how-headline {
+    font-size: 34px;
+  }
+  .tick-strip-grid {
+    grid-template-columns: 1fr;
+  }
+  .ladder-grid {
+    grid-template-columns: 1fr;
+  }
+}

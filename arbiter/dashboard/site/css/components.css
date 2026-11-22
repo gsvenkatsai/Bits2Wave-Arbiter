@@ -1,0 +1,578 @@
+/**
+ * PROJECT ARBITER — Shared Component Styles
+ * Module: arbiter/dashboard/site/css/components.css
+ */
+
+/* -------------------------------------------------------------------------
+   Global Page Layout & Background Atmosphere
+   ------------------------------------------------------------------------- */
+html {
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  position: relative;
+  background-color: var(--bg);
+  background-image: 
+    /* 1. Warm Gold Vignette at ~6% opacity */
+    radial-gradient(ellipse 90% 50% at 50% -10%, rgba(255, 200, 0, 0.07), transparent 75%),
+    radial-gradient(ellipse 60% 40% at 90% 40%, rgba(255, 200, 0, 0.04), transparent 60%),
+    radial-gradient(circle 800px at 10% 80%, rgba(255, 200, 0, 0.03), transparent 70%),
+    /* 2. Star Dust Texture Layer */
+    radial-gradient(1px 1px at 25px 35px, rgba(255, 255, 255, 0.25), transparent),
+    radial-gradient(1.5px 1.5px at 140px 180px, rgba(255, 200, 0, 0.35), transparent),
+    radial-gradient(1px 1px at 280px 75px, rgba(255, 255, 255, 0.20), transparent),
+    radial-gradient(1.5px 1.5px at 390px 240px, rgba(255, 255, 255, 0.15), transparent),
+    /* 3. Faint Hex Grid SVG Pattern at ~4% opacity */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='83.138' viewBox='0 0 48 83.138'%3E%3Cpath d='M48 27.713v27.713L24 69.282 0 55.426V27.713L24 13.856l24 13.857zm0 55.425V83.138L24 96.995 0 83.138v-27.713L24 41.568l24 13.857v27.713zM24 0l24 13.856v27.713L24 27.713 0 41.569V13.856L24 0z' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+  background-repeat: repeat;
+}
+
+/* Accessibility Focus States */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* Prefers Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Typography Defaults
+   ------------------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 var(--space-16);
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin: 0 0 var(--space-16);
+  color: var(--muted);
+}
+
+a {
+  color: var(--gold);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--gold-soft);
+}
+
+code, .num {
+  font-family: var(--font-mono);
+}
+
+/* -------------------------------------------------------------------------
+   Container
+   ------------------------------------------------------------------------- */
+.container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 var(--space-24);
+}
+
+/* -------------------------------------------------------------------------
+   1. Glass Pill Navbar
+   ------------------------------------------------------------------------- */
+.navbar-wrapper {
+  position: sticky;
+  top: var(--space-24);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--space-24);
+}
+
+.nav-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-32);
+  background: rgba(15, 15, 20, 0.72);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  padding: var(--space-8) var(--space-16);
+  border-radius: var(--radius-full);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.nav-pill:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+}
+
+.brand-link:hover {
+  color: var(--gold);
+}
+
+.logo-svg {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item-link {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-full);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.nav-item-link:hover {
+  color: var(--text);
+  background: var(--surface-strong);
+}
+
+.nav-item-link.active {
+  color: var(--gold);
+  background: var(--gold-dim);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+/* Mobile Hamburger Menu */
+.nav-menu-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: var(--space-8);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 860px) {
+  .nav-links {
+    display: none;
+  }
+  .nav-menu-btn {
+    display: flex;
+  }
+  .nav-actions .btn-sm-hide {
+    display: none;
+  }
+  .nav-links.mobile-open {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 60px;
+    left: var(--space-24);
+    right: var(--space-24);
+    background: rgba(15, 15, 20, 0.95);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-24);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.8);
+    backdrop-filter: blur(20px);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   2. Buttons
+   ------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: var(--space-12) var(--space-24);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  line-height: 1;
+}
+
+/* Primary Gold Filled */
+.btn-gold, .btn-primary {
+  background: var(--gold);
+  color: #0A0A0D;
+  border-color: var(--gold);
+  box-shadow: 0 4px 18px var(--gold-glow);
+}
+
+.btn-gold:hover, .btn-primary:hover {
+  background: var(--gold-soft);
+  color: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px var(--gold-glow);
+}
+
+/* Outline Gold */
+.btn-outline {
+  background: transparent;
+  color: var(--gold);
+  border-color: var(--border-gold);
+}
+
+.btn-outline:hover {
+  background: var(--gold-dim);
+  border-color: var(--gold);
+  color: var(--gold-soft);
+  transform: translateY(-1px);
+}
+
+/* Ghost with Arrow */
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: transparent;
+  padding: var(--space-8) var(--space-16);
+}
+
+.btn-ghost:hover {
+  color: var(--gold);
+  background: var(--surface);
+}
+
+.btn-ghost svg {
+  transition: transform var(--transition-fast);
+}
+
+.btn-ghost:hover svg {
+  transform: translateX(4px);
+}
+
+.btn-sm {
+  padding: var(--space-8) var(--space-16);
+  font-size: 13px;
+}
+
+/* -------------------------------------------------------------------------
+   3. Glass Card
+   ------------------------------------------------------------------------- */
+.glass-card {
+  background: var(--glass-bg);
+  border: var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+  transition: border-color var(--transition-base), transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.glass-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* -------------------------------------------------------------------------
+   4. Stat Tile (Data Metric Container)
+   ------------------------------------------------------------------------- */
+.stat-tile {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-sm);
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  position: relative;
+  transition: border-color var(--transition-fast);
+}
+
+.stat-tile:hover {
+  border-color: var(--border-gold);
+}
+
+.stat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--gold);
+}
+
+.stat-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+
+.chip-measured {
+  background: rgba(46, 230, 166, 0.12);
+  color: var(--ok);
+  border: 1px solid rgba(46, 230, 166, 0.3);
+}
+
+.chip-target {
+  background: rgba(79, 195, 247, 0.12);
+  color: var(--info);
+  border: 1px solid rgba(79, 195, 247, 0.3);
+}
+
+.stat-number-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.stat-val, .stat-value {
+  font-family: var(--font-mono);
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stat-unit {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* -------------------------------------------------------------------------
+   5. Section Header
+   ------------------------------------------------------------------------- */
+.section-header {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto var(--space-48);
+}
+
+.section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-12);
+  padding: var(--space-4) var(--space-12);
+  background: var(--gold-dim);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-full);
+}
+
+.section-title {
+  font-size: 42px;
+  margin-bottom: var(--space-16);
+  letter-spacing: -0.03em;
+}
+
+.section-subtitle {
+  font-size: 18px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 32px;
+  }
+  .section-subtitle {
+    font-size: 16px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   6. Footer
+   ------------------------------------------------------------------------- */
+.site-footer {
+  border-top: 1px solid var(--border);
+  background: rgba(10, 10, 13, 0.95);
+  padding: var(--space-72) 0 var(--space-48);
+  margin-top: var(--space-120);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: var(--space-48);
+  margin-bottom: var(--space-48);
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.footer-disclaimer {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  max-width: 440px;
+}
+
+.footer-col-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-16);
+}
+
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.footer-link {
+  font-size: 14px;
+  color: var(--muted);
+  transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+  color: var(--gold);
+}
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-24);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (max-width: 768px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-32);
+  }
+  .footer-bottom {
+    flex-direction: column;
+    gap: var(--space-16);
+    text-align: center;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   7. Modal
+   ------------------------------------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-24);
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-content {
+  background: rgba(18, 18, 24, 0.95);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  max-width: 640px;
+  width: 100%;
+  padding: var(--space-32);
+  box-shadow: 0 32px 72px rgba(0, 0, 0, 0.8);
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: var(--space-16);
+  right: var(--space-16);
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: var(--space-8);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: var(--text);
+  background: var(--surface);
+}

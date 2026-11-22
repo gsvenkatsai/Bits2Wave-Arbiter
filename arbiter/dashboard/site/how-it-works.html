@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How It Works — PROJECT ARBITER</title>
+  <meta name="description" content="Architecture, 100 ms Near-RT RIC feedback loops, and conformal referee decision ladder of Project ARBITER.">
+
+  <!-- Self-Hosted Stylesheets & Favicon (Zero CDN dependencies) -->
+  <link rel="icon" type="image/svg+xml" href="./img/favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. Glass Pill Navigation Bar
+       ========================================================================= -->
+  <div class="navbar-wrapper">
+    <nav class="nav-pill" aria-label="Main Navigation">
+      <a href="/" class="brand-link" title="PROJECT ARBITER Home">
+        <span data-icon="logo"></span>
+        <span>PROJECT ARBITER</span>
+      </a>
+
+      <!-- Desktop Links Menu -->
+      <ul id="nav-links-menu" class="nav-links">
+        <li><a href="/" class="nav-item-link">Home</a></li>
+        <li><a href="/problem" class="nav-item-link">Problem</a></li>
+        <li><a href="/how-it-works" class="nav-item-link active">How it works</a></li>
+        <li><a href="/#results" class="nav-item-link">Results</a></li>
+        <li><a href="/dashboard/3d/" class="nav-item-link">Monitor</a></li>
+        <li><a href="/#team" class="nav-item-link">Team</a></li>
+      </ul>
+
+      <!-- CTA Actions -->
+      <div class="nav-actions">
+        <a href="/dashboard/3d/" class="btn btn-outline btn-sm" title="Launch Live 3D Digital Twin Monitor">Open Live Monitor</a>
+        <button id="nav-menu-toggle" class="nav-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false" data-icon="menu"></button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- =========================================================================
+       2. Main Content
+       ========================================================================= -->
+  <main>
+    <!-- Section 1: Hero -->
+    <section class="how-hero container">
+      <div class="hero-pill-badge">
+        <span class="hero-pulse-dot" aria-hidden="true"></span>
+        <span>SYSTEM ARCHITECTURE • O-RAN NEAR-RT RIC REFEREE</span>
+      </div>
+
+      <h1 class="how-headline">
+        HOW ARBITER WORKS<span class="gold-dot">.</span>
+      </h1>
+
+      <p class="how-lead">
+        PROJECT ARBITER acts as an in-line conflict-resolution referee embedded within the O-RAN Near-RT RIC. Every 100 ms tick, candidate proposals from independent autonomous controllers are captured, checked against physical and interference dependencies, simulated counterfactually in a calibrated digital twin with conformal uncertainty intervals, and synthesized into a Pareto-optimal joint actuation vector before over-the-air deployment.
+      </p>
+    </section>
+
+    <!-- Section 2: Interactive Architecture Diagram -->
+    <section class="container">
+      <div class="arch-diagram-wrapper">
+        <div class="section-header" style="margin-bottom: 0;">
+          <div class="section-eyebrow">// INTERACTIVE ARCHITECTURE PIPELINE</div>
+          <h2 style="font-size: 24px; color: var(--text); margin: 0;">End-to-End Control Loop</h2>
+          <p class="section-subtitle" style="margin: 0;">
+            Hover, click, or tab into any component to inspect its role and owning repository module.
+          </p>
+        </div>
+
+        <div class="arch-svg-container">
+          <svg class="arch-svg" viewBox="0 0 980 340" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ARBITER Architecture Diagram">
+            <defs>
+              <!-- Marker Arrow Head -->
+              <marker id="gold-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#FFC800"/>
+              </marker>
+              <marker id="muted-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(255,255,255,0.3)"/>
+              </marker>
+
+              <!-- Node Background Gradient -->
+              <linearGradient id="node-bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(30, 26, 18, 0.85)"/>
+                <stop offset="100%" stop-color="rgba(14, 14, 18, 0.95)"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Connecting Edges (Paths) -->
+            <!-- Edge 1: Controllers -> Queue -->
+            <path id="path1" d="M 140 70 L 210 70" stroke="rgba(255, 200, 0, 0.5)" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <!-- Edge 2: Queue -> Detector -->
+            <path id="path2" d="M 330 70 L 400 70" stroke="rgba(255, 200, 0, 0.5)" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <!-- Edge 3: Detector -> Decision Engine -->
+            <path id="path3" d="M 520 70 L 590 70" stroke="rgba(255, 200, 0, 0.5)" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <!-- Edge 4: Decision Engine -> Actuator -->
+            <path id="path4" d="M 710 70 L 780 70" stroke="rgba(255, 200, 0, 0.5)" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <!-- Edge 5: Actuator -> Simulator -->
+            <path id="path5" d="M 845 105 L 845 205" stroke="rgba(255, 200, 0, 0.5)" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <!-- Edge 6: Simulator -> Telemetry -->
+            <path id="path6" d="M 780 240 L 520 240" stroke="rgba(255, 200, 0, 0.5)" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <!-- Edge 7: Telemetry -> Controllers (feedback loop) -->
+            <path id="path7" d="M 400 240 L 85 240 L 85 110" stroke="rgba(255, 200, 0, 0.5)" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <!-- Edge 8: Decision Engine <-> Twin (bidirectional) -->
+            <path id="path8" d="M 640 105 L 640 200" stroke="#FFC800" stroke-dasharray="4 4" stroke-width="2" marker-end="url(#gold-arrow)"/>
+            <path id="path9" d="M 660 200 L 660 110" stroke="#FFC800" stroke-dasharray="4 4" stroke-width="2" marker-end="url(#gold-arrow)"/>
+
+            <!-- Animated Flow Dots along paths (paused on reduced motion) -->
+            <circle class="flow-dot" r="3.5">
+              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 140 70 L 210 70"/>
+            </circle>
+            <circle class="flow-dot" r="3.5">
+              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 330 70 L 400 70"/>
+            </circle>
+            <circle class="flow-dot" r="3.5">
+              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 520 70 L 590 70"/>
+            </circle>
+            <circle class="flow-dot" r="3.5">
+              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 710 70 L 780 70"/>
+            </circle>
+            <circle class="flow-dot" r="3.5">
+              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 845 105 L 845 205"/>
+            </circle>
+            <circle class="flow-dot" r="3.5">
+              <animateMotion dur="2.8s" repeatCount="indefinite" path="M 780 240 L 520 240"/>
+            </circle>
+            <circle class="flow-dot" r="3.5">
+              <animateMotion dur="3.2s" repeatCount="indefinite" path="M 400 240 L 85 240 L 85 110"/>
+            </circle>
+
+            <!-- SVG Nodes (Keyboard & Mouse Accessible) -->
+            <!-- 1. Controllers -->
+            <g class="arch-node active" data-node-id="controllers" tabindex="0" role="button" aria-label="Controllers component">
+              <rect x="20" y="35" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+              <text x="85" y="66" fill="#F5F5F7" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">Controllers</text>
+              <text x="85" y="84" fill="#B8B3A7" font-size="10" text-anchor="middle" font-family="monospace">ES • LB • CC</text>
+            </g>
+
+            <!-- 2. Proposal Queue -->
+            <g class="arch-node" data-node-id="queue" tabindex="0" role="button" aria-label="Proposal Queue component">
+              <rect x="210" y="35" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+              <text x="275" y="66" fill="#F5F5F7" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">Proposal Queue</text>
+              <text x="275" y="84" fill="#B8B3A7" font-size="10" text-anchor="middle" font-family="monospace">100 ms Window</text>
+            </g>
+
+            <!-- 3. Conflict Detector -->
+            <g class="arch-node" data-node-id="detector" tabindex="0" role="button" aria-label="Conflict Detector component">
+              <rect x="400" y="35" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+              <text x="465" y="66" fill="#F5F5F7" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">Conflict Detector</text>
+              <text x="465" y="84" fill="#B8B3A7" font-size="10" text-anchor="middle" font-family="monospace">Bipartite Graph</text>
+            </g>
+
+            <!-- 4. Decision Engine -->
+            <g class="arch-node" data-node-id="engine" tabindex="0" role="button" aria-label="Decision Engine component">
+              <rect x="590" y="35" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255, 200, 0, 0.45)" stroke-width="1.8"/>
+              <text x="655" y="66" fill="#FFC800" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">Decision Engine</text>
+              <text x="655" y="84" fill="#FFD84A" font-size="10" text-anchor="middle" font-family="monospace">Plan Synthesizer</text>
+            </g>
+
+            <!-- 5. Actuator -->
+            <g class="arch-node" data-node-id="actuator" tabindex="0" role="button" aria-label="Actuator component">
+              <rect x="780" y="35" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+              <text x="845" y="66" fill="#F5F5F7" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">Actuator</text>
+              <text x="845" y="84" fill="#B8B3A7" font-size="10" text-anchor="middle" font-family="monospace">E2 Node Dispatch</text>
+            </g>
+
+            <!-- 6. Digital Twin (Branch) -->
+            <g class="arch-node" data-node-id="twin" tabindex="0" role="button" aria-label="Conformal Digital Twin component">
+              <rect x="590" y="205" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255, 200, 0, 0.45)" stroke-width="1.8"/>
+              <text x="655" y="236" fill="#FFC800" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">Digital Twin</text>
+              <text x="655" y="254" fill="#2EE6A6" font-size="10" text-anchor="middle" font-family="monospace">Conformal Bounds</text>
+            </g>
+
+            <!-- 7. Simulator / RAN -->
+            <g class="arch-node" data-node-id="simulator" tabindex="0" role="button" aria-label="RAN Simulator component">
+              <rect x="780" y="205" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+              <text x="845" y="236" fill="#F5F5F7" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">RAN Simulator</text>
+              <text x="845" y="254" fill="#B8B3A7" font-size="10" text-anchor="middle" font-family="monospace">Hex Cell Physics</text>
+            </g>
+
+            <!-- 8. Telemetry Stream -->
+            <g class="arch-node" data-node-id="telemetry" tabindex="0" role="button" aria-label="Telemetry Stream component">
+              <rect x="400" y="205" width="130" height="70" rx="10" fill="url(#node-bg)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+              <text x="465" y="236" fill="#F5F5F7" font-size="13" font-weight="700" text-anchor="middle" font-family="Outfit, sans-serif">Telemetry Bus</text>
+              <text x="465" y="254" fill="#B8B3A7" font-size="10" text-anchor="middle" font-family="monospace">Live KPI Ingestion</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Dynamic Node Detail Glass Card -->
+        <div id="arch-node-detail" class="node-detail-card" aria-live="polite">
+          <div class="node-detail-left">
+            <div class="node-detail-title-row">
+              <h3 id="arch-detail-title" class="node-detail-title">Autonomous Controllers (xApps / rApps)</h3>
+              <span id="arch-detail-module" class="node-detail-module">arbiter.controllers</span>
+            </div>
+            <p id="arch-detail-desc" class="node-detail-desc">
+              Independent O-RAN xApps and rApps (Energy Saving, Load Balancing, Coverage &amp; Capacity Optimization) generating concurrent parameter modification requests.
+            </p>
+          </div>
+          <span class="stat-chip chip-measured">ACTIVE NODE</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: The 100 ms Tick Strip -->
+    <section class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">// SYNCHRONOUS CYCLE EXECUTION</div>
+        <h2 class="section-title">The 100 ms Tick Feedback Loops</h2>
+        <p class="section-subtitle">
+          Within the Near-RT RIC 100 ms execution envelope, ARBITER completes four tightly coupled algorithmic feedback loops.
+        </p>
+      </div>
+
+      <div class="tick-strip-grid">
+        <!-- Loop 1: Hold Loop -->
+        <article class="tick-loop-card">
+          <span class="tick-loop-badge">Loop 01</span>
+          <h3 class="tick-loop-title">Hold Loop</h3>
+          <p class="tick-loop-desc">
+            Manages transient conflicts (e.g., active handovers in flight). Requests are held for up to <strong>3 ticks</strong> before forcing bisection morphing or rejection if prerequisite states remain blocked.
+          </p>
+        </article>
+
+        <!-- Loop 2: Twin Calibration Loop -->
+        <article class="tick-loop-card">
+          <span class="tick-loop-badge">Loop 02</span>
+          <h3 class="tick-loop-title">Twin Calibration</h3>
+          <p class="tick-loop-desc">
+            Maintains a <strong>200-tick rolling calibration buffer</strong> of telemetry residual errors, computing split conformal prediction quantiles ($1-\alpha = 0.90$) with a cold-start safety guard ($n &lt; 30$).
+          </p>
+        </article>
+
+        <!-- Loop 3: Plan Synthesis Loop -->
+        <article class="tick-loop-card">
+          <span class="tick-loop-badge">Loop 03</span>
+          <h3 class="tick-loop-title">Plan Synthesis</h3>
+          <p class="tick-loop-desc">
+            Evaluates the combinatorial joint space ($\le 64$ candidates) in <strong>3.82 ms</strong>, applying parameter bisection to prune constraint-violating actions into safe, Pareto-optimal setpoints.
+          </p>
+        </article>
+
+        <!-- Loop 4: Operator Risk Dial -->
+        <article class="tick-loop-card">
+          <span class="tick-loop-badge">Loop 04</span>
+          <h3 class="tick-loop-title">Operator Risk Dial</h3>
+          <p class="tick-loop-desc">
+            Enforces policy weight vectors across Energy ($\alpha$), Throughput ($\beta$), and Coverage ($\gamma$), allowing live switching between <strong>Balanced</strong>, Aggressive, and Conservative operating points.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Section 4: Decision Ladder & ReasonCode Catalog -->
+    <section class="container ladder-section">
+      <div class="section-header">
+        <div class="section-eyebrow">// REFEREE ARBITRATION TAXONOMY</div>
+        <h2 class="section-title">The Decision Ladder</h2>
+        <p class="section-subtitle">
+          Every controller command is resolved through a deterministic four-tier arbitration ladder.
+        </p>
+      </div>
+
+      <!-- 4 Decision Rungs -->
+      <div class="ladder-grid">
+        <div class="ladder-card">
+          <span class="ladder-tier tier-approve">Tier 01 • Action</span>
+          <h3 class="ladder-card-title">APPROVE</h3>
+          <p class="ladder-card-desc">
+            Action introduces no direct or indirect conflicts and satisfies all conformal KPI safety bounds. Dispatched as proposed.
+          </p>
+        </div>
+
+        <div class="ladder-card">
+          <span class="ladder-tier tier-modify">Tier 02 • Action</span>
+          <h3 class="ladder-card-title">MODIFY (Bisection)</h3>
+          <p class="ladder-card-desc">
+            Action exceeds cell capacity or headroom in raw form. ARBITER tunes parameter magnitude (e.g. offload ratio 40% $\rightarrow$ 15%).
+          </p>
+        </div>
+
+        <div class="ladder-card">
+          <span class="ladder-tier tier-delay">Tier 03 • Action</span>
+          <h3 class="ladder-card-title">DELAY (Hold Count)</h3>
+          <p class="ladder-card-desc">
+            Action conflicts with in-flight transitional states (such as handovers). Held in queue for up to 3 ticks until queues clear.
+          </p>
+        </div>
+
+        <div class="ladder-card">
+          <span class="ladder-tier tier-reject">Tier 04 • Action</span>
+          <h3 class="ladder-card-title">REJECT</h3>
+          <p class="ladder-card-desc">
+            Action unrecoverably breaches minimum SINR floors or hard safety constraints with no viable intermediate parameter setpoint.
+          </p>
+        </div>
+      </div>
+
+      <!-- Complete Reason Codes Catalog (Exact match to arbiter.shared.models.ReasonCode) -->
+      <div class="reasons-container">
+        <div class="reasons-header">
+          <div class="section-eyebrow">// STANDARDIZED ARBITRATION VERDICT CODES</div>
+          <h3 style="font-size: 20px; color: var(--text); margin: 0 0 var(--space-8);">
+            Auditable Reason Codes Catalog
+          </h3>
+          <p style="font-size: 13px; color: var(--muted); margin: 0;">
+            Every verdict emitted by ARBITER carries an immutable reason code corresponding directly to <code>arbiter.shared.models.ReasonCode</code>.
+          </p>
+        </div>
+
+        <div class="reasons-grid" aria-label="Reason Codes Catalog">
+          <!-- 1. NONE -->
+          <article class="reason-item" data-reason-code="NONE">
+            <span class="reason-code-badge">NONE</span>
+            <div class="reason-name">Unconditional Approval</div>
+            <p class="reason-desc">No conflict or constraint violation detected. Proposed action is compliant with all active policies and conformal bounds.</p>
+          </article>
+
+          <!-- 2. ACTIVE_HO -->
+          <article class="reason-item" data-reason-code="ACTIVE_HO">
+            <span class="reason-code-badge">ACTIVE_HO</span>
+            <div class="reason-name">Active Handover In-Flight</div>
+            <p class="reason-desc">Mobile terminals are currently in transition to or from the target sector. Action is delayed to prevent dropping active handovers.</p>
+          </article>
+
+          <!-- 3. HEADROOM -->
+          <article class="reason-item" data-reason-code="HEADROOM">
+            <span class="reason-code-badge">HEADROOM</span>
+            <div class="reason-name">Capacity / Headroom Exceeded</div>
+            <p class="reason-desc">Target cell PRB utilization, queue length, or RF link budget cannot accommodate the full proposed magnitude; action is modified.</p>
+          </article>
+
+          <!-- 4. CYCLIC_PINGPONG -->
+          <article class="reason-item" data-reason-code="CYCLIC_PINGPONG">
+            <span class="reason-code-badge">CYCLIC_PINGPONG</span>
+            <div class="reason-name">Cyclic Ping-Pong Oscillation</div>
+            <p class="reason-desc">Detected an oscillatory hysteresis pattern between opposing controller actions across consecutive ticks; command suppressed.</p>
+          </article>
+
+          <!-- 5. TWIN_TIMEOUT -->
+          <article class="reason-item" data-reason-code="TWIN_TIMEOUT">
+            <span class="reason-code-badge">TWIN_TIMEOUT</span>
+            <div class="reason-name">Simulation Latency Timeout</div>
+            <p class="reason-desc">Digital twin counterfactual simulation did not complete within the strict 10 ms budget; failsafe conservative action applied.</p>
+          </article>
+
+          <!-- 6. UNCERTAINTY_GUARD -->
+          <article class="reason-item" data-reason-code="UNCERTAINTY_GUARD">
+            <span class="reason-code-badge">UNCERTAINTY_GUARD</span>
+            <div class="reason-name">Conformal Uncertainty Guard</div>
+            <p class="reason-desc">Split conformal interval width exceeds acceptable safety tolerance due to sudden traffic non-stationarity or cold-start conditions.</p>
+          </article>
+
+          <!-- 7. FLOOR_BREACH -->
+          <article class="reason-item" data-reason-code="FLOOR_BREACH">
+            <span class="reason-code-badge">FLOOR_BREACH</span>
+            <div class="reason-name">KPI Floor Breach</div>
+            <p class="reason-desc">Predicted radio Key Performance Indicator breaches a mandatory operator safety threshold (such as minimum user SINR floor).</p>
+          </article>
+
+          <!-- 8. EMERGENCY_OVERRIDE -->
+          <article class="reason-item" data-reason-code="EMERGENCY_OVERRIDE">
+            <span class="reason-code-badge">EMERGENCY_OVERRIDE</span>
+            <div class="reason-name">Emergency Priority Override</div>
+            <p class="reason-desc">Network health supervisor or operator manual policy triggered an administrative override of automated controller proposals.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Cross-Links Banner -->
+    <section class="container">
+      <div class="cross-links-banner">
+        <div class="cross-links-text">
+          <h3>Inspect the Real Engine in 3D</h3>
+          <p>Observe the decision engine, ghost-world counterfactuals, and telemetry stream in real time.</p>
+        </div>
+        <div class="cross-links-actions">
+          <a href="/dashboard/3d/" class="btn btn-gold">Launch 3D Twin Monitor</a>
+          <a href="/problem" class="btn btn-outline">Explore The Problem</a>
+          <a href="/#results" class="btn btn-ghost">Audit Results →</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       3. Site Footer
+       ========================================================================= -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div style="display: flex; align-items: center; gap: var(--space-12);">
+            <span data-icon="logo"></span>
+            <span style="font-weight: 700; font-size: 18px; color: var(--text);">PROJECT ARBITER</span>
+          </div>
+          <p class="footer-disclaimer">
+            PROJECT ARBITER is an autonomous cellular RAN research prototype built for the Bits2Wave competition; not an official 3GPP or O-RAN commercial deployment.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--gold);">
+            Built for Bits2Wave • Autonomous RAN Coordination
+          </div>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Visualization</div>
+          <ul class="footer-links">
+            <li><a href="/dashboard/3d/" class="footer-link">3D Digital Twin Visualizer</a></li>
+            <li><a href="/dashboard/3d/?replay=1" class="footer-link">Recorded 2 AM Replay</a></li>
+            <li><a href="/dashboard/3d/?demo=1" class="footer-link">Looping Demo Stream</a></li>
+            <li><a href="/dashboard/" class="footer-link">2D NOC Operations Console</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Documentation</div>
+          <ul class="footer-links">
+            <li><a href="/" class="footer-link">System Overview</a></li>
+            <li><a href="/problem" class="footer-link">2 AM Collision Dynamics</a></li>
+            <li><a href="/how-it-works" class="footer-link">Referee Architecture</a></li>
+            <li><a href="/#results" class="footer-link">Empirical Proofs</a></li>
+            <li><a href="/#team" class="footer-link">Contributors</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Project ARBITER. All rights reserved. Self-hosted &amp; offline compliant.</div>
+        <div style="display: flex; gap: var(--space-16);">
+          <span style="color: var(--ok);">● All 516 Tests Passing</span>
+          <span>Commit: <code style="color: var(--gold);">1cbfd2b</code></span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Page Logic Entry Point -->
+  <script type="module" src="./js/how-it-works.js"></script>
+</body>
+</html>

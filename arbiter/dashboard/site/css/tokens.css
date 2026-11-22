@@ -1,0 +1,123 @@
+/**
+ * PROJECT ARBITER — Dark Gold Design Tokens
+ * Module: arbiter/dashboard/site/css/tokens.css
+ *
+ * Traceability:
+ *   - Dark gold NOC visual language
+ *   - Exported CSS custom properties for site & dashboard integration
+ *   - AAA/AA contrast compliance on #0A0A0D
+ */
+
+:root {
+  /* Color Palette */
+  --bg: #0A0A0D;
+  --bg-warm: #15110A;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-strong: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-gold: rgba(255, 200, 0, 0.35);
+
+  --gold: #FFC800;
+  --gold-soft: #FFD84A;
+  --gold-glow: rgba(255, 200, 0, 0.35);
+  --gold-dim: rgba(255, 200, 0, 0.12);
+
+  --text: #F5F5F7;
+  --muted: #B8B3A7;
+  --text-dim: #787367;
+
+  /* Semantic State Colors */
+  --ok: #2EE6A6;
+  --ok-glow: rgba(46, 230, 166, 0.25);
+  --warn: #FFB020;
+  --bad: #FF4D5E;
+  --info: #4FC3F7;
+
+  /* Corner Radii */
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-full: 999px;
+
+  /* Glass Surface Specification */
+  --glass-bg: var(--surface);
+  --glass-border: 1px solid var(--border);
+  --glass-blur: blur(14px);
+
+  /* Spacing Scale */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --space-72: 72px;
+  --space-120: 120px;
+
+  /* Typography */
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
+
+  /* Transitions & Timing */
+  --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Self-Hosted Offline Fonts */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/outfit-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/outfit-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/outfit-latin-600-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/outfit-latin-700-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin-700-normal.woff2') format('woff2');
+}

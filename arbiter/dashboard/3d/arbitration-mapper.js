@@ -47,10 +47,10 @@ export function computeControllerRingPositions(bounds = { minX: -250, maxX: 500,
   const spanZ = Math.abs(maxZ - minZ);
   const clusterRadius = Math.max(spanX, spanZ) / 2;
 
-  const R = Math.max(220, clusterRadius * 0.52); // ~240 for 5-cell
+  const R = Math.max(320, clusterRadius * 0.70); // Elevated & outside cluster bounds
   const H = 140; // Elevated above cluster
-  const shiftZ = clusterRadius * 0.22; // ~100
-  const baseAngle = 60 * Math.PI / 180;
+  const shiftZ = Math.max(160, clusterRadius * 0.38);
+  const baseAngle = 80 * Math.PI / 180;
 
   const ctrlKeys = ["ENERGY_SAVING", "LOAD_BALANCING", "COVERAGE_CAPACITY", "PUBLIC_SAFETY"];
   const positions = {};

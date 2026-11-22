@@ -3,57 +3,62 @@
    Complete NOC Operations Console & Feature Suite Stylesheet
    ============================================================================== */
 
+@import "./site/css/tokens.css";
+
 /* ==========================================================================
-       LINEAR DESIGN SYSTEM TOKENS (NOC High-Density Console)
-       ========================================================================== */
-    :root {
-      /* 4-Step Surface Ladder */
-      --surface-canvas:   #090a0d;   /* Root backdrop */
-      --surface-base:     #0f1117;   /* Panel & container background */
-      --surface-elevated: #161922;   /* Hovered rows, inputs, cards */
-      --surface-overlay:  #1d212d;   /* Tooltips, active badges, modals */
+   LINEAR DESIGN SYSTEM TOKENS (NOC High-Density Console Mapped to Site Tokens)
+   ========================================================================== */
+:root {
+  /* 4-Step Surface Ladder mapped to site tokens */
+  --surface-canvas:   var(--bg, #0A0A0D);
+  --surface-base:     var(--bg-warm, #15110A);
+  --surface-elevated: var(--surface-strong, rgba(255, 255, 255, 0.07));
+  --surface-overlay:  rgba(21, 17, 10, 0.95);
 
-      /* Hairlines */
-      --hairline-subtle:  rgba(255, 255, 255, 0.065);
-      --hairline-strong:  rgba(255, 255, 255, 0.12);
-      --hairline-active:  rgba(0, 229, 255, 0.45);
+  /* Hairlines mapped to site tokens */
+  --hairline-subtle:  var(--border, rgba(255, 255, 255, 0.10));
+  --hairline-strong:  var(--border-strong, rgba(255, 255, 255, 0.18));
+  --hairline-active:  var(--gold, #FFC800);
 
-      /* Neutral Chrome Typography */
-      --text-primary:     #f2f4f8;   /* 98% contrast */
-      --text-secondary:   #8a94a6;   /* Labels, units, metadata */
-      --text-muted:       #4c5566;   /* Table headers, grid ticks */
+  /* Neutral Chrome Typography */
+  --text-primary:     var(--text, #F5F5F7);
+  --text-secondary:   var(--muted, #B8B3A7);
+  --text-muted:       var(--text-dim, #787367);
 
-      /* Accent & Semantic Action Palette */
-      --accent-cyan:      #00e5ff;
-      --accent-glow:      rgba(0, 229, 255, 0.22);
+  /* Accent & Action Palette */
+  --accent-cyan:      var(--gold, #FFC800);
+  --accent-glow:      var(--gold-glow, rgba(255, 200, 0, 0.35));
+  --accent-gold:      var(--gold, #FFC800);
+  --accent-gold-glow: var(--gold-glow, rgba(255, 200, 0, 0.35));
 
-      --action-approve:   #10b981;   /* Emerald */
-      --action-approve-tint: rgba(16, 185, 129, 0.10);
-      --action-modify:    #3b82f6;   /* Blue */
-      --action-modify-tint:  rgba(59, 130, 246, 0.10);
-      --action-delay:     #f59e0b;   /* Amber */
-      --action-delay-tint:   rgba(245, 158, 11, 0.10);
-      --action-reject:    #ef4444;   /* Coral */
-      --action-reject-tint:  rgba(239, 68, 68, 0.12);
-      --action-reject-glow:  rgba(239, 68, 68, 0.35);
+  /* Semantic data colors strictly preserved for readability */
+  --action-approve:   #10b981;   /* Emerald */
+  --action-approve-tint: rgba(16, 185, 129, 0.10);
+  --action-modify:    #3b82f6;   /* Blue */
+  --action-modify-tint:  rgba(59, 130, 246, 0.10);
+  --action-delay:     #f59e0b;   /* Amber */
+  --action-delay-tint:   rgba(245, 158, 11, 0.10);
+  --action-reject:    #ef4444;   /* Coral */
+  --action-reject-tint:  rgba(239, 68, 68, 0.12);
+  --action-reject-glow:  rgba(239, 68, 68, 0.35);
 
-      --badge-purple-bg:  rgba(168, 85, 247, 0.12);
-      --badge-purple-fg:  #c084fc;
+  --badge-purple-bg:  rgba(168, 85, 247, 0.12);
+  --badge-purple-fg:  #c084fc;
 
-      /* Radii scale: 4 / 8 / 12 */
-      --radius-sm: 4px;
-      --radius-md: 8px;
-      --radius-lg: 12px;
+  /* Radii scale: 4 / 8 / 12 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 
-      /* Typography */
-      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  /* Typography mapped to self-hosted fonts */
+  --font-sans: var(--font-sans, 'Outfit', sans-serif);
+  --font-mono: var(--font-mono, 'JetBrains Mono', monospace);
 
-      /* Motion */
-      --ease-linear: cubic-bezier(0.2, 0.8, 0.2, 1);
-      --anim-hover: 140ms var(--ease-linear);
-      --anim-entrance: 280ms var(--ease-linear);
-    }
+  /* Motion */
+  --ease-linear: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --anim-hover: 140ms var(--ease-linear);
+  --anim-entrance: 280ms var(--ease-linear);
+}
 
     * {
       box-sizing: border-box;
@@ -1440,11 +1445,33 @@ body {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
-/* 3D View Switcher Button */
+/* Home & 3D View Switcher Buttons */
+.btn-nav-home {
+  background: var(--surface, rgba(255, 255, 255, 0.04));
+  color: var(--gold, #FFC800);
+  border: 1px solid var(--border-gold, rgba(255, 200, 0, 0.35));
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-nav-home:hover {
+  background: var(--gold-dim, rgba(255, 200, 0, 0.15));
+  border-color: var(--gold, #FFC800);
+  box-shadow: 0 0 10px var(--gold-glow, rgba(255, 200, 0, 0.35));
+}
+
 .btn-switch-3d {
-  background: rgba(0, 229, 255, 0.12);
-  color: #00e5ff;
-  border: 1px solid rgba(0, 229, 255, 0.45);
+  background: rgba(255, 200, 0, 0.10);
+  color: var(--gold, #FFC800);
+  border: 1px solid var(--border-gold, rgba(255, 200, 0, 0.35));
   padding: 4px 10px;
   border-radius: var(--radius-sm, 4px);
   font-family: var(--font-mono);
@@ -1458,8 +1485,8 @@ body {
   transition: all 0.2s ease;
 }
 .btn-switch-3d:hover {
-  background: rgba(0, 229, 255, 0.25);
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+  background: rgba(255, 200, 0, 0.20);
+  box-shadow: 0 0 10px var(--gold-glow, rgba(255, 200, 0, 0.35));
 }
 
 /* Uncertainty intervals on KPI cards */

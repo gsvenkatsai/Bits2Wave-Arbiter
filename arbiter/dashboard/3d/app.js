@@ -24,7 +24,15 @@ const DOM = {
 
   noLiveDataCard: document.getElementById('no-live-data-card'),
   btnPlayReplay: document.getElementById('btn-play-replay'),
+  btnDismissNoData: document.getElementById('btn-dismiss-no-data'),
   btnFollowLive: document.getElementById('btn-follow-live'),
+
+  cardDropped: document.getElementById('card-dropped'),
+  cardSinr: document.getElementById('card-sinr'),
+  cardPower: document.getElementById('card-power'),
+
+  verdictDrawer: document.getElementById('verdict-drawer'),
+  btnToggleVerdictDrawer: document.getElementById('btn-toggle-verdict-drawer'),
 
   legendCard: document.getElementById('legend-card'),
   legendHeader: document.getElementById('legend-header'),
@@ -104,6 +112,11 @@ const scene = new Arbiter3DScene(DOM.container, { showStats });
 // 2. Initialize Data Layer
 const dataLayer = new DataLayer();
 
+if (typeof window !== 'undefined') {
+  window.scene = scene;
+  window.dataLayer = dataLayer;
+}
+
 // Preserving Query String for 2D View Switching
 if (DOM.btnToggle2D) {
   DOM.btnToggle2D.href = `/dashboard/${window.location.search}`;
@@ -153,13 +166,12 @@ function renderEventLog() {
     row.className = 'event-log-row';
 
     const ctrlSpan = document.createElement('span');
-    ctrlSpan.className = 'log-ctrl';
-    ctrlSpan.textContent = v.controllerAbbrev || 'CTRL';
-    ctrlSpan.style.background = 'rgba(255,255,255,0.08)';
-    ctrlSpan.style.color = '#fff';
+    const ctrlAbbrev = (v.controllerAbbrev || 'REF').toLowerCase();
+    ctrlSpan.className = `log-ctrl ctrl-${ctrlAbbrev}`;
+    ctrlSpan.textContent = v.controllerAbbrev || 'REF';
 
     const actionSpan = document.createElement('span');
-    actionSpan.className = `log-action ${v.action.toLowerCase()}`;
+    actionSpan.className = `log-action action-${v.action.toLowerCase()}`;
     actionSpan.textContent = v.action === 'MODIFY' ? `MOD (${v.morphLabel || v.approvedValue})` : v.action;
 
     const reasonSpan = document.createElement('span');
@@ -191,8 +203,8 @@ function renderEventLog() {
       row.className = 'event-log-row';
       row.style.cursor = 'pointer';
       row.title = 'Click to inspect counterfactual rollout';
-      row.innerHTML = `<span class="log-ctrl" style="background:rgba(255,255,255,0.08);color:#fff;">${v.controllerAbbrev || 'REF'}</span> ` +
-        `<span class="log-action ${v.action.toLowerCase()}">${v.action}</span> ` +
+      row.innerHTML = `<span class="log-ctrl ctrl-${(v.controllerAbbrev || 'REF').toLowerCase()}">${v.controllerAbbrev || 'REF'}</span> ` +
+        `<span class="log-action action-${v.action.toLowerCase()}">${v.action}</span> ` +
         `<span class="log-reason">${v.targetCellId ? v.targetCellId + ' • ' : ''}${v.reasonCode}</span>`;
       row.addEventListener('click', async () => {
         setGhostWorldActive(true);
@@ -301,16 +313,24 @@ function toggleStoryMode() {
 function updateHUD(frame) {
   if (!frame) return;
 
-  // Tick & Discrete Sim Clock (Strictly "SIM hh:mm:ss.mmm" or "SIM --")
+  // Tick & Discrete Sim Clock (Dedicated SIM chip + hh:mm:ss.mmm, no duplicate SIM)
   if (DOM.tickDisplay) {
     DOM.tickDisplay.textContent = (frame.tick !== undefined && frame.tick !== null) ? frame.tick : '--';
   }
   if (DOM.clockDisplay) {
-    DOM.clockDisplay.textContent = formatSimTime(frame.sim_time_ms);
+    const rawSim = formatSimTime(frame.sim_time_ms);
+    DOM.clockDisplay.textContent = rawSim.replace(/^SIM\s*/i, '');
   }
 
   // World pill dynamic update from frame.world
-  if (DOM.worldToggle && DOM.worldTitle && DOM.worldIndicatorDot) {
+  const cells = Array.isArray(frame.cells) ? frame.cells : [];
+  if (cells.length === 0 && !frame.world && !dataLayer.isReplay && dataLayer.status !== 'replay') {
+    if (DOM.worldToggle && DOM.worldTitle && DOM.worldIndicatorDot) {
+      DOM.worldToggle.className = 'world-pill no-data hud-interactive';
+      DOM.worldIndicatorDot.className = 'legend-dot grey';
+      DOM.worldTitle.textContent = 'NO DATA';
+    }
+  } else if (DOM.worldToggle && DOM.worldTitle && DOM.worldIndicatorDot) {
     const w = String(frame.world || dataLayer.selectedWorld || 'arbiter').toLowerCase();
     if (w === 'kpi_only') {
       DOM.worldToggle.className = 'world-pill kpi-only hud-interactive';
@@ -363,7 +383,6 @@ function updateHUD(frame) {
   }
 
   // Check empty cells: if cells exist, ensure NO LIVE DATA overlay is hidden
-  const cells = Array.isArray(frame.cells) ? frame.cells : [];
   if (cells.length > 0 && DOM.noLiveDataCard) {
     DOM.noLiveDataCard.style.display = 'none';
   }
@@ -423,7 +442,7 @@ dataLayer.on('seek', ({ index, total, followLive }) => {
     DOM.timelineScrubber.max = Math.max(0, total - 1);
     DOM.timelineScrubber.value = index;
     if (DOM.scrubIndexLabel) {
-      DOM.scrubIndexLabel.textContent = `${index}/${DOM.timelineScrubber.max}`;
+      DOM.scrubIndexLabel.textContent = `tick ${index} / ${Math.max(1, total)}`;
     }
   }
   if (DOM.btnFollowLive) {
@@ -432,26 +451,26 @@ dataLayer.on('seek', ({ index, total, followLive }) => {
 });
 
 dataLayer.on('status', ({ status, message, meta }) => {
+  const isStale = (status === 'no_live_data' || status === 'disconnected');
+  if (DOM.cardDropped) DOM.cardDropped.classList.toggle('stale', isStale);
+  if (DOM.cardSinr) DOM.cardSinr.classList.toggle('stale', isStale);
+  if (DOM.cardPower) DOM.cardPower.classList.toggle('stale', isStale);
+
+  if (isStale && !dataLayer.isReplay) {
+    if (DOM.worldToggle && DOM.worldTitle && DOM.worldIndicatorDot) {
+      DOM.worldToggle.className = 'world-pill no-data hud-interactive';
+      DOM.worldIndicatorDot.className = 'legend-dot grey';
+      DOM.worldTitle.textContent = 'NO DATA';
+    }
+  }
+
   if (DOM.connectionPill) {
     DOM.connectionPill.textContent = message;
+    DOM.connectionPill.className = `status-pill ${status.replace(/_/g, '-')}`;
     if (meta && meta.tooltip) {
       DOM.connectionPill.title = meta.tooltip;
     } else {
       DOM.connectionPill.title = '';
-    }
-
-    if (status === 'live') {
-      DOM.connectionPill.style.color = '#10b981';
-      DOM.connectionPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-    } else if (status === 'replay') {
-      DOM.connectionPill.style.color = '#38bdf8';
-      DOM.connectionPill.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-    } else if (status === 'no_live_data') {
-      DOM.connectionPill.style.color = '#f59e0b';
-      DOM.connectionPill.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-    } else {
-      DOM.connectionPill.style.color = '#ef4444';
-      DOM.connectionPill.style.borderColor = 'rgba(239, 68, 68, 0.4)';
     }
   }
 
@@ -566,6 +585,22 @@ if (DOM.btnPlayReplay) {
   DOM.btnPlayReplay.addEventListener('click', () => {
     dataLayer.loadReplayData();
     if (DOM.noLiveDataCard) DOM.noLiveDataCard.style.display = 'none';
+  });
+}
+
+if (DOM.btnDismissNoData) {
+  DOM.btnDismissNoData.addEventListener('click', () => {
+    if (DOM.noLiveDataCard) DOM.noLiveDataCard.style.display = 'none';
+  });
+}
+
+if (DOM.btnToggleVerdictDrawer) {
+  DOM.btnToggleVerdictDrawer.addEventListener('click', () => {
+    if (DOM.verdictDrawer) {
+      const isCollapsed = DOM.verdictDrawer.classList.toggle('collapsed');
+      DOM.btnToggleVerdictDrawer.textContent = isCollapsed ? '[+]' : '[−]';
+      DOM.btnToggleVerdictDrawer.setAttribute('aria-expanded', String(!isCollapsed));
+    }
   });
 }
 

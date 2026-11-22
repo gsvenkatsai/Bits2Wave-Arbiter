@@ -1,0 +1,354 @@
+/**
+ * PROJECT ARBITER — Site Specific Layout & Page Styles
+ * Module: arbiter/dashboard/site/css/site.css
+ */
+
+/* -------------------------------------------------------------------------
+   Hero Section
+   ------------------------------------------------------------------------- */
+.hero-section {
+  padding: var(--space-72) 0 var(--space-72);
+  text-align: center;
+  position: relative;
+}
+
+.hero-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-16);
+  background: rgba(255, 200, 0, 0.08);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-24);
+}
+
+.hero-pulse-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--ok);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--ok-glow);
+}
+
+.hero-headline {
+  font-size: 58px;
+  font-weight: 700;
+  line-height: 1.1;
+  max-width: 980px;
+  margin: 0 auto var(--space-24);
+  letter-spacing: -0.035em;
+  background: linear-gradient(180deg, #FFFFFF 30%, #D4CEBE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  color: var(--muted);
+  max-width: 760px;
+  margin: 0 auto var(--space-32);
+  line-height: 1.6;
+}
+
+.hero-cta-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-48);
+}
+
+@media (max-width: 768px) {
+  .hero-headline {
+    font-size: 38px;
+  }
+  .hero-subtitle {
+    font-size: 16px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Stat Tiles Grid
+   ------------------------------------------------------------------------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-16);
+  margin-bottom: var(--space-72);
+}
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Feature Spotlight / Interactive Preview
+   ------------------------------------------------------------------------- */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-gold);
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 200, 0, 0.09), transparent 70%), rgba(18, 18, 24, 0.85);
+  padding: var(--space-48);
+  margin-bottom: var(--space-72);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.spotlight-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--space-48);
+  align-items: center;
+}
+
+@media (max-width: 860px) {
+  .spotlight-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spotlight-features {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-24) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.spotlight-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  font-size: 15px;
+  color: var(--text);
+}
+
+.spotlight-feature-item svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+  margin-top: 3px;
+}
+
+.spotlight-preview-box {
+  background: #08090C;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  position: relative;
+}
+
+.preview-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.preview-code-block {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #38bdf8;
+  background: rgba(15, 23, 42, 0.8);
+  padding: var(--space-16);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  line-height: 1.7;
+}
+
+/* -------------------------------------------------------------------------
+   Comparison & Collision Section
+   ------------------------------------------------------------------------- */
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-24);
+  margin-bottom: var(--space-72);
+}
+
+@media (max-width: 768px) {
+  .comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.comparison-card {
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.comparison-card.uncoordinated {
+  border-color: rgba(255, 77, 94, 0.35);
+  background: radial-gradient(circle at 100% 0%, rgba(255, 77, 94, 0.05), transparent 60%), var(--surface);
+}
+
+.comparison-card.coordinated {
+  border-color: var(--border-gold);
+  background: radial-gradient(circle at 100% 0%, rgba(255, 200, 0, 0.06), transparent 60%), var(--surface);
+}
+
+.comparison-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: var(--space-4) var(--space-12);
+  border-radius: var(--radius-full);
+  align-self: flex-start;
+}
+
+.badge-bad {
+  background: rgba(255, 77, 94, 0.12);
+  color: var(--bad);
+  border: 1px solid rgba(255, 77, 94, 0.3);
+}
+
+.badge-ok {
+  background: rgba(255, 200, 0, 0.12);
+  color: var(--gold);
+  border: 1px solid var(--border-gold);
+}
+
+/* -------------------------------------------------------------------------
+   Evidence Table
+   ------------------------------------------------------------------------- */
+.evidence-table-card {
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: var(--space-72);
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.evidence-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.evidence-table th {
+  background: rgba(255, 255, 255, 0.03);
+  padding: var(--space-16) var(--space-24);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.evidence-table td {
+  padding: var(--space-16) var(--space-24);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.evidence-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* -------------------------------------------------------------------------
+   Team Grid
+   ------------------------------------------------------------------------- */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-24);
+  margin-bottom: var(--space-72);
+}
+
+@media (max-width: 1024px) {
+  .team-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .team-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.team-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.team-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-gold);
+}
+
+.team-avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 200, 0, 0.08);
+  border: 1px solid var(--border-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.team-name {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.team-module {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.team-role {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}

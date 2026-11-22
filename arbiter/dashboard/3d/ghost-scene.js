@@ -157,7 +157,7 @@ export class GhostSceneLayer {
 
         // Badge sprite
         const badgeSprite = this.createShellBadge(shell.badgeText, shell.isCalibrated);
-        badgeSprite.position.set(cx, 68, cz);
+        badgeSprite.position.set(cx, 96, cz);
         this.shellsGroup.add(badgeSprite);
 
         entry = { mesh, mat, badgeSprite, radiusTarget: shell.radius };
@@ -176,8 +176,8 @@ export class GhostSceneLayer {
 
   createShellBadge(text, isCalibrated) {
     const canvas = document.createElement('canvas');
-    canvas.width = 280;
-    canvas.height = 64;
+    canvas.width = 320;
+    canvas.height = 70;
     const ctx = canvas.getContext('2d');
 
     this.drawShellBadgeCanvas(ctx, text, isCalibrated);
@@ -186,25 +186,26 @@ export class GhostSceneLayer {
     texture.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
     const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(65, 15, 1);
+    sprite.scale.set(80, 17.5, 1);
     sprite.userData = { canvas, ctx, texture };
     return sprite;
   }
 
   drawShellBadgeCanvas(ctx, text, isCalibrated) {
-    ctx.clearRect(0, 0, 280, 64);
-    ctx.fillStyle = isCalibrated ? 'rgba(15, 23, 42, 0.88)' : 'rgba(245, 158, 11, 0.9)';
-    ctx.strokeStyle = isCalibrated ? '#38bdf8' : '#ffffff';
+    ctx.clearRect(0, 0, 320, 70);
+    // Dark gold glass pill style
+    ctx.fillStyle = isCalibrated ? 'rgba(10, 10, 13, 0.90)' : 'rgba(30, 12, 14, 0.92)';
+    ctx.strokeStyle = isCalibrated ? '#FFC800' : '#FF4D5E';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.roundRect(6, 6, 268, 52, 10);
+    ctx.roundRect(6, 6, 308, 58, 29);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = isCalibrated ? '#38bdf8' : '#ffffff';
+    ctx.fillStyle = isCalibrated ? '#FFD84A' : '#FF4D5E';
     ctx.font = 'bold 20px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(text, 140, 38);
+    ctx.fillText(text, 160, 42);
   }
 
   // ---------------------------------------------------------------------------

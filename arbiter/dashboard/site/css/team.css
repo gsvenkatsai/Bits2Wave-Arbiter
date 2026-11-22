@@ -1,0 +1,207 @@
+/**
+ * PROJECT ARBITER — Team Page Stylesheet
+ * Module: arbiter/dashboard/site/css/team.css
+ */
+
+.team-page-hero {
+  padding-top: var(--space-48);
+  padding-bottom: var(--space-32);
+}
+
+.team-headline {
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0 0 var(--space-20);
+}
+
+.team-lead {
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--muted);
+  max-width: 820px;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Team Member Cards Grid
+   ------------------------------------------------------------------------- */
+.team-members-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-24);
+  margin-bottom: var(--space-72);
+}
+
+.team-member-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-md);
+  padding: var(--space-28);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  transition: all var(--transition-base);
+}
+
+.team-member-card:hover {
+  border-color: var(--border-gold);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.member-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.member-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #FFD84A, #1A1508);
+  border: 1.5px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 800;
+  color: #0A0A0D;
+  box-shadow: 0 0 16px var(--gold-glow);
+  flex-shrink: 0;
+}
+
+.member-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.member-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.member-role {
+  font-size: 13px;
+  color: var(--gold-soft);
+  font-weight: 500;
+}
+
+.member-module-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-10);
+  background: rgba(255, 200, 0, 0.08);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--gold);
+  width: fit-content;
+}
+
+.member-focus {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Technology Stack Section
+   ------------------------------------------------------------------------- */
+.stack-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+  margin-bottom: var(--space-72);
+}
+
+.stack-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-20);
+  margin-top: var(--space-24);
+}
+
+.stack-item {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.stack-item-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stack-item-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Repository & Project Credits Block
+   ------------------------------------------------------------------------- */
+.repo-credits-card {
+  background: linear-gradient(135deg, rgba(255, 200, 0, 0.06) 0%, rgba(14, 14, 18, 0.95) 100%);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-24);
+  margin-bottom: var(--space-72);
+}
+
+.credits-info h3 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 var(--space-8);
+}
+
+.credits-info p {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 var(--space-12);
+}
+
+.repo-plaintext-url {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--gold);
+  background: rgba(0, 0, 0, 0.5);
+  padding: var(--space-6) var(--space-12);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  display: inline-block;
+  user-select: all;
+}
+
+@media (max-width: 960px) {
+  .team-headline { font-size: 40px; }
+  .team-members-grid { grid-template-columns: 1fr; }
+  .stack-grid { grid-template-columns: 1fr; }
+}

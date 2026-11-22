@@ -1,0 +1,517 @@
+/**
+ * PROJECT ARBITER — Home Page Layout & Hero Styles
+ * Module: arbiter/dashboard/site/css/home.css
+ *
+ * Implements:
+ * - 1440x900 desktop above-the-fold layout
+ * - 4-line stacked uppercase headline with gold dots
+ * - Hero WebGL canvas container with play button overlay & fallback
+ * - 5-tile glass stats strip (responsive down to 2-col at 390px)
+ * - Three glass cards below the fold
+ * - Responsive breakpoints: 1440px -> 1024px -> 768px -> 390px
+ */
+
+/* -------------------------------------------------------------------------
+   1. Hero Split Section (Fits 1440x900 Desktop Above Fold)
+   ------------------------------------------------------------------------- */
+.home-hero {
+  padding-top: var(--space-32);
+  padding-bottom: var(--space-32);
+  min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hero-columns {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: var(--space-48);
+  align-items: center;
+  margin-bottom: var(--space-32);
+}
+
+/* Hero Left Column */
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.hero-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-16);
+  background: rgba(255, 200, 0, 0.08);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.hero-pulse-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--ok);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--ok-glow);
+}
+
+/* 4-Line Stacked Headline with Gold Full Stops */
+.hero-headline {
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--text);
+  animation: heroFadeUp 650ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.hero-line {
+  display: block;
+}
+
+.gold-dot {
+  color: var(--gold);
+  text-shadow: 0 0 14px var(--gold-glow);
+}
+
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-headline {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* 3-Line Subhead */
+.hero-subhead {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 580px;
+  margin: 0;
+}
+
+/* Action Buttons */
+.hero-cta-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+  margin-top: var(--space-8);
+}
+
+/* -------------------------------------------------------------------------
+   2. Hero Right Column (WebGL Canvas & Play Overlay)
+   ------------------------------------------------------------------------- */
+.hero-right {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.hero-canvas-card {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  max-width: 480px;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 200, 0, 0.05), transparent 70%), rgba(12, 12, 16, 0.85);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(255, 200, 0, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#hero-webgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  outline: none;
+}
+
+/* Pure CSS/SVG Static Fallback */
+.canvas-static-fallback {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 200, 0, 0.08), #0A0A0D 70%);
+}
+
+.fallback-sphere {
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  border: 2px solid var(--border-gold);
+  box-shadow: 0 0 35px var(--gold-glow), inset 0 0 25px rgba(255, 200, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.fallback-node {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.fallback-es { top: 15px; left: 30px; background: var(--ok); box-shadow: 0 0 10px var(--ok-glow); }
+.fallback-lb { bottom: 25px; left: 20px; background: var(--info); box-shadow: 0 0 10px rgba(79, 195, 247, 0.5); }
+.fallback-cc { top: 75px; right: 15px; background: var(--warn); box-shadow: 0 0 10px rgba(255, 176, 32, 0.5); }
+
+/* Play Button Overlay */
+.canvas-play-overlay {
+  position: absolute;
+  bottom: var(--space-20);
+  left: var(--space-20);
+  right: var(--space-20);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(10, 10, 13, 0.85);
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.canvas-play-overlay:hover {
+  border-color: var(--gold);
+  background: rgba(18, 18, 24, 0.95);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  transform: translateY(-2px);
+}
+
+.play-action-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.play-circle-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  background: var(--gold-dim);
+  box-shadow: 0 0 12px var(--gold-glow);
+}
+
+.play-text-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.play-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.play-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------------------
+   3. Glass Stats Strip (5 Tiles, Drawn ONLY from evidence.json)
+   ------------------------------------------------------------------------- */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-12);
+  background: rgba(15, 15, 20, 0.65);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  padding: var(--space-16);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.stat-strip-tile {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.stat-strip-tile:hover {
+  border-color: var(--border-gold);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-strip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-strip-top .stat-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--gold);
+}
+
+.stat-strip-val-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+}
+
+.stat-strip-val {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stat-strip-unit {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stat-strip-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+/* -------------------------------------------------------------------------
+   4. Three Short Glass Cards Below the Fold
+   ------------------------------------------------------------------------- */
+.cards-triplet-section {
+  padding: var(--space-72) 0;
+}
+
+.cards-triplet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-24);
+}
+
+.triplet-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-md);
+  padding: var(--space-32);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-24);
+  text-decoration: none;
+  transition: all var(--transition-base);
+}
+
+.triplet-card:hover {
+  border-color: var(--border-gold);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 200, 0, 0.1);
+}
+
+.triplet-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-dim);
+  border: 1px solid var(--border-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  margin-bottom: var(--space-16);
+}
+
+.triplet-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 var(--space-12);
+  letter-spacing: -0.02em;
+}
+
+.triplet-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+
+.triplet-link-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.triplet-card:hover .triplet-link-hint svg {
+  transform: translateX(4px);
+}
+
+/* -------------------------------------------------------------------------
+   5. Replay Iframe Modal
+   ------------------------------------------------------------------------- */
+.iframe-modal-content {
+  max-width: 1100px;
+  width: 95vw;
+  height: 80vh;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #08090C;
+  border: 1px solid var(--border-gold);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
+}
+
+.iframe-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-12) var(--space-20);
+  background: rgba(15, 15, 20, 0.95);
+  border-bottom: 1px solid var(--border);
+}
+
+.replay-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #08090C;
+}
+
+/* -------------------------------------------------------------------------
+   6. Responsive Layout Down to 390px
+   ------------------------------------------------------------------------- */
+@media (max-width: 1200px) {
+  .hero-headline {
+    font-size: 44px;
+  }
+  .stats-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 960px) {
+  .home-hero {
+    min-height: auto;
+    padding-top: var(--space-48);
+  }
+  .hero-columns {
+    grid-template-columns: 1fr;
+    gap: var(--space-32);
+  }
+  .hero-right {
+    order: 2;
+  }
+  .hero-left {
+    order: 1;
+    text-align: center;
+    align-items: center;
+  }
+  .hero-subhead {
+    margin: 0 auto;
+  }
+  .hero-cta-group {
+    justify-content: center;
+  }
+  .hero-canvas-card {
+    height: 340px;
+    margin: 0 auto;
+  }
+  .cards-triplet-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-16);
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-headline {
+    font-size: 34px;
+  }
+  .stats-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px), (max-width: 390px) {
+  .hero-headline {
+    font-size: 28px;
+    line-height: 1.1;
+  }
+  .hero-subhead {
+    font-size: 14px;
+  }
+  .hero-canvas-card {
+    height: 280px;
+  }
+  .stats-strip {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-8);
+    padding: var(--space-8);
+  }
+  .stat-strip-val {
+    font-size: 20px;
+  }
+  .stat-strip-label {
+    font-size: 10px;
+  }
+  .canvas-play-overlay {
+    padding: var(--space-8) var(--space-12);
+  }
+  .play-title {
+    font-size: 10px;
+  }
+}

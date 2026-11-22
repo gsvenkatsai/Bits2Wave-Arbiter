@@ -1,0 +1,260 @@
+{
+  "project": "PROJECT ARBITER",
+  "title": "Empirical Evidence & Quantitative Proofs",
+  "git_commit": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+  "generated_at": "2026-11-21T22:13:54.504432+00:00",
+  "replay_metadata": {
+    "command": "python -m arbiter.simulator.engine --scenario 2am_collision --seed 42 --ticks 50 --record arbiter/dashboard/3d/data/frames_2am.json",
+    "scenario": "2am_collision",
+    "seed": 42,
+    "git_commit": "a187901623c1f55ae2d6511df6c43a49943c521a",
+    "generated_at": "2026-11-21T17:51:22.808057+00:00",
+    "tick_count": 50,
+    "source": "real engine run"
+  },
+  "metrics": {
+    "optimality_gap": {
+      "value": 3.55,
+      "unit": "%",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Optimality gap vs exhaustive combinatorial search across 64 joint actions"
+    },
+    "arbiter_decision_latency": {
+      "value": 3.82,
+      "unit": "ms",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "ARBITER conflict detection, referee resolution, and joint plan synthesis execution time"
+    },
+    "target_ric_latency": {
+      "value": 10.0,
+      "unit": "ms",
+      "status": "target",
+      "source_file": "Branch_4_Telemetry_Dashboard_and_Benchmarking_Spec.pdf",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "O-RAN Near-RT RIC control loop timing boundary constraint"
+    },
+    "exhaustive_search_latency": {
+      "value": 1.74,
+      "unit": "s",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Brute-force combinatorial optimization search runtime"
+    },
+    "utility_gain_over_baseline": {
+      "value": 131.5,
+      "unit": "%",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Normalized scalar utility increase of ARBITER (0.815) over uncoordinated baseline (0.352)"
+    },
+    "conformal_confidence_level": {
+      "value": 90.0,
+      "unit": "%",
+      "status": "measured",
+      "source_file": "arbiter/twin/conformal.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Non-parametric marginal coverage guarantee with miscoverage tolerance alpha=0.10"
+    },
+    "conformal_calibration_window": {
+      "value": 200,
+      "unit": "ticks",
+      "status": "measured",
+      "source_file": "arbiter/twin/conformal.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Rolling calibration residual buffer window for non-stationary cellular traffic"
+    },
+    "dropped_users_comparison": {
+      "value": "0 vs 14",
+      "unit": "drops",
+      "status": "measured",
+      "source_file": "tests/e2e/test_2am_collision.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Dropped users during 2 AM collision: ARBITER (0) vs uncoordinated baseline (14)"
+    },
+    "collision_uncoordinated_drops": {
+      "value": 14,
+      "unit": "users",
+      "status": "measured",
+      "source_file": "tests/e2e/test_2am_collision.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Simultaneous 2 AM uncoordinated sleep & offload scenario call drop count"
+    },
+    "collision_arbiter_drops": {
+      "value": 0,
+      "unit": "users",
+      "status": "measured",
+      "source_file": "tests/e2e/test_2am_collision.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "ARBITER coordinated decision call drop count (100% collision prevention)"
+    },
+    "collisions_tested_breaches": {
+      "value": "10 / 0",
+      "unit": "breaches",
+      "status": "measured",
+      "source_file": "tests/branch4/test_benchmarks_runner.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "10 distinct PRNG collision seeds tested (101..110) with 0 safety envelope breaches"
+    },
+    "cells_simulated": {
+      "value": "5 / 19",
+      "unit": "cells",
+      "status": "measured",
+      "source_file": "arbiter/simulator/grid.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Cells simulated (5-cell core cluster, 19-cell extended network stretch)"
+    },
+    "energy_saved_per_tick": {
+      "value": 0.155,
+      "unit": "kWh",
+      "status": "measured",
+      "source_file": "arbiter/telemetry/monitor.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Average cluster energy saved during coordinated nocturnal energy saving tick"
+    },
+    "avoided_co2_per_tick": {
+      "value": 127.1,
+      "unit": "gCO2",
+      "status": "measured",
+      "source_file": "arbiter/telemetry/monitor.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Carbon emissions avoided per tick based on national grid emission factor"
+    },
+    "optimality_uncoordinated": {
+      "value": 0.352,
+      "unit": "utility",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Scalar multi-objective utility of uncoordinated baseline at 2 AM collision"
+    },
+    "optimality_arbiter": {
+      "value": 0.815,
+      "unit": "utility",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Scalar multi-objective utility achieved by ARBITER joint referee plan"
+    },
+    "optimality_optimum": {
+      "value": 0.845,
+      "unit": "utility",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Theoretical optimum from exhaustive combinatorial search (64 combos)"
+    },
+    "optimality_gap_worst": {
+      "value": 4.12,
+      "unit": "%",
+      "status": "measured",
+      "source_file": "fixtures/v2/optimality.json",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Worst-case optimality gap observed across multi-seed perturbation runs"
+    },
+    "impact_rupees_per_tick": {
+      "value": 1.32,
+      "unit": "\u20b9",
+      "status": "measured",
+      "source_file": "arbiter/telemetry/monitor.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Direct electrical operating expense saved per coordinated sleep tick"
+    },
+    "assumptions_tariff": {
+      "value": 8.5,
+      "unit": "\u20b9/kWh",
+      "status": "target",
+      "source_file": "arbiter/telemetry/monitor.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Industrial commercial power tariff benchmark constant"
+    },
+    "assumptions_emission_factor": {
+      "value": 820.0,
+      "unit": "gCO2/kWh",
+      "status": "target",
+      "source_file": "arbiter/telemetry/monitor.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "National thermal-heavy grid carbon intensity benchmark constant"
+    },
+    "twin_interval_empirical_coverage": {
+      "value": 90.0,
+      "unit": "%",
+      "status": "measured",
+      "source_file": "arbiter/twin/conformal.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Empirical coverage under approximate exchangeability with alpha=0.10"
+    },
+    "collision_scenarios_tested": {
+      "value": 10,
+      "unit": "scenarios",
+      "status": "measured",
+      "source_file": "tests/branch4/test_benchmarks_runner.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Distinct PRNG seed scenarios evaluated in automated collision search"
+    },
+    "collision_breaches_found": {
+      "value": 0,
+      "unit": "breaches",
+      "status": "measured",
+      "source_file": "tests/branch4/test_benchmarks_runner.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Safety threshold breaches found during automated collision search"
+    },
+    "suite_test_count": {
+      "value": 528,
+      "unit": "tests",
+      "status": "measured",
+      "source_file": "tests/",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Automated unit, contract, optimality, integration, and E2E regression tests passing"
+    },
+    "cluster_cells": {
+      "value": 5,
+      "unit": "cells",
+      "status": "measured",
+      "source_file": "arbiter/simulator/grid.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "Dense urban hexagonal cellular topology cluster size"
+    },
+    "connected_active_users": {
+      "value": 350,
+      "unit": "UEs",
+      "status": "measured",
+      "source_file": "arbiter/simulator/traffic.py",
+      "git_sha": "1cbfd2b614f9fa1d6e109518f16286d401c3cf7a",
+      "generated_at": "2026-11-21T22:13:54.504432+00:00",
+      "description": "High-density active user equipment pool simulated concurrently"
+    }
+  }
+}
