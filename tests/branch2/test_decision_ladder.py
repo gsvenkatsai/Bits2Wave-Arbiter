@@ -18,6 +18,8 @@ from arbiter.engine.ladder import (
     build_candidate_delta,
 )
 from arbiter.engine.mocks import MockDigitalTwinClient, ScriptedTwin
+from arbiter.engine.scripted_twin import make_scripted_twin
+from arbiter.engine.scripted_twin import scenario_kpis as _scenario_kpis
 from arbiter.queue import QueueOrchestrator
 
 HEX = {
@@ -31,41 +33,9 @@ HEX = {
 WEIGHTS = UtilityWeights()
 
 
-def _scenario_kpis(candidate: List[dict[str, Any]]) -> Dict[str, float]:
-    """Analytical toy twin modelling the 2 AM collision curve."""
-    coverage = 0.95
-    energy = 0.50
-    interference = 0.30
-    drop_rate = 0.01
-    for delta in candidate:
-        parameter = str(delta.get("parameter", "")).upper()
-        to_value = float(delta.get("to_value", 0.0))
-        if parameter == "SLEEP_STATE":
-            coverage -= 0.20 * to_value
-            energy -= 0.20 * to_value
-            interference -= 0.10 * to_value
-            drop_rate += 0.02 * to_value
-        elif parameter == "OFFLOAD_RATIO":
-            coverage -= 0.02 * to_value
-            energy -= 0.30 * to_value
-            interference += 0.05 * to_value
-            drop_rate += 0.15 * to_value * to_value
-        elif parameter == "TX_POWER_DBM":
-            from_value = float(delta.get("from_value", 0.0))
-            step = to_value - (from_value if from_value > 0.0 else 30.0)
-            coverage += 0.05 * step
-            energy += 0.02 * step
-            interference += 0.02 * step
-    return {
-        "coverage_ratio": max(0.0, min(1.0, coverage)),
-        "normalized_energy": max(0.0, min(1.0, energy)),
-        "normalized_interference": max(0.0, min(1.0, interference)),
-        "drop_rate_ratio": max(0.0, min(1.0, drop_rate)),
-    }
-
-
 def _scenario_twin() -> ScriptedTwin:
-    return ScriptedTwin(_scenario_kpis)
+    """The analytical toy twin (owned by arbiter/engine/scripted_twin.py)."""
+    return make_scripted_twin(warn=False)
 
 
 def _two_am_commands(make_proposal: Any) -> List[Any]:
