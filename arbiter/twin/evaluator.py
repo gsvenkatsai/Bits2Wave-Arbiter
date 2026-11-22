@@ -296,7 +296,7 @@ def ensure_global_evaluator(
     """
     # Python 3.13 networkx generic subscription compatibility guard
     try:
-        import networkx as _nx  # type: ignore[import-untyped]
+        import networkx as _nx
         if not hasattr(_nx.Graph, "__class_getitem__"):
             setattr(
                 _nx.Graph,

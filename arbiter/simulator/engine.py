@@ -730,10 +730,9 @@ def main() -> None:
         from arbiter.shared.database import init_database
 
         # Digital twin resolution (Contract C1)
+        make_default_twin: Any
         try:
-            from arbiter.engine.default_twin import (  # type: ignore[import-not-found]  # noqa: E501
-                make_default_twin,
-            )
+            from arbiter.engine.default_twin import make_default_twin
         except (ImportError, ModuleNotFoundError) as exc:
             if args.twin == "real":
                 raise RuntimeError(

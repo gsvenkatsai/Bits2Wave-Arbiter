@@ -49,9 +49,7 @@ def get_scripted_twin(topology: str = "5_CELL_CORE") -> Any:
     ScriptedTwin from arbiter.engine.mocks.mock_twin_client.
     """
     try:
-        from arbiter.engine.default_twin import (  # type: ignore[import-not-found]  # noqa: E501
-            make_default_twin,
-        )
+        from arbiter.engine.default_twin import make_default_twin
 
         return make_default_twin(topology=topology, kind="scripted")
     except ImportError:
