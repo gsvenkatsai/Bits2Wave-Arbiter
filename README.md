@@ -123,15 +123,41 @@ ARBITER functions as a non-disruptive conflict-resolution layer sitting between 
 
 The project includes an interactive web dashboard with both a 2D Operations Console and a 3D WebGL Digital Twin:
 
-| View | Screenshot | Description |
-|---|---|---|
-| **Marketing Site & Overview** | <img src="docs/images/landing-hero.png" width="300" alt="Landing Hero" /> | Project overview, architecture, and team info (`GET /`). |
-| **2D NOC Operations Console** | <img src="docs/images/noc-2d-overview.png" width="300" alt="2D NOC" /> | Live telemetry tables, decisions log, and KPI time-series (`/dashboard/`). |
-| **3D Digital Twin: Calm State** | <img src="docs/images/twin-3d-calm.png" width="300" alt="3D Twin Calm" /> | Real-time Three.js visualization of base stations, beams, and subscribers before collision. |
-| **3D Digital Twin: Collision Arcs** | <img src="docs/images/twin-3d-collision.png" width="300" alt="3D Twin Collision" /> | Conflict visualization displaying simultaneous proposal arcs converging on Cell B. |
-| **3D Digital Twin: Arbitration Verdicts** | <img src="docs/images/twin-3d-verdicts.png" width="300" alt="3D Twin Verdicts" /> | Arbitration drawer showing ES `DELAY`, LB `MODIFY`, and CCO `MODIFY` verdicts. |
-| **Ghost-World Counterfactual** | <img src="docs/images/twin-3d-ghost-world.png" width="300" alt="Ghost World Replay" /> | Replay of real engine run comparing ARBITER coordinated state vs uncoordinated outage. |
-| **Conformal Uncertainty View** | <img src="docs/images/twin-3d-uncertainty.png" width="300" alt="Uncertainty View" /> | Real-time prediction intervals and safety guard boundaries. |
+### 1. 3D Digital Twin: Real-Time Arbitration Verdicts
+*Arbitration drawer showing real-time resolution: ES `DELAY` (`HOLD_POLICY`), LB `MODIFY` (40 &rarr; 15 UEs), and CCO `MODIFY` (+1 dB).*
+<p align="center">
+  <img src="docs/images/twin-3d-verdicts.png" width="800" alt="3D Twin Arbitration Verdicts" />
+</p>
+
+### 2. 3D Digital Twin: Collision Arcs & Conflict Convergence
+*Simultaneous proposal arcs from Energy Saving, Load Balancing, and Coverage & Capacity converging on Cell B at 2:00 AM.*
+<p align="center">
+  <img src="docs/images/twin-3d-collision.png" width="800" alt="3D Twin Collision" />
+</p>
+
+### 3. Ghost-World Counterfactual Replay
+*Replay of real engine run comparing ARBITER coordinated state vs uncoordinated outage (Cell B asleep, 14.5 peak users dropped).*
+<p align="center">
+  <img src="docs/images/twin-3d-ghost-world.png" width="800" alt="Ghost World Replay" />
+</p>
+
+### 4. Conformal Prediction Uncertainty View
+*Twin prediction interval view showing calibrated uncertainty boundaries ($\pm 0.30\text{ dB}$) and safety guard thresholds.*
+<p align="center">
+  <img src="docs/images/twin-3d-uncertainty.png" width="800" alt="Uncertainty View" />
+</p>
+
+### 5. 2D NOC Operations Console (`/dashboard/`)
+*Live telemetry tables, decision logs, and KPI time-series.*
+<p align="center">
+  <img src="docs/images/noc-2d-overview.png" width="800" alt="2D NOC" />
+</p>
+
+### 6. Marketing & Telemetry Portal (`/`)
+*Interactive web portal showcasing problem statement, how it works, and benchmark metrics.*
+<p align="center">
+  <img src="docs/images/landing-hero.png" width="800" alt="Landing Hero" />
+</p>
 
 *All screenshots captured from the running application via Playwright headless Chromium (1600x900). Full image catalog and captions in [docs/images/CAPTIONS.md](docs/images/CAPTIONS.md).*
 
