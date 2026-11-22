@@ -373,8 +373,8 @@ export class Arbiter3DScene {
       depthWrite: false,
     });
     this.mapMesh = new THREE.Mesh(mapGeo, this.mapMaterial);
-    this.mapMesh.rotation.x = Math.PI / 2;
-    this.mapMesh.position.set(300, 0.15, -100);
+    this.mapMesh.rotation.x = -Math.PI / 2;
+    this.mapMesh.position.set(300, 0.15, 100);
     this.scene.add(this.mapMesh);
 
     // 3. Faint telecom grid
