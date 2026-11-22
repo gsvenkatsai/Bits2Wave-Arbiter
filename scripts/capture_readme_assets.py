@@ -103,7 +103,7 @@ def capture_noc_2d(page: Page, captions: Dict[str, str], force: bool = False) ->
 
 def capture_3d_twin_states(page: Page, captions: Dict[str, str], force: bool = False) -> None:
     """Capture the 3D RAN Digital Twin in calm, collision, verdict, ghost-world, and uncertainty states."""
-    captions["twin-3d-calm.png"] = "3D Digital Twin in calm nocturnal state: 5-cell hexagonal cluster, active subscribers, and verified calibration"
+    captions["twin-3d-calm.png"] = "3D Digital Twin in calm nocturnal state: 16-cell Bengaluru topology, active subscribers, and verified calibration"
     captions["twin-3d-collision.png"] = "The 2 AM Collision moment in 3D: Energy Saving, Load Balancing, and Coverage proposals meeting ARBITER with conflict arcs"
     captions["twin-3d-verdicts.png"] = "ARBITER verdicts drawer: ES DELAY, LB MODIFY (0.30 to 0.15), and CC MODIFY (+1 dB) with parameter rationales"
     captions["twin-3d-ghost-world.png"] = "Counterfactual Ghost World comparison: uncoordinated baseline blackout on Cell B vs ARBITER coordinated protection"
@@ -179,7 +179,7 @@ def capture_3d_twin_states(page: Page, captions: Dict[str, str], force: bool = F
 
 
 def record_collision_gif(page: Page, captions: Dict[str, str], force: bool = False) -> None:
-    """Record 5-8s collision animation across the 50 replay frames and assemble an optimized 960px GIF."""
+    """Record 3-5s collision animation across the replay frames and assemble an optimized 960px GIF."""
     gif_out = DOCS_IMG_DIR / "demo-2am-collision.gif"
     captions["demo-2am-collision.gif"] = "Real 2 AM collision replay: ARBITER detects controller clash, sequences offload handovers, and preserves zero subscriber drops"
 
@@ -187,39 +187,55 @@ def record_collision_gif(page: Page, captions: Dict[str, str], force: bool = Fal
         print(f"  [EXISTS] demo-2am-collision.gif ({gif_out.stat().st_size / (1024.0 * 1024.0):.2f} MB)")
         return
 
-    print("[RECORDING] 2 AM Collision demonstration GIF (50 frames)...")
+    print("[RECORDING] 2 AM Collision demonstration GIF...")
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
     twin_url = f"{BASE_URL}/dashboard/3d/?replay=1"
     page.goto(twin_url, wait_until="networkidle")
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(2500)
     page.keyboard.press("Escape")
-    page.wait_for_timeout(500)
-
-    # Click play replay
-    page.evaluate("""() => {
-        const btn = document.getElementById('btn-play-replay');
-        if (btn) btn.click();
-    }""")
-    page.keyboard.press("Space")
     page.wait_for_timeout(400)
 
-    total_frames = 50
-    for i in range(total_frames):
-        frame_path = TEMP_DIR / f"frame_{i:04d}.png"
-        page.screenshot(path=str(frame_path))
-        if i == 25:
-            page.keyboard.press("n")  # reveal verdict drawer mid-animation
-        time.sleep(0.04)
+    # Initialize replay data and pause
+    page.evaluate("""async () => {
+        if (window.dataLayer) {
+            await window.dataLayer.loadReplayData();
+            window.dataLayer.pause();
+        }
+    }""")
+    page.wait_for_timeout(500)
+
+    # Dynamic progression ticks: calm baseline -> collision arcs ignite at Cell B -> verdict drawer -> ladder handovers
+    ticks_to_capture = [1, 3, 5, 6, 7, 7, 8, 10, 12, 14, 16, 18, 22]
+
+    frame_idx = 0
+    for idx, t in enumerate(ticks_to_capture):
+        if idx >= 5:
+            page.evaluate("""() => {
+                const drawer = document.getElementById('verdict-drawer');
+                if (drawer && drawer.classList.contains('collapsed')) {
+                    drawer.classList.remove('collapsed');
+                }
+            }""")
+
+        page.evaluate(f"""() => {{
+            const frames = window.dataLayer.replayData['arbiter'];
+            if (frames && frames[{t}]) {{
+                window.dataLayer.pushFrame(frames[{t}]);
+            }}
+        }}""")
+        page.wait_for_timeout(150)
+
+        frame_path = TEMP_DIR / f"frame_{frame_idx:04d}.png"
+        page.screenshot(path=str(frame_path), timeout=60000)
+        frame_idx += 1
 
     palette_path = TEMP_DIR / "palette.png"
-
-    # Use ffmpeg with a 2-pass palette generator for ultra-clean colors under 8 MB
     ffmpeg_cmd_palette = [
         "ffmpeg", "-y",
-        "-framerate", "8",
-        "-i", str(TEMP_DIR / "frame_%04d.png"),
+        "-framerate", "4",
+        "-i", "artifacts/readme/raw_frames/frame_%04d.png",
         "-vf", "scale=960:-1:flags=lanczos,palettegen=stats_mode=diff",
         str(palette_path),
     ]
@@ -227,8 +243,8 @@ def record_collision_gif(page: Page, captions: Dict[str, str], force: bool = Fal
 
     ffmpeg_cmd_gif = [
         "ffmpeg", "-y",
-        "-framerate", "8",
-        "-i", str(TEMP_DIR / "frame_%04d.png"),
+        "-framerate", "4",
+        "-i", "artifacts/readme/raw_frames/frame_%04d.png",
         "-i", str(palette_path),
         "-lavfi", "scale=960:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=3",
         str(gif_out),
@@ -237,8 +253,7 @@ def record_collision_gif(page: Page, captions: Dict[str, str], force: bool = Fal
 
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
     gif_mb = gif_out.stat().st_size / (1024.0 * 1024.0)
-    print(f"  [SAVED] demo-2am-collision.gif ({gif_mb:.2f} MB, target: <8 MB)")
-    captions["demo-2am-collision.gif"] = "Real 2 AM collision replay: ARBITER detects controller clash, sequences offload handovers, and preserves zero subscriber drops"
+    print(f"  [SAVED] demo-2am-collision.gif ({gif_mb:.2f} MB, {frame_idx} frames, target: <8 MB)")
 
 
 def write_captions_doc(captions: Dict[str, str]) -> None:
