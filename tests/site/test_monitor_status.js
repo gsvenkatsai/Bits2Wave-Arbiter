@@ -10,7 +10,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { determineEngineStatus, getStatusDescription } from '../../arbiter/dashboard/site/js/monitor.js';
+import { determineEngineStatus, getStatusDescription, formatFooterStats, getMockBannerText } from '../../arbiter/dashboard/site/js/monitor.js';
 
 test('determineEngineStatus — returns "SERVER OFFLINE" when server is unhealthy', () => {
   const result1 = determineEngineStatus({ serverHealthy: false, previousTick: null, currentTick: null });
@@ -61,4 +61,33 @@ test('determineEngineStatus — never shows "ENGINE LIVE" on backward scrub or s
   // First frame arrival without previous tick
   const resultFirst = determineEngineStatus({ serverHealthy: true, previousTick: null, currentTick: 10 });
   assert.equal(resultFirst, 'ENGINE IDLE', 'Single static frame must not report live until advancement is confirmed');
+});
+
+test('formatFooterStats — extracts test count and git sha from evidence or defaults to "--"', () => {
+  // Case A: Missing or empty evidence
+  const emptyRes = formatFooterStats(null);
+  assert.deepEqual(emptyRes, { testCount: '--', gitSha: '--' });
+
+  // Case B: Partial evidence (missing test count)
+  const partialRes = formatFooterStats({ git_commit: '1cbfd2b614f9fa1d6e109518f16286d401c3cf7a' });
+  assert.deepEqual(partialRes, { testCount: '--', gitSha: '1cbfd2b' });
+
+  // Case C: Full evidence
+  const fullRes = formatFooterStats({
+    git_commit: '1cbfd2b614f9fa1d6e109518f16286d401c3cf7a',
+    metrics: { suite_test_count: { value: 535 } }
+  });
+  assert.deepEqual(fullRes, { testCount: '535', gitSha: '1cbfd2b' });
+});
+
+test('getMockBannerText — returns persistent amber banner text for scripted twin and mock sink', () => {
+  assert.equal(getMockBannerText(null), null);
+  assert.equal(getMockBannerText({ twin_kind: 'real', sink: 'queue' }), null);
+
+  assert.equal(getMockBannerText({ twin_kind: 'scripted', sink: 'queue' }), 'SCRIPTED TWIN (TEST MOCK)');
+  assert.equal(getMockBannerText({ twin_kind: 'real', sink: 'mock' }), 'MOCK PROPOSAL SINK');
+  assert.equal(
+    getMockBannerText({ twin_kind: 'scripted', sink: 'mock' }),
+    'SCRIPTED TWIN (TEST MOCK) • MOCK PROPOSAL SINK'
+  );
 });

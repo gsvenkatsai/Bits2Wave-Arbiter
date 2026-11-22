@@ -140,17 +140,21 @@ class KPITelemetryMonitor:
             for s in samples
         ]
 
-        with self._connect() as conn:
-            conn.executemany(
-                """
-                INSERT INTO event_stream
-                    (event_id, batch_tick, sample_id, cell_id,
-                     sinr_db, dropped_users, active_users,
-                     throughput_mbps, energy_w, recorded_at_epoch_ms)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                rows,
-            )
+        conn = self._connect()
+        try:
+            with conn:
+                conn.executemany(
+                    """
+                    INSERT INTO event_stream
+                        (event_id, batch_tick, sample_id, cell_id,
+                         sinr_db, dropped_users, active_users,
+                         throughput_mbps, energy_w, recorded_at_epoch_ms)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+        finally:
+            conn.close()
         return len(samples)
 
     def feed_calibration(

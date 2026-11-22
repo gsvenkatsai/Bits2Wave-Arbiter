@@ -19,6 +19,7 @@ VIEWPORTS = [
     ("1920x1080", 1920, 1080),
 ]
 
+
 def main():
     options = Options()
     options.add_argument("--headless=new")

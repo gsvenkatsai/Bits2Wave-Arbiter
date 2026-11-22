@@ -9,7 +9,6 @@ Comprehensive verification script for the 6 Common Rules verification checklist:
 6. Test suites: pytest tests/ -v, node --test tests/branch4/test_*.js.
 """
 import json
-import math
 import re
 import time
 from pathlib import Path
@@ -21,6 +20,7 @@ ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 
 results = {}
 
+
 def get_driver():
     options = Options()
     options.add_argument("--headless=new")
@@ -28,6 +28,7 @@ def get_driver():
     options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(options=options)
     return driver
+
 
 def check_item_1_and_3():
     print("\n--- Verifying Item 1 (Scene Elements & Panel Layout) & Item 3 (Tick Advancement & Collision) ---")
@@ -158,6 +159,7 @@ def check_item_1_and_3():
     finally:
         driver.quit()
 
+
 def check_item_2_status_honesty():
     print("\n--- Verifying Item 2 (Status Honesty Across All 4 States) ---")
     driver = get_driver()
@@ -264,6 +266,7 @@ def check_item_2_status_honesty():
     finally:
         driver.quit()
 
+
 def check_item_4_theme():
     print("\n--- Verifying Item 4 (Theme, Fonts, Teal/Cyan Elimination, Contrast) ---")
     driver = get_driver()
@@ -369,6 +372,7 @@ def check_item_4_theme():
     finally:
         driver.quit()
 
+
 def check_item_5_offline_and_perf():
     print("\n--- Verifying Item 5 (Offline, Console Errors, FPS with ?stats=1) ---")
     driver = get_driver()
@@ -407,6 +411,7 @@ def check_item_5_offline_and_perf():
         }
     finally:
         driver.quit()
+
 
 def main():
     check_item_1_and_3()

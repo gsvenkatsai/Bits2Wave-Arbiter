@@ -25,7 +25,6 @@ from arbiter.benchmarks.scenarios import (
     MODE_UNCOORDINATED,
     SCENARIO_2_AM_COLLISION,
     SYNTHETIC_DATA_SOURCE,
-    VALID_MODES,
     VALID_SCENARIOS,
     MonteCarloScenarioHarness,
 )

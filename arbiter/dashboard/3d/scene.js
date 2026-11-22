@@ -706,7 +706,7 @@ export class Arbiter3DScene {
 
     const tooltip = document.createElement('div');
     tooltip.className = 'cell-label-tooltip';
-    tooltip.textContent = 'CALIBRATED ±0.30 dB';
+    tooltip.textContent = 'UNCALIBRATED';
     pill.appendChild(tooltip);
 
     if (this.labelsOverlay) {
@@ -781,7 +781,7 @@ export class Arbiter3DScene {
     }
   }
 
-  updateCellEntities(cells) {
+  updateCellEntities(cells, twin = null) {
     if (!cells || cells.length === 0) {
       // When there are no cells in the frame, render nothing (no placeholder towers)
       for (const entity of this.cellEntities.values()) {
@@ -913,6 +913,22 @@ export class Arbiter3DScene {
             subtitle.classList.add('overloaded');
           }
         }
+
+        // Update calibration tooltip honestly from frame.twin
+        if (entity.domLabel.tooltip) {
+          if (twin && twin.calibrated) {
+            const hw = twin.interval_halfwidth_db !== undefined && twin.interval_halfwidth_db !== null
+              ? twin.interval_halfwidth_db
+              : (twin.sinr_half_width_db !== undefined ? twin.sinr_half_width_db : null);
+            if (hw !== null && hw !== undefined) {
+              entity.domLabel.tooltip.textContent = `CALIBRATED (±${Number(hw).toFixed(2)} dB)`;
+            } else {
+              entity.domLabel.tooltip.textContent = 'CALIBRATED';
+            }
+          } else {
+            entity.domLabel.tooltip.textContent = 'UNCALIBRATED';
+          }
+        }
       }
     }
   }
@@ -1002,7 +1018,7 @@ export class Arbiter3DScene {
 
     this.lastTickTime = performance.now();
     const cells = Array.isArray(frame.cells) ? frame.cells : [];
-    this.updateCellEntities(cells);
+    this.updateCellEntities(cells, frame.twin);
 
     // Update Arbitration Layer with proposals, conflicts, decisions
     if (this.arbitrationLayer) {

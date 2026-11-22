@@ -24,7 +24,6 @@ from arbiter.api.websocket import (
     CONTROLLER_ABBREV,
     ConnectionManager,
     build_tick_update,
-    manager,
 )
 
 
