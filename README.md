@@ -7,12 +7,16 @@
 ![Tests](https://img.shields.io/badge/Tests-579%20passed%20(87%25%20cov)-brightgreen?style=flat-square)
 ![Offline Capable](https://img.shields.io/badge/Offline-100%25%20Self--Contained-success?style=flat-square)
 ![Prototype](https://img.shields.io/badge/Status-Simulation--Based%20Prototype-orange?style=flat-square)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7?style=flat-square&logo=render)](https://arbiter-h3oa.onrender.com)
 
 <p align="center">
   <img src="docs/images/demo-2am-collision.gif" alt="ARBITER 2 AM Collision Live Resolution" width="800" />
   <br />
   <em>Real-time resolution of the 2:00 AM three-way controller conflict on Cell B: Energy Saving is delayed, Load Balancing modified (40 &rarr; 15 UEs), and Coverage & Capacity modified (+1 dB). Zero subscribers dropped.</em>
 </p>
+
+> 🌐 **Live Web Deployment**: **[https://arbiter-h3oa.onrender.com](https://arbiter-h3oa.onrender.com)**  
+> Explore the live 3D Digital Twin, 2D NOC Operations Console, and REST API directly in your browser with zero local installation.
 
 ---
 
@@ -37,7 +41,7 @@ pip install -r requirements.txt
 | **Scalability** | Evaluated to 200 cells ($6.98\text{ ms}$ step) and 10k UEs; characterized $O(P^2)$ pairwise detector boundary | `artifacts/assessment/phase3_scalability.py`<br />`docs/LIMITATIONS.md` | [Scalability & Limits](#scalability-and-limits-honest) |
 | **Impact** | Eliminates 1,662.6 user-ticks of dropped service [MEASURED] while preserving 2.0 kJ energy savings [MEASURED] | `artifacts/readme/measure_10seeds.py`<br />`arbiter/telemetry/impact.py` | [Results](#results) |
 | **Innovation** | Split conformal prediction intervals ($\alpha=0.10$, $90\%$ empirical coverage [MEASURED]) guarding twin surrogate error | `arbiter/engine/conformal.py`<br />`tests/branch3/test_conformal_twin.py` | [Architecture](#architecture) |
-| **Demo & UX** | Real-time 2D NOC Operations Console, interactive 3D WebGL Digital Twin, and counterfactual flight recorder | `.\scripts\run_demo.ps1`<br />`http://127.0.0.1:8000/dashboard/3d` | [Interactive Demo](#interactive-demo) |
+| **Demo & UX** | Real-time 2D NOC Operations Console, interactive 3D WebGL Digital Twin, and counterfactual flight recorder | [Live Deployment](https://arbiter-h3oa.onrender.com)<br />`.\scripts\run_demo.ps1`<br />`http://127.0.0.1:8000/dashboard/3d` | [Interactive Demo](#interactive-demo) |
 
 ---
 
@@ -171,12 +175,23 @@ The project includes an interactive web dashboard with both a 2D Operations Cons
 
 ## Quick Start
 
-### Prerequisites
+### 1. Live Cloud Deployment (Zero Setup)
+
+ARBITER is deployed live on Render and accessible directly in any modern browser:
+
+- **Project Landing Page**: [https://arbiter-h3oa.onrender.com/](https://arbiter-h3oa.onrender.com/)
+- **2D NOC Operations Console**: [https://arbiter-h3oa.onrender.com/dashboard/](https://arbiter-h3oa.onrender.com/dashboard/)
+- **3D Digital Twin Visualizer**: [https://arbiter-h3oa.onrender.com/dashboard/3d](https://arbiter-h3oa.onrender.com/dashboard/3d)
+- **Interactive REST API Documentation**: [https://arbiter-h3oa.onrender.com/docs](https://arbiter-h3oa.onrender.com/docs)
+
+### 2. Local Installation and Launch
+
+#### Prerequisites
 - Python 3.10, 3.11, or 3.12
 - Node.js v18+ (only needed to run frontend tests)
 - Windows (PowerShell) or Linux/macOS (bash)
 
-### Installation and Launch
+#### Setup Commands
 
 ```powershell
 # 1. Clone repository and navigate to root
@@ -195,7 +210,7 @@ pip install -r requirements.txt
 .\scripts\run_demo.ps1
 ```
 
-### Accessing the Stack
+#### Accessing the Local Stack
 Once started, open your web browser to:
 - **Project Landing Page**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - **2D NOC Operations Console**: [http://127.0.0.1:8000/dashboard/](http://127.0.0.1:8000/dashboard/)

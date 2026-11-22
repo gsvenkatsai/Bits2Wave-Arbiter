@@ -173,12 +173,21 @@ python artifacts/assessment/phase3_scalability.py
 
 To start the interactive web application, live 2D NOC, and 3D digital twin:
 
+### Live Cloud Deployment
+Alternatively, access the live cloud deployment hosted on Render with zero setup:
+- **Landing Page**: [https://arbiter-h3oa.onrender.com/](https://arbiter-h3oa.onrender.com/)
+- **Interactive 2D NOC Operations Console**: [https://arbiter-h3oa.onrender.com/dashboard/](https://arbiter-h3oa.onrender.com/dashboard/)
+- **Real-Time 3D Digital Twin Visualizer**: [https://arbiter-h3oa.onrender.com/dashboard/3d](https://arbiter-h3oa.onrender.com/dashboard/3d)
+- **Interactive OpenAPI Documentation**: [https://arbiter-h3oa.onrender.com/docs](https://arbiter-h3oa.onrender.com/docs)
+
+### Local Stack Launch
+
 ```powershell
 # Start server in background
 .\scripts\run_demo.ps1
 ```
 
-Once running, access:
+Once running locally, access:
 - **Landing Page**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - **Interactive 2D NOC Operations Console**: [http://127.0.0.1:8000/dashboard/](http://127.0.0.1:8000/dashboard/)
 - **Real-Time 3D Digital Twin Visualizer**: [http://127.0.0.1:8000/dashboard/3d](http://127.0.0.1:8000/dashboard/3d)

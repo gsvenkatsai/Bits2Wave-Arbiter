@@ -9,7 +9,8 @@ This document provides the complete API reference for Project ARBITER (FastAPI s
 
 ## Service Overview
 
-- **Base URL**: `http://127.0.0.1:8000`
+- **Base URL (Local)**: `http://127.0.0.1:8000`
+- **Base URL (Live Cloud)**: `https://arbiter-h3oa.onrender.com`
 - **OpenAPI Schema**: `GET /openapi.json`
 - **Swagger UI**: `GET /docs`
 - **ReDoc UI**: `GET /redoc`
