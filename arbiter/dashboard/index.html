@@ -77,9 +77,7 @@
         <span class="mode-dot">●</span> <span id="arbiterMode2DText">ARBITER: ENGAGED</span>
       </button>
 
-      <!-- Scenario Injector Toggle -->
-      <button id="btnToggleInjector" class="btn-injector-toggle" title="Open Scenario Injector [I]">⚡ Injector</button>
-
+      <!-- Scenario Injector removed per user request -->
       <button id="btnInjectDrift" class="btn-drift" title="Drift Hook: widen intervals & toggle uncalibrated">Inject Twin Drift</button>
       <div id="connectionStatus" class="status-indicator status-disconnected">
         <span class="status-dot"></span>
@@ -275,18 +273,9 @@
 
         <!-- Tab 1: Physical Topology -->
         <div id="tabTopology" class="tab-panel-view active">
-          <div class="topology-sub-bar">
-            <button id="btnToggle2DMap" class="topo-btn">[Map: ON]</button>
-            <div class="topo-dim-wrap">
-              <span>Dim:</span>
-              <input type="range" id="map2dDimSlider" min="0.1" max="0.95" step="0.05" value="0.75" class="topo-slider">
-            </div>
-            <button id="btnEditLayout" class="topo-btn">[✎ Edit Layout]</button>
-          </div>
           <div class="topology-split">
-            <div class="topology-canvas-wrap" id="topologyCanvasWrap">
+            <div class="topology-canvas-wrap">
               <svg id="hexTopologySvg" viewBox="0 0 320 220" width="100%" height="100%"></svg>
-              <div class="map-credit-line-2d">Map: mapplan.com (demo use) • Bengaluru Telecom Grid</div>
             </div>
             <div class="cell-inspector" id="cellInspector">
               <div class="inspector-title">
@@ -495,133 +484,6 @@
         <div class="plan-timeline-card">
           <div class="cf-card-label">Multi-Tick Sequential Plan Timeline (GET /api/v1/plans)</div>
           <div id="planTimelineSteps" class="plan-steps-container"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Collapsible Scenario Injector Modal / Drawer for 2D Console -->
-  <div id="scenarioInjectorModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content glass-card injector-modal-card">
-      <div class="modal-header">
-        <div class="modal-title">⚡ SCENARIO INJECTOR &amp; SIMULATION CONTROLS</div>
-        <button id="btnCloseInjectorModal" class="modal-close-btn">&times;</button>
-      </div>
-
-      <div id="narrationBanner2D" class="injector-narration" style="display: none;">
-        <span class="narration-icon">📢</span>
-        <span id="narrationText2D" class="narration-text">--</span>
-      </div>
-
-      <div class="injector-body-2d">
-        <!-- Section A: 1-Click Presets -->
-        <div class="injector-section">
-          <div class="injector-section-title">1-CLICK PRESET SCENARIOS</div>
-          <div class="preset-grid">
-            <button class="injector-preset-btn preset-btn-2d" data-preset="2_am_collision">💥 2 AM Collision</button>
-            <button class="injector-preset-btn preset-btn-2d" data-preset="stadium_surge">🏟️ Stadium Surge</button>
-            <button class="injector-preset-btn preset-btn-2d" data-preset="cell_outage">🔌 Cell Outage</button>
-            <button class="injector-preset-btn preset-btn-2d" data-preset="emergency_preempt">🚨 Emergency Preempt</button>
-            <button class="injector-preset-btn preset-btn-2d" data-preset="ping_pong">🏓 Ping-Pong Loop</button>
-          </div>
-        </div>
-
-        <!-- Section B: Sim Transport -->
-        <div class="injector-section">
-          <div class="injector-section-title">SIMULATION ENGINE CONTROLS</div>
-          <div class="sim-transport-bar">
-            <button id="btnSimPlay2D" class="noc-btn primary">▶ Play</button>
-            <button id="btnSimPause2D" class="noc-btn">⏸ Pause</button>
-            <button id="btnSimStep2D" class="noc-btn">⏭ Step 1 Tick</button>
-            <button id="btnSimReset2D" class="noc-btn">↺ Reset</button>
-            <select id="simSpeed2D" class="noc-select">
-              <option value="0.5">0.5x</option>
-              <option value="1.0" selected>1.0x</option>
-              <option value="2.0">2.0x</option>
-              <option value="4.0">4.0x</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Section C: Custom Proposal -->
-        <div class="injector-section">
-          <div class="injector-section-title">CUSTOM PROPOSAL INJECTION</div>
-          <form id="formCustomInject2D" class="custom-inject-form">
-            <div class="form-row">
-              <label>Controller:
-                <select id="injectCtrlType2D" class="noc-select">
-                  <option value="load_balancing">Load Balancing (LB)</option>
-                  <option value="coverage_capacity">Coverage &amp; Capacity (CCO)</option>
-                  <option value="energy_saving">Energy Saving (ES)</option>
-                  <option value="public_safety">Public Safety (PS)</option>
-                </select>
-              </label>
-              <label>Target Cell:
-                <select id="injectTargetCell2D" class="noc-select">
-                  <option value="cell_A">Cell A (Core)</option>
-                  <option value="cell_B">Cell B (East)</option>
-                  <option value="cell_C">Cell C (NE)</option>
-                  <option value="cell_D">Cell D (NW)</option>
-                  <option value="cell_E">Cell E (South)</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-row">
-              <label>Parameter:
-                <select id="injectParam2D" class="noc-select">
-                  <option value="OFFLOAD_RATIO">OFFLOAD_RATIO</option>
-                  <option value="TX_POWER_DBM">TX_POWER_DBM</option>
-                  <option value="SLEEP_STATE">SLEEP_STATE</option>
-                  <option value="TILT">TILT</option>
-                  <option value="CIO">CIO</option>
-                </select>
-              </label>
-              <label>Requested Value:
-                <input type="number" id="injectValue2D" step="0.01" value="0.40" class="noc-input">
-              </label>
-            </div>
-            <div class="form-checkbox-row">
-              <label class="checkbox-label">
-                <input type="checkbox" id="injectEmergency2D">
-                <span>Emergency Flag</span>
-              </label>
-              <button type="submit" class="noc-btn primary">Inject Proposal</button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Section D: Add Tower / Controller -->
-        <div class="injector-section">
-          <div class="injector-section-title">TOPOLOGY &amp; CONTROLLER SCALING</div>
-          <div class="topo-action-grid">
-            <form id="formAddTower2D" class="mini-form">
-              <span class="mini-form-title">+ Add Cell Tower</span>
-              <div class="form-row compact">
-                <input type="text" id="addCellId2D" placeholder="ID (cell_F)" required class="noc-input">
-                <input type="text" id="addCellName2D" placeholder="Name" required class="noc-input">
-              </div>
-              <div class="form-row compact">
-                <input type="number" id="addCellX2D" placeholder="X meters" value="200" class="noc-input">
-                <input type="number" id="addCellY2D" placeholder="Y meters" value="200" class="noc-input">
-                <button type="submit" class="noc-btn primary">Add Tower</button>
-              </div>
-            </form>
-            <form id="formAddCtrl2D" class="mini-form">
-              <span class="mini-form-title">+ Add Scoped Controller Instance</span>
-              <div class="form-row compact">
-                <select id="addCtrlType2D" class="noc-select">
-                  <option value="load_balancing">LB Instance</option>
-                  <option value="energy_saving">ES Instance</option>
-                  <option value="coverage_capacity">CCO Instance</option>
-                </select>
-                <input type="text" id="addCtrlId2D" placeholder="ID (lb_east)" required class="noc-input">
-              </div>
-              <div class="form-row compact">
-                <input type="text" id="addCtrlScope2D" placeholder="Scope (e.g. cell_A,cell_B)" class="noc-input">
-                <button type="submit" class="noc-btn primary">Add Instance</button>
-              </div>
-            </form>
-          </div>
         </div>
       </div>
     </div>
