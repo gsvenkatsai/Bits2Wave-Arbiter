@@ -104,24 +104,6 @@ const DOM = {
   mapDimSlider: document.getElementById('map-dim-slider'),
   btnToggleArbiterMode: document.getElementById('btn-toggle-arbiter-mode'),
   arbiterModeLabel: document.getElementById('arbiter-mode-label'),
-  btnToggleInjector: document.getElementById('btn-toggle-injector'),
-  btnCloseInjector: document.getElementById('btn-close-injector'),
-  scenarioInjectorPanel: document.getElementById('scenario-injector-panel'),
-  injectorNarrationBanner: document.getElementById('injector-narration-banner'),
-  injectorNarrationText: document.getElementById('injector-narration-text'),
-  btnSimPlay: document.getElementById('btn-sim-play'),
-  btnSimPause: document.getElementById('btn-sim-pause'),
-  btnSimStep: document.getElementById('btn-sim-step'),
-  btnSimReset: document.getElementById('btn-sim-reset'),
-  simSpeedSelect: document.getElementById('sim-speed-select'),
-  formCustomInject: document.getElementById('form-custom-inject'),
-  injectCtrlType: document.getElementById('inject-ctrl-type'),
-  injectTargetCell: document.getElementById('inject-target-cell'),
-  injectParam: document.getElementById('inject-param'),
-  injectValue: document.getElementById('inject-value'),
-  injectEmergency: document.getElementById('inject-emergency'),
-  formAddTower: document.getElementById('form-add-tower'),
-  formAddCtrlInstance: document.getElementById('form-add-ctrl-instance'),
 };
 
 // URL Parameters
@@ -839,12 +821,9 @@ window.addEventListener('keydown', (e) => {
     scene.setCameraPreset(2);
   } else if (e.key === 'm' || e.key === 'M') {
     cycleMapMode();
-  } else if (e.key === 'i' || e.key === 'I') {
-    toggleInjectorDrawer();
   } else if (e.key === 'Escape') {
     if (DOM.helpModal) DOM.helpModal.style.display = 'none';
     if (DOM.nocSidePanel) DOM.nocSidePanel.classList.add('collapsed');
-    if (DOM.scenarioInjectorPanel) DOM.scenarioInjectorPanel.style.display = 'none';
     hideCounterfactualPopover();
   }
 });
@@ -978,204 +957,19 @@ if (DOM.btnToggleArbiterMode) {
   DOM.btnToggleArbiterMode.addEventListener('click', toggleArbiterMode);
 }
 
-// Scenario Injector Drawer Visibility
-function toggleInjectorDrawer() {
-  if (!DOM.scenarioInjectorPanel) return;
-  const isHidden = DOM.scenarioInjectorPanel.style.display === 'none';
-  DOM.scenarioInjectorPanel.style.display = isHidden ? 'flex' : 'none';
-}
-if (DOM.btnToggleInjector) {
-  DOM.btnToggleInjector.addEventListener('click', toggleInjectorDrawer);
-}
-if (DOM.btnCloseInjector) {
-  DOM.btnCloseInjector.addEventListener('click', () => {
-    if (DOM.scenarioInjectorPanel) DOM.scenarioInjectorPanel.style.display = 'none';
-  });
-}
-
-// Simulation Transport Controls
-async function sendSimControl(action, extra = {}) {
-  try {
-    await fetch('/api/v1/sim/control', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...extra })
-    });
-  } catch (err) {
-    console.error('Sim control error', err);
-  }
-}
-if (DOM.btnSimPlay) DOM.btnSimPlay.addEventListener('click', () => sendSimControl('play'));
-if (DOM.btnSimPause) DOM.btnSimPause.addEventListener('click', () => sendSimControl('pause'));
-if (DOM.btnSimStep) DOM.btnSimStep.addEventListener('click', () => sendSimControl('step'));
-if (DOM.btnSimReset) DOM.btnSimReset.addEventListener('click', () => sendSimControl('reset'));
-if (DOM.simSpeedSelect) {
-  DOM.simSpeedSelect.addEventListener('change', (e) => {
-    sendSimControl('speed', { speed: parseFloat(e.target.value) });
-  });
-}
-
-// 1-Click Preset Buttons
-const presetButtons = document.querySelectorAll('.injector-preset-btn');
-presetButtons.forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    const preset = btn.getAttribute('data-preset');
-    try {
-      const res = await fetch('/api/v1/sim/inject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preset })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.narration && DOM.injectorNarrationText) {
-          DOM.injectorNarrationText.textContent = data.narration;
-          if (DOM.injectorNarrationBanner) DOM.injectorNarrationBanner.style.display = 'flex';
-        }
-        if (data.verdicts && Array.isArray(data.verdicts)) {
-          data.verdicts.forEach(v => eventLogHistory.unshift(v));
-          renderEventLog();
-        }
-      }
-    } catch (err) {
-      console.error('Preset error', err);
-    }
-  });
-});
-
-// Custom Proposal Injection Form
-if (DOM.formCustomInject) {
-  DOM.formCustomInject.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const proposal = {
-      controller_type: DOM.injectCtrlType ? DOM.injectCtrlType.value : 'load_balancing',
-      target_cell: DOM.injectTargetCell ? DOM.injectTargetCell.value : 'cell_A',
-      parameter: DOM.injectParam ? DOM.injectParam.value : 'OFFLOAD_RATIO',
-      requested_value: DOM.injectValue ? parseFloat(DOM.injectValue.value) : 0.40,
-      emergency: DOM.injectEmergency ? DOM.injectEmergency.checked : false
-    };
-    try {
-      const res = await fetch('/api/v1/sim/inject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposal })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.narration && DOM.injectorNarrationText) {
-          DOM.injectorNarrationText.textContent = data.narration;
-          if (DOM.injectorNarrationBanner) DOM.injectorNarrationBanner.style.display = 'flex';
-        }
-        if (data.verdicts && Array.isArray(data.verdicts)) {
-          data.verdicts.forEach(v => eventLogHistory.unshift(v));
-          renderEventLog();
-        }
-      }
-    } catch (err) {
-      console.error('Custom proposal injection error', err);
-    }
-  });
-}
-
-// Topology Selection & Mutation
-function updateCellDropdowns(cells) {
-  if (!DOM.injectTargetCell || !Array.isArray(cells)) return;
-  while (DOM.injectTargetCell.firstChild) {
-    DOM.injectTargetCell.removeChild(DOM.injectTargetCell.firstChild);
-  }
-  cells.forEach((c) => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = `${c.name || c.id} (${c.id})`;
-    DOM.injectTargetCell.appendChild(opt);
-  });
-}
-
 if (DOM.topologySelect) {
   DOM.topologySelect.addEventListener('change', async (e) => {
     try {
-      const res = await fetch('/api/v1/sim/topology', {
+      await fetch('/api/v1/sim/topology', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'select', topology: e.target.value })
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.cells) updateCellDropdowns(data.cells);
-      }
     } catch (err) {
       console.error('Failed to select topology', err);
     }
   });
 }
-
-if (DOM.formAddTower) {
-  DOM.formAddTower.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const cellId = document.getElementById('add-cell-id').value.trim();
-    const cellName = document.getElementById('add-cell-name').value.trim();
-    const cellX = parseFloat(document.getElementById('add-cell-x').value) || 200;
-    const cellY = parseFloat(document.getElementById('add-cell-y').value) || 200;
-    const cell = {
-      id: cellId,
-      name: cellName,
-      x: cellX,
-      y: cellY,
-      tx_power_dbm: 43.0,
-      tilt_deg: 6.0,
-      capacity: 100,
-      users: 10
-    };
-    try {
-      const res = await fetch('/api/v1/sim/topology', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add_cell', cell })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.cells) updateCellDropdowns(data.cells);
-        DOM.formAddTower.reset();
-      }
-    } catch (err) {
-      console.error('Failed to add tower', err);
-    }
-  });
-}
-
-if (DOM.formAddCtrlInstance) {
-  DOM.formAddCtrlInstance.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const ctrlType = document.getElementById('add-inst-type').value;
-    const instId = document.getElementById('add-inst-id').value.trim();
-    const rawScope = document.getElementById('add-inst-scope').value;
-    const scope = rawScope.split(',').map(s => s.trim()).filter(Boolean);
-    try {
-      const res = await fetch('/api/v1/sim/controller-instance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          controller_type: ctrlType,
-          instance_id: instId,
-          cell_scope: scope.length > 0 ? scope : null
-        })
-      });
-      if (res.ok) {
-        DOM.formAddCtrlInstance.reset();
-      }
-    } catch (err) {
-      console.error('Failed to add controller instance', err);
-    }
-  });
-}
-
-// Initial fetch of topologies to populate cell dropdown
-fetch('/api/v1/sim/topologies')
-  .then(res => res.json())
-  .then(data => {
-    if (data.cells) updateCellDropdowns(data.cells);
-  })
-  .catch(() => {});
 
 // 6. Connect Data Stream
 dataLayer.connect();

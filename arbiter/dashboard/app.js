@@ -94,7 +94,6 @@ const DOM = {
   connectionStatus: document.getElementById("connectionStatus"),
   connectionText: document.getElementById("connectionText"),
   clockDisplay: document.getElementById("clockDisplay"),
-  btnInjectDrift: document.getElementById("btnInjectDrift"),
   btnToggle3D: document.getElementById("btnToggle3D"),
 
   kpiDroppedUsers: document.getElementById("kpiDroppedUsers"),
@@ -141,31 +140,13 @@ const DOM = {
   inspectLoad: document.getElementById("inspectLoad"),
   inspectUsers: document.getElementById("inspectUsers"),
 
-  // 2D Topology, Scenario Injector & Simulation Controls
+  // 2D Topology
   topologySelect: document.getElementById("topologySelect"),
   btnArbiterMode: document.getElementById("btnArbiterMode"),
   arbiterMode2DText: document.getElementById("arbiterMode2DText"),
-  btnToggleInjector: document.getElementById("btnToggleInjector"),
-  btnCloseInjectorModal: document.getElementById("btnCloseInjectorModal"),
-  scenarioInjectorModal: document.getElementById("scenarioInjectorModal"),
-  narrationBanner2D: document.getElementById("narrationBanner2D"),
-  narrationText2D: document.getElementById("narrationText2D"),
   btnToggle2DMap: document.getElementById("btnToggle2DMap"),
   map2dDimSlider: document.getElementById("map2dDimSlider"),
   btnEditLayout: document.getElementById("btnEditLayout"),
-  btnSimPlay2D: document.getElementById("btnSimPlay2D"),
-  btnSimPause2D: document.getElementById("btnSimPause2D"),
-  btnSimStep2D: document.getElementById("btnSimStep2D"),
-  btnSimReset2D: document.getElementById("btnSimReset2D"),
-  simSpeed2D: document.getElementById("simSpeed2D"),
-  formCustomInject2D: document.getElementById("formCustomInject2D"),
-  injectCtrlType2D: document.getElementById("injectCtrlType2D"),
-  injectTargetCell2D: document.getElementById("injectTargetCell2D"),
-  injectParam2D: document.getElementById("injectParam2D"),
-  injectValue2D: document.getElementById("injectValue2D"),
-  injectEmergency2D: document.getElementById("injectEmergency2D"),
-  formAddTower2D: document.getElementById("formAddTower2D"),
-  formAddCtrl2D: document.getElementById("formAddCtrl2D"),
 
   // Flight Recorder Modal
   flightRecorderModal: document.getElementById("flightRecorderModal"),
@@ -1732,13 +1713,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Drift injection button
-  if (DOM.btnInjectDrift) {
-    DOM.btnInjectDrift.addEventListener("click", () => {
-      injectTwinDrift();
-    });
-  }
-
   // 3D View switcher link preserving query string
   if (DOM.btnToggle3D) {
     DOM.btnToggle3D.href = `/dashboard/3d${window.location.search}`;
@@ -1809,175 +1783,6 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHexTopology();
     });
   }
-
-  if (DOM.btnToggleInjector) {
-    DOM.btnToggleInjector.addEventListener("click", () => {
-      if (DOM.scenarioInjectorModal) DOM.scenarioInjectorModal.style.display = "flex";
-    });
-  }
-
-  if (DOM.btnCloseInjectorModal) {
-    DOM.btnCloseInjectorModal.addEventListener("click", () => {
-      if (DOM.scenarioInjectorModal) DOM.scenarioInjectorModal.style.display = "none";
-    });
-  }
-
-  const presetButtons2D = document.querySelectorAll(".preset-btn-2d");
-  presetButtons2D.forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const preset = btn.getAttribute("data-preset");
-      try {
-        const res = await fetch("/api/v1/sim/inject", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ preset })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.narration && DOM.narrationText2D) {
-            DOM.narrationText2D.textContent = data.narration;
-            if (DOM.narrationBanner2D) DOM.narrationBanner2D.style.display = "flex";
-          }
-          fetchDecisions();
-        }
-      } catch (err) {
-        console.error("2D preset error", err);
-      }
-    });
-  });
-
-  const sendSim2D = async (action, extra = {}) => {
-    try {
-      await fetch("/api/v1/sim/control", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...extra })
-      });
-    } catch (err) {
-      console.error("2D sim control error", err);
-    }
-  };
-
-  if (DOM.btnSimPlay2D) DOM.btnSimPlay2D.addEventListener("click", () => sendSim2D("play"));
-  if (DOM.btnSimPause2D) DOM.btnSimPause2D.addEventListener("click", () => sendSim2D("pause"));
-  if (DOM.btnSimStep2D) DOM.btnSimStep2D.addEventListener("click", () => sendSim2D("step"));
-  if (DOM.btnSimReset2D) DOM.btnSimReset2D.addEventListener("click", () => sendSim2D("reset"));
-  if (DOM.simSpeed2D) {
-    DOM.simSpeed2D.addEventListener("change", (e) => {
-      sendSim2D("speed", { speed: parseFloat(e.target.value) });
-    });
-  }
-
-  if (DOM.formCustomInject2D) {
-    DOM.formCustomInject2D.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const proposal = {
-        controller_type: DOM.injectCtrlType2D ? DOM.injectCtrlType2D.value : "load_balancing",
-        target_cell: DOM.injectTargetCell2D ? DOM.injectTargetCell2D.value : "cell_A",
-        parameter: DOM.injectParam2D ? DOM.injectParam2D.value : "OFFLOAD_RATIO",
-        requested_value: DOM.injectValue2D ? parseFloat(DOM.injectValue2D.value) : 0.40,
-        emergency: DOM.injectEmergency2D ? DOM.injectEmergency2D.checked : false
-      };
-      try {
-        const res = await fetch("/api/v1/sim/inject", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ proposal })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.narration && DOM.narrationText2D) {
-            DOM.narrationText2D.textContent = data.narration;
-            if (DOM.narrationBanner2D) DOM.narrationBanner2D.style.display = "flex";
-          }
-          fetchDecisions();
-        }
-      } catch (err) {
-        console.error("2D custom inject error", err);
-      }
-    });
-  }
-
-  if (DOM.formAddTower2D) {
-    DOM.formAddTower2D.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const cellId = document.getElementById("addCellId2D").value.trim();
-      const cellName = document.getElementById("addCellName2D").value.trim();
-      const cellX = parseFloat(document.getElementById("addCellX2D").value) || 200;
-      const cellY = parseFloat(document.getElementById("addCellY2D").value) || 200;
-      try {
-        const res = await fetch("/api/v1/sim/topology", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "add_cell",
-            cell: {
-              id: cellId,
-              name: cellName,
-              x: cellX,
-              y: cellY,
-              tx_power_dbm: 43.0,
-              tilt_deg: 6.0,
-              capacity: 100,
-              users: 10
-            }
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.cells) {
-            updateTargetCellDropdown(data.cells);
-            selectTopology2D(DOM.topologySelect ? DOM.topologySelect.value : "5_CELL_CORE");
-          }
-          DOM.formAddTower2D.reset();
-        }
-      } catch (err) {
-        console.error("Failed to add tower in 2D", err);
-      }
-    });
-  }
-
-  if (DOM.formAddCtrl2D) {
-    DOM.formAddCtrl2D.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const ctrlType = document.getElementById("addCtrlType2D").value;
-      const instId = document.getElementById("addCtrlId2D").value.trim();
-      const scope = document.getElementById("addCtrlScope2D").value.split(",").map((s) => s.trim()).filter(Boolean);
-      try {
-        await fetch("/api/v1/sim/controller-instance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            controller_type: ctrlType,
-            instance_id: instId,
-            cell_scope: scope.length > 0 ? scope : null
-          })
-        });
-        DOM.formAddCtrl2D.reset();
-      } catch (err) {
-        console.error("Failed to add controller in 2D", err);
-      }
-    });
-  }
-
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "i" || e.key === "I") {
-      if (DOM.scenarioInjectorModal) {
-        const isHidden = DOM.scenarioInjectorModal.style.display === "none";
-        DOM.scenarioInjectorModal.style.display = isHidden ? "flex" : "none";
-      }
-    } else if (e.key === "Escape" || e.key === "Esc") {
-      if (DOM.scenarioInjectorModal) DOM.scenarioInjectorModal.style.display = "none";
-    }
-  });
-
-  updateTargetCellDropdown(STATE.cells);
-  fetch("/api/v1/sim/topologies")
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.cells) updateTargetCellDropdown(data.cells);
-    })
-    .catch(() => { });
 
   // Connect & poll
   connectWebSocket();
