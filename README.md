@@ -135,25 +135,31 @@ The project includes an interactive web dashboard with both a 2D Operations Cons
   <img src="docs/images/twin-3d-collision.png" width="800" alt="3D Twin Collision" />
 </p>
 
-### 3. Ghost-World Counterfactual Replay
+### 3. 3D Digital Twin: Calm Nocturnal State & 16-Tower Bengaluru Topology
+*Pre-collision nocturnal state displaying 16 cell towers over Bengaluru map with active subscriber distributions and calibrated confidence intervals.*
+<p align="center">
+  <img src="docs/images/twin-3d-calm.png" width="800" alt="3D Twin Calm State" />
+</p>
+
+### 4. Ghost-World Counterfactual Replay
 *Replay of real engine run comparing ARBITER coordinated state vs uncoordinated outage (Cell B asleep, 14.5 peak users dropped).*
 <p align="center">
   <img src="docs/images/twin-3d-ghost-world.png" width="800" alt="Ghost World Replay" />
 </p>
 
-### 4. Conformal Prediction Uncertainty View
+### 5. Conformal Prediction Uncertainty View
 *Twin prediction interval view showing calibrated uncertainty boundaries ($\pm 0.30\text{ dB}$) and safety guard thresholds.*
 <p align="center">
   <img src="docs/images/twin-3d-uncertainty.png" width="800" alt="Uncertainty View" />
 </p>
 
-### 5. 2D NOC Operations Console (`/dashboard/`)
+### 6. 2D NOC Operations Console (`/dashboard/`)
 *Live telemetry tables, decision logs, and KPI time-series.*
 <p align="center">
   <img src="docs/images/noc-2d-overview.png" width="800" alt="2D NOC" />
 </p>
 
-### 6. Marketing & Telemetry Portal (`/`)
+### 7. Marketing & Telemetry Portal (`/`)
 *Interactive web portal showcasing problem statement, how it works, and benchmark metrics.*
 <p align="center">
   <img src="docs/images/landing-hero.png" width="800" alt="Landing Hero" />

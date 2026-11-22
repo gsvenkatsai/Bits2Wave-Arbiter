@@ -29,13 +29,18 @@ DOCS_IMG_DIR = Path("docs/images")
 TEMP_DIR = Path("artifacts/readme/raw_frames")
 
 
-def optimize_png(source_path: Path, max_kb: int = 400) -> None:
+def optimize_png(source_path: Path, max_kb: int = 390) -> None:
     """Optimize PNG with adaptive palette quantization to keep under max_kb while preserving text clarity."""
     with Image.open(source_path) as im:
         rgb_im = im.convert("RGB")
-        # Quantize to 256 colors adaptive palette
-        quantized = rgb_im.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
-        quantized.save(source_path, format="PNG", optimize=True)
+        colors = 256
+        while True:
+            quantized = rgb_im.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+            quantized.save(source_path, format="PNG", optimize=True)
+            size_kb = source_path.stat().st_size / 1024.0
+            if size_kb <= max_kb or colors <= 64:
+                break
+            colors = int(colors * 0.8)
     
     size_kb = source_path.stat().st_size / 1024.0
     print(f"  [SAVED] {source_path.name} ({size_kb:.1f} KB)")
@@ -233,23 +238,6 @@ def record_collision_gif(page: Page, captions: Dict[str, str], force: bool = Fal
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
     gif_mb = gif_out.stat().st_size / (1024.0 * 1024.0)
     print(f"  [SAVED] demo-2am-collision.gif ({gif_mb:.2f} MB, target: <8 MB)")
-    subprocess.run(ffmpeg_cmd_palette, check=True, capture_output=True)
-
-    ffmpeg_cmd_gif = [
-        "ffmpeg", "-y",
-        "-framerate", "10",
-        "-i", str(TEMP_DIR / "frame_%04d.png"),
-        "-i", str(palette_path),
-        "-lavfi", "scale=960:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=3",
-        str(gif_out),
-    ]
-    subprocess.run(ffmpeg_cmd_gif, check=True, capture_output=True)
-
-    # Clean up temp frames
-    shutil.rmtree(TEMP_DIR, ignore_errors=True)
-
-    gif_mb = gif_out.stat().st_size / (1024.0 * 1024.0)
-    print(f"  [SAVED] demo-2am-collision.gif ({gif_mb:.2f} MB, target: <8 MB)")
     captions["demo-2am-collision.gif"] = "Real 2 AM collision replay: ARBITER detects controller clash, sequences offload handovers, and preserves zero subscriber drops"
 
 
@@ -283,12 +271,17 @@ def write_captions_doc(captions: Dict[str, str]) -> None:
 
 
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description="Capture README assets with Playwright")
+    parser.add_argument("--force", action="store_true", help="Force recapturing existing assets")
+    args = parser.parse_args()
+
     DOCS_IMG_DIR.mkdir(parents=True, exist_ok=True)
     captions: Dict[str, str] = {}
 
     print("================================================================================")
     print("PROJECT ARBITER — Automated Documentation Asset Capture (Playwright)")
-    print(f"Base URL: {BASE_URL} | Target: 1600x900 deviceScaleFactor=1")
+    print(f"Base URL: {BASE_URL} | Target: 1600x900 deviceScaleFactor=1 | Force: {args.force}")
     print("================================================================================")
 
     # Launch Playwright with hardware/SwiftShader WebGL
@@ -310,16 +303,16 @@ def main() -> None:
 
         try:
             # 1. Capture Marketing & Public Site Pages
-            capture_site_pages(page, captions)
+            capture_site_pages(page, captions, force=args.force)
 
             # 2. Capture 2D NOC Dashboard & Decision Tables
-            capture_noc_2d(page, captions)
+            capture_noc_2d(page, captions, force=args.force)
 
             # 3. Capture 3D RAN Digital Twin States
-            capture_3d_twin_states(page, captions)
+            capture_3d_twin_states(page, captions, force=args.force)
 
             # 4. Record 2 AM Collision Demonstration GIF
-            record_collision_gif(page, captions)
+            record_collision_gif(page, captions, force=args.force)
 
         finally:
             context.close()
