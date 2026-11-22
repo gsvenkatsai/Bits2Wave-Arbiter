@@ -654,7 +654,7 @@ def main() -> None:
         from arbiter.engine.contracts import CommandProposal as EngineProposal
         from arbiter.queue.orchestrator import QueueOrchestrator
         from arbiter.shared.database import init_database
-        from tests.branch2.test_decision_ladder import _scenario_twin
+        from arbiter.engine.scripted_twin import make_scripted_twin as _scenario_twin
 
         decisions: List[Any] = []
         proposals: List[Any] = []

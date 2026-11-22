@@ -257,7 +257,9 @@ def test_snapshot_is_ordered_and_read_only(make_proposal: Any) -> None:
 
 
 def test_concurrent_submissions_are_safe(make_proposal: Any) -> None:
-    queue = ProposalQueue()
+    # This test is about thread safety, not flood policy: the per-controller
+    # admission cap (20/100 ms by default) is lifted so every submission counts.
+    queue = ProposalQueue(max_proposals_per_window=1000)
     accepted: List[bool] = []
     accepted_lock = threading.Lock()
     threads = 8
@@ -288,7 +290,9 @@ def test_concurrent_submissions_are_safe(make_proposal: Any) -> None:
 
 
 def test_concurrent_emergency_submissions_stay_out_of_the_buffer(make_proposal: Any) -> None:
-    queue = ProposalQueue()
+    # Thread-safety test: lift the per-controller admission cap so the lane
+    # separation is what is being measured.
+    queue = ProposalQueue(max_proposals_per_window=1000)
     threads = 8
     per_thread = 20
 

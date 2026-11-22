@@ -19,10 +19,15 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Sequence, Set
+from typing import Callable, Dict, Iterable, List, Sequence, Set
 
 from arbiter.engine.contracts import MAX_HOLD_TICKS, CommandProposal
 from arbiter.queue.emergency_lane import EmergencyBypassLane
+from arbiter.queue.rate_limiter import (
+    DEFAULT_MAX_PROPOSALS_PER_WINDOW,
+    DEFAULT_RATE_WINDOW_MS,
+    ProposalRateLimiter,
+)
 
 __all__ = ["ProposalQueue", "QueueInvariantError", "MAX_HOLD_TICKS"]
 
@@ -51,11 +56,22 @@ class ProposalQueue:
         self,
         emergency_lane: EmergencyBypassLane | None = None,
         max_hold_ticks: int = MAX_HOLD_TICKS,
+        rate_limiter: ProposalRateLimiter | None = None,
+        max_proposals_per_window: int = DEFAULT_MAX_PROPOSALS_PER_WINDOW,
+        rate_window_ms: int = DEFAULT_RATE_WINDOW_MS,
+        rate_clock: Callable[[], float] | None = None,
     ) -> None:
         if max_hold_ticks < 1:
             raise ValueError("max_hold_ticks must be >= 1")
         self.max_hold_ticks = max_hold_ticks
         self._lane = emergency_lane or EmergencyBypassLane()
+        self._rate_limiter = rate_limiter or ProposalRateLimiter(
+            max_proposals=max_proposals_per_window,
+            window_ms=rate_window_ms,
+            clock=rate_clock,
+        )
+        self._rate_limited: List[CommandProposal] = []
+        self._rate_limited_total = 0
         self._lock = threading.Lock()
         self._buffer: List[CommandProposal] = []
         self._delayed: List[_ParkedCommand] = []
@@ -66,10 +82,12 @@ class ProposalQueue:
 
     # -- ingestion ---------------------------------------------------------
     def submit(self, cmd: CommandProposal) -> bool:
-        """Accept a proposal; returns ``False`` for a duplicate command id.
+        """Accept a proposal; returns ``False`` when it is refused.
 
-        Emergency proposals are routed straight to the bypass lane and never
-        enter the normal buffer.
+        Refused means: duplicate command id, or the originating controller has
+        already published ``max_proposals_per_window`` proposals in the current
+        100 ms window (the flood guard). Emergency proposals bypass both the
+        buffer and the flood guard: they are routed straight to the bypass lane.
         """
         with self._lock:
             if cmd.command_id in self._known_ids:
@@ -79,8 +97,31 @@ class ProposalQueue:
             if cmd.is_emergency:
                 self._lane.accept(cmd, tick=self._tick)
                 return True
+            if not self._rate_limiter.allow(cmd.controller_id):
+                self._rate_limited.append(cmd)
+                self._rate_limited_total += 1
+                return False
             self._buffer.append(cmd)
             return True
+
+    # -- flood guard -------------------------------------------------------
+    def drain_rate_limited(self) -> List[CommandProposal]:
+        """Return flood-guard rejections since the last drain, and clear them."""
+        with self._lock:
+            drained = list(self._rate_limited)
+            self._rate_limited.clear()
+            return drained
+
+    @property
+    def rate_limiter(self) -> ProposalRateLimiter:
+        """The per-controller admission guard."""
+        return self._rate_limiter
+
+    @property
+    def rate_limited_count(self) -> int:
+        """Total proposals refused by the flood guard."""
+        with self._lock:
+            return self._rate_limited_total
 
     def submit_many(self, commands: Iterable[CommandProposal]) -> int:
         """Submit several proposals; returns how many were accepted."""

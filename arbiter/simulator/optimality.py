@@ -24,7 +24,7 @@ from arbiter.engine.utility import UtilityCalculator
 from arbiter.queue.orchestrator import QueueOrchestrator
 from arbiter.shared.v2_contracts import OptimalityResult, RiskDial
 from arbiter.simulator.engine import SimulationEngine
-from tests.branch2.test_decision_ladder import _scenario_twin
+from arbiter.engine.scripted_twin import make_scripted_twin as _scenario_twin
 
 
 def _score_fork(
