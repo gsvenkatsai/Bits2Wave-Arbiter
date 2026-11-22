@@ -75,26 +75,26 @@ sequenceDiagram
     autonumber
     participant ES as Energy Saving (ES)
     participant LB as Load Balancing (LB)
-    participant CCO as Coverage & Capacity (CCO)
+    participant CCO as Coverage and Capacity (CCO)
     participant RAN as Cellular RAN (Cell B)
-    participant UEs as Connected Subscribers (18 UEs)
+    participant UES as Connected Subscribers (18 UEs)
 
     Note over ES,CCO: At 02:00:00, three independent controllers act simultaneously
-    ES->>RAN: Command: Put Cell B into SLEEP mode
-    LB->>RAN: Command: Offload 40 UEs to Cell B
-    CCO->>RAN: Command: Increase Tx Power by +3 dB
+    ES->>RAN: Put Cell B into SLEEP mode
+    LB->>RAN: Offload 40 UEs to Cell B
+    CCO->>RAN: Increase Tx Power by plus 3 dB
 
     alt Uncoordinated Baseline (Without ARBITER)
         RAN->>RAN: Cell B executes SLEEP at tick 6
-        UEs--xRAN: 14.5 peak users dropped (1,662.6 user-ticks outage) [MEASURED]
-        LB--xRAN: Handovers fail (target cell is asleep)
-        CCO--xRAN: Power boost fails or radiates into inactive sector
+        RAN--xUES: 14.5 peak users dropped
+        LB--xRAN: Handovers fail because the target cell is asleep
+        CCO--xRAN: Power boost fails or radiates into an inactive sector
     else Coordinated Resolution (With ARBITER)
-        Note over RAN,UEs: Intercepted and evaluated through Conformal Digital Twin
-        RAN->>ES: Verdict: DELAY (HOLD_POLICY, count=1)
-        RAN->>LB: Verdict: MODIFY (40 UEs -> 15 UEs bisection)
-        RAN->>CCO: Verdict: MODIFY (+3 dB -> +1 dB)
-        Note over RAN,UEs: Zero dropped users [MEASURED]; 2.0 kJ energy conserved [MEASURED]
+        Note over RAN,UES: Intercepted and evaluated through the conformal digital twin
+        RAN->>ES: DELAY: HOLD_POLICY, count equals 1
+        RAN->>LB: MODIFY: 40 UEs to 15 UEs
+        RAN->>CCO: MODIFY: plus 3 dB to plus 1 dB
+        Note over RAN,UES: Zero dropped users; 2.0 kJ energy conserved
     end
 ```
 
@@ -205,7 +205,7 @@ flowchart TD
     subgraph Controllers["Autonomous Controllers (xApps)"]
         ES["Energy Saving (ES)"]
         LB["Load Balancing (LB)"]
-        CCO["Coverage & Capacity (CCO)"]
+        CCO["Coverage and Capacity (CCO)"]
     end
 
     subgraph CoreEngine["ARBITER Core Arbitration Engine"]
@@ -215,14 +215,14 @@ flowchart TD
         Ladder["Decision Ladder (Approve / Modify / Delay / Reject)"]
     end
 
-    subgraph Actuation["Execution & Feedback"]
+    subgraph Actuation["Execution and Feedback"]
         Actuator["Actuator Adapter"]
         Sim["Cellular Network Simulator (5-Cell Heterogeneous)"]
         Audit["SQLite Audit Logger (WAL Mode)"]
     end
 
-    subgraph TelemetrySink["Telemetry & Monitoring"]
-        FastAPI["FastAPI REST & WebSocket Server"]
+    subgraph TelemetrySink["Telemetry and Monitoring"]
+        FastAPI["FastAPI REST and WebSocket Server"]
         NOC["2D NOC Console"]
         Twin3D["3D WebGL Visualizer"]
     end
@@ -236,8 +236,8 @@ flowchart TD
     Actuator -->|Decision History| Audit
     Sim -->|KPI Telemetry| FastAPI
     Audit -->|Audit Records| FastAPI
-    FastAPI -->|WebSocket ~100ms| NOC
-    FastAPI -->|WebSocket ~100ms| Twin3D
+    FastAPI -->|WebSocket 100ms| NOC
+    FastAPI -->|WebSocket 100ms| Twin3D
 ```
 
 ### Module Responsibilities
@@ -252,89 +252,6 @@ flowchart TD
 | **Network Simulator** | `arbiter/simulator/cellular.py` | 5-cell heterogeneous urban network simulation, COST-231 path loss, UE mobility |
 | **REST & WebSocket API** | `arbiter/api/server.py` | FastAPI application exposing 20 REST endpoints and 2 WebSocket streams |
 | **Telemetry Persistence** | `arbiter/telemetry/monitor.py` | Ingests KPI samples and maintains SQLite WAL database |
-
-### Internal Control Flow & Decision Logic
-
-<details>
-<summary><b>Click to expand the 100 ms Control Loop Flowchart</b></summary>
-
-```mermaid
-flowchart TD
-    START(["100 ms Tick Trigger"]) --> INGEST["Telemetry Ingestion & Spatial Pre-filter<br/><code>arbiter/queue/rate_limiter.py</code>"]
-    INGEST --> CONFLICT_CHECK{"Conflicts<br/>Detected?"}
-
-    CONFLICT_CHECK -- No --> APPROVE_FAST["Fast-Path Actuation<br/><code>Action: APPROVE</code>"]
-    APPROVE_FAST --> COMMIT["Atomic Commit Log & Actuation<br/><code>arbiter/actuator/enforcer.py</code>"]
-
-    CONFLICT_CHECK -- Yes --> RISK_DIAL["Fetch Multi-Objective Weights<br/><code>RiskDial: w_cov, w_en, w_int, w_drop</code>"]
-    RISK_DIAL --> TWIN_EVAL["Conformal Digital Twin Evaluation<br/><code>evaluator.py (100ms budget)</code>"]
-
-    TWIN_EVAL --> TWIN_STATUS{"Twin Status"}
-    TWIN_STATUS -- "Timeout (>100ms)" --> TIMEOUT_REASON["Fallback: REJECT / HOLD<br/><code>Reason: TWIN_TIMEOUT</code>"]
-    TWIN_STATUS -- "Uncalibrated / Wide (±>1.5dB)" --> UNCERTAIN_REASON["Damped Bisection<br/><code>Reason: UNCERTAINTY_GUARD</code>"]
-    TWIN_STATUS -- "Calibrated (±0.30dB)" --> LADDER_OPTIMIZE["Bisection Ladder Search<br/>(Max 6 Evals, 0.0% Gap)"]
-
-    TIMEOUT_REASON --> HOLD_CHECK
-    UNCERTAIN_REASON --> LADDER_OPTIMIZE
-
-    LADDER_OPTIMIZE --> ACTION_SELECT{"Optimal Action?"}
-    ACTION_SELECT -- "Feasible Delta" --> MODIFY_PATH["Scale Command Value<br/><code>Action: MODIFY</code>"]
-    ACTION_SELECT -- "Safety Floor Breach" --> HOLD_CHECK{"Hold Count < 3?"}
-
-    HOLD_CHECK -- Yes (hold_count < 3) --> DELAY_PATH["Hold in Queue (Tick + 1)<br/><code>Action: DELAY (hold_count += 1)</code>"]
-    HOLD_CHECK -- No (hold_count >= 3) --> REJECT_PATH["Safe Floor Eviction<br/><code>Action: REJECT (FLOOR_BREACH)</code>"]
-
-    DELAY_PATH --> NEXT_TICK(["Awaiting Next Tick"])
-    MODIFY_PATH --> COMMIT
-    REJECT_PATH --> COMMIT
-
-    COMMIT --> RESIDUAL_UPDATE["Twin Calibration Feedback Loop:<br/>Compute e_t = |actual - predicted|<br/>Update Conformal Quantile Window"]
-    RESIDUAL_UPDATE --> NEXT_TICK
-```
-</details>
-
-<details>
-<summary><b>Click to expand the 4-Tier Decision Ladder & Reason Codes</b></summary>
-
-```mermaid
-flowchart TD
-    CMD["Incoming CommandProposal"] --> IS_EMERGENCY{"emergency_flag == True?"}
-    
-    %% Emergency Bypass Lane
-    IS_EMERGENCY -- Yes --> BYPASS["Emergency Priority Lane<br/><code>ActionType.APPROVE</code><br/><code>ReasonCode.EMERGENCY_OVERRIDE</code>"]
-    BYPASS --> ACTUATE(["Immediate Actuation Target"])
-
-    %% Normal Evaluation
-    IS_EMERGENCY -- No --> CHECK_PINGPONG{"Cycle Detector<br/>Detects Ping-Pong?"}
-    CHECK_PINGPONG -- Yes --> REJECT_PINGPONG["Evict Oscillating Action<br/><code>ActionType.REJECT</code><br/><code>ReasonCode.CYCLIC_PINGPONG</code>"]
-
-    CHECK_PINGPONG -- No --> CHECK_HO{"Active Handover<br/>in Progress?"}
-    CHECK_HO -- Yes (Cell Busy) --> HOLD_HO["Hold for Handover Completion<br/><code>ActionType.DELAY</code><br/><code>ReasonCode.ACTIVE_HO</code>"]
-
-    CHECK_HO -- No --> EVAL_TWIN["Evaluate Proposal with Digital Twin"]
-    
-    %% Twin Error Guardrails
-    EVAL_TWIN --> TWIN_OUT{"Twin Evaluation Outcome"}
-    TWIN_OUT -- "Evaluation Exceeds 100ms" --> DELAY_TIMEOUT["Fail-Safe Delay<br/><code>ActionType.DELAY</code><br/><code>ReasonCode.TWIN_TIMEOUT</code>"]
-    TWIN_OUT -- "Interval Halfwidth > Threshold" --> DAMP_UNCERTAIN["Apply Conservative Shrinkage<br/><code>ReasonCode.UNCERTAINTY_GUARD</code>"]
-    
-    TWIN_OUT -- "Valid Prediction Bounds" --> UTILITY_CHECK{"Predicted Joint Utility Delta"}
-    DAMP_UNCERTAIN --> UTILITY_CHECK
-
-    %% Utility & Safety Floors
-    UTILITY_CHECK -- "Delta Utility > 0 & No Breach" --> APPROVE_NORMAL["Full Approval<br/><code>ActionType.APPROVE</code><br/><code>ReasonCode.NONE</code>"]
-    
-    UTILITY_CHECK -- "Floor Violated or Negative Utility" --> BISECTION{"Can Bisection Scale Value<br/>to Restore Positive Utility?"}
-    
-    BISECTION -- "Yes (Evaluations <= 6)" --> MODIFY_HEADROOM["Approved Scaled Gradient<br/><code>ActionType.MODIFY</code><br/><code>ReasonCode.HEADROOM</code>"]
-    
-    BISECTION -- "No Feasible Operating Point" --> HOLD_LIMIT{"hold_count < 3?"}
-    HOLD_LIMIT -- Yes --> DELAY_FLOOR["Hold Command for Load Shift<br/><code>ActionType.DELAY</code><br/><code>ReasonCode.NONE / ACTIVE_HO</code>"]
-    HOLD_LIMIT -- No (Max Holds Exceeded) --> REJECT_FLOOR["Permanent Eviction<br/><code>ActionType.REJECT</code><br/><code>ReasonCode.FLOOR_BREACH</code>"]
-```
-</details>
-
-*For complete architectural specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).*
 
 ---
 
@@ -431,7 +348,7 @@ We explicitly document the current performance boundaries and sim-to-real gaps:
 
 - **O-RAN Alignment**: Fits directly into the **O-RAN Near-RT RIC (WG3)** architecture as a mediation xApp or core coordination layer.
 - **Fail-Safe Bypass**: If the internal digital twin exceeds a $50\text{ ms}$ evaluation deadline or fails to converge, ARBITER triggers an emergency bypass: parameter modifications are dropped, conflicting cell power changes are frozen, and safe baseline operational parameters are retained.
-- **Audit Compliance**: All decisions, rationale codes, and counterfactual predictions are persisted into SQLite WAL tables, providing deterministic auditability for telecom network operations centers (NOC).
+- **Audit Compliance**: All decisions, rationale codes, and counterfactual predictions are persisted into SQLite WAL tables, providing deterministic auditability for telecom network operations centers (NOCs).
 
 ---
 
