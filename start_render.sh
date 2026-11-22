@@ -37,14 +37,14 @@ sys.exit(0)
 " "${PORT}"
 
 # 4. Start Simulation Engine in continuous loop mode streaming frames to the API
-echo "[RENDER] Starting Simulation Engine (loop mode, real twin, real queue)..."
+echo "[RENDER] Starting Simulation Engine (loop mode, scripted twin, real queue)..."
 python -m arbiter.simulator.engine \
     --scenario 2am_collision \
     --stream-ws \
     --api-url "http://127.0.0.1:${PORT}" \
     --loop \
     --pace 1.0 \
-    --twin real \
+    --twin scripted \
     --use-real-queue &
 
 # Wait on Uvicorn server to keep container alive

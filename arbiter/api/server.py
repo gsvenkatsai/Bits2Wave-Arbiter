@@ -23,7 +23,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from arbiter.shared.database import init_database
@@ -44,8 +44,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Initialise SQLite schema on startup (idempotent — shared DDL uses
     CREATE TABLE IF NOT EXISTS).  Schema source: shared/database.py.
+    Also warms up and registers the global DigitalTwinEvaluator with calibrated conformal intervals.
     """
     init_database(DB_PATH)
+    try:
+        from arbiter.twin.evaluator import ensure_global_evaluator
+        ensure_global_evaluator(warm_up=True)
+    except Exception:
+        pass
     yield
 
 
@@ -85,6 +91,11 @@ if os.path.exists(_FIXTURES_DIR):
         StaticFiles(directory=_FIXTURES_DIR),
         name="fixtures",
     )
+
+
+@app.get("/dashboard", include_in_schema=False)
+def get_dashboard_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/dashboard/", status_code=307)
 
 
 @app.get("/3d", response_class=FileResponse)

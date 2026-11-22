@@ -182,7 +182,26 @@ def _get_cell_states() -> list[CellState]:
             for c in _latest_frame["cells"]
         ]
         return _latest_cell_states
-    return []
+    try:
+        from arbiter.simulator.grid import HexagonalGrid
+        grid = HexagonalGrid()
+        cluster = grid.generate_5_cell_cluster()
+        return [
+            CellState(
+                cell_id=cid,
+                x_coord=cfg.x,
+                y_coord=cfg.y,
+                current_tx_power_dbm=cfg.tx_power_dbm,
+                antenna_tilt_deg=cfg.tilt_deg,
+                is_sleeping=False,
+                active_users=0,
+                load_ratio=0.0,
+                neighbor_cell_ids=list(cfg.neighbor_cell_ids),
+            )
+            for cid, cfg in cluster.items()
+        ]
+    except Exception:
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -954,7 +973,7 @@ def get_recorder_counterfactual(
             is_2am_match = decision_id in ("dec-2am-collision-06", "latest")
             cur_check = conn.execute(
                 "SELECT batch_tick, action, approved_value, delta_utility, "
-                "reason_code FROM audit_decisions WHERE decision_id = ?",
+                "reason_code, command_id FROM audit_decisions WHERE decision_id = ?",
                 (decision_id,),
             )
             audit_row = cur_check.fetchone()
@@ -980,10 +999,12 @@ def get_recorder_counterfactual(
                     engine, base_ts_ms=engine.simulated_epoch_ms
                 )
                 if audit_row:
+                    cmd_id = audit_row[5] if len(audit_row) > 5 and audit_row[5] else proposals[0].command_id
+                    matched_prop = next((p for p in proposals if p.command_id == cmd_id), proposals[0])
                     decs = [
                         ArbitrationDecision(
                             decision_id=decision_id,
-                            command_id="cmd-es-sleep-01",
+                            command_id=matched_prop.command_id,
                             batch_tick=target_tick,
                             action=ActionType(audit_row[1]),
                             approved_value=audit_row[2],
@@ -997,7 +1018,7 @@ def get_recorder_counterfactual(
                     decs = [
                         ArbitrationDecision(
                             decision_id=decision_id,
-                            command_id="cmd-es-sleep-01",
+                            command_id=proposals[0].command_id,
                             batch_tick=6,
                             action=ActionType.DELAY,
                             approved_value=None,
