@@ -94,7 +94,7 @@ sequenceDiagram
         RAN->>ES: DELAY: HOLD_POLICY, count equals 1
         RAN->>LB: MODIFY: 40 UEs to 15 UEs
         RAN->>CCO: MODIFY: plus 3 dB to plus 1 dB
-        Note over RAN,UES: Zero dropped users; 2.0 kJ energy conserved
+        Note over RAN,UES: Zero dropped users, 2.0 kJ energy conserved
     end
 ```
 

@@ -139,9 +139,17 @@ def check_mermaid_blocks(file_path: Path) -> list[str]:
         "stateDiagram", "stateDiagram-v2", "erDiagram", "xychart-beta"
     ]
     for idx, block in enumerate(blocks, 1):
-        first_line = block.strip().split("\n")[0].strip()
+        lines = block.strip().split("\n")
+        first_line = lines[0].strip()
         if not any(first_line.startswith(t) for t in valid_diagram_types):
             errors.append(f"[{file_path.name}] Mermaid block #{idx} has invalid diagram header: '{first_line}'")
+
+        # Check for unescaped semicolons in sequence diagrams (treated as command delimiters by GitHub)
+        if first_line.startswith("sequenceDiagram"):
+            for l_idx, line in enumerate(lines, 1):
+                stripped = line.strip()
+                if ";" in stripped and not stripped.startswith("%%"):
+                    errors.append(f"[{file_path.name}] Mermaid block #{idx} line {l_idx} has semicolon ';': {stripped}")
     return errors
 
 
