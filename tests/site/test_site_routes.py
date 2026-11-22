@@ -9,10 +9,9 @@ Traceability:
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,8 +20,9 @@ from arbiter.api.server import app
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
+def client() -> Generator[TestClient, None, None]:
+    with TestClient(app) as c:
+        yield c
 
 
 class TestSiteRoutes:

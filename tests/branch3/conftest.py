@@ -3,33 +3,44 @@
 Complies with Rule G5 (conftest.py only in tests/branch3/)
 and Rule G6 (tmp_path for SQLite databases).
 """
-import pytest
-import sqlite3
-import warnings
-from typing import Dict, List
-import numpy as np
+from __future__ import annotations
 
-# Suppress benign thread-local SQLite resource warnings during test teardown
-warnings.filterwarnings("ignore", category=ResourceWarning)
+import warnings
+from typing import Any, Dict, Generator
+import numpy as np
+import pytest
 
 from arbiter.storage.database import DatabaseConnectionFactory
 from arbiter.storage.commit_log import SQLiteCommitLogger
 from arbiter.storage.lkg_store import LKGStore
-from arbiter.twin.schemas import (
-    ClusterSnapshot,
-    NetworkStateProvider,
-    NetworkActuationTarget,
-)
+from arbiter.twin.schemas import ClusterSnapshot
+
+# Safe typing guard for Python 3.13 networkx generics if evaluated
+try:
+    import networkx as _nx  # type: ignore[import-untyped]
+    if not hasattr(_nx.Graph, "__class_getitem__"):
+        setattr(
+            _nx.Graph,
+            "__class_getitem__",
+            classmethod(lambda cls, item: cls),
+        )
+except ImportError:
+    pass
+
+# Suppress benign thread-local SQLite resource warnings during test teardown
+warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 class InMemoryNetworkTarget:
-    """In-memory actuation target simulating physical base station configuration."""
+    """In-memory actuation target simulating base station configuration."""
 
     def __init__(self) -> None:
         self.parameters: Dict[str, Dict[str, float]] = {}
         self.fail_on_cell: Dict[str, bool] = {}
 
-    def apply_parameter(self, cell_id: str, parameter: str, value: float) -> bool:
+    def apply_parameter(
+        self, cell_id: str, parameter: str, value: float
+    ) -> bool:
         if self.fail_on_cell.get(cell_id, False):
             return False
         if cell_id not in self.parameters:
@@ -49,8 +60,6 @@ class MockNetworkStateProvider:
         self.cell_ids = ["cell_A", "cell_B", "cell_C", "cell_D", "cell_E"]
         n = len(self.cell_ids)
 
-        # Distance-decay coupling matrix (symmetric, diagonal=0)
-        # Stronger coupling between immediate neighbors
         coupling = np.array([
             [0.0,  0.08, 0.02, 0.01, 0.01],
             [0.08, 0.0,  0.07, 0.02, 0.01],
@@ -112,13 +121,14 @@ def mock_target() -> InMemoryNetworkTarget:
 
 
 @pytest.fixture
-def tmp_db_factory(tmp_path) -> DatabaseConnectionFactory:
-    """Fixture providing temporary SQLite DB with WAL mode and stub audit_decisions table."""
+def tmp_db_factory(
+    tmp_path: Any,
+) -> Generator[DatabaseConnectionFactory, None, None]:
+    """Fixture providing temporary SQLite DB with WAL mode and audit table."""
     db_file = str(tmp_path / "test_arbiter.db")
     factory = DatabaseConnectionFactory(db_path=db_file)
     conn = factory.get_connection()
 
-    # Stub audit_decisions table for Foreign Key validation if needed (Section 3.5)
     conn.execute("""
     CREATE TABLE IF NOT EXISTS audit_decisions (
         decision_id TEXT PRIMARY KEY,
@@ -133,14 +143,17 @@ def tmp_db_factory(tmp_path) -> DatabaseConnectionFactory:
     );
     """)
     conn.commit()
-    return factory
+    try:
+        yield factory
+    finally:
+        factory.close_all()
 
 
 @pytest.fixture
-def commit_logger(tmp_db_factory) -> SQLiteCommitLogger:
+def commit_logger(tmp_db_factory: Any) -> SQLiteCommitLogger:
     return SQLiteCommitLogger(tmp_db_factory)
 
 
 @pytest.fixture
-def lkg_store(tmp_db_factory) -> LKGStore:
+def lkg_store(tmp_db_factory: Any) -> LKGStore:
     return LKGStore(tmp_db_factory)

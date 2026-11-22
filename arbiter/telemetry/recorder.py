@@ -37,7 +37,7 @@ logger = logging.getLogger("arbiter.recorder")
 
 def _get_twin_scenario() -> Any:
     """Helper to load standard scripted twin for 2 AM collision scenario."""
-    from tests.branch2.test_decision_ladder import _scenario_twin
+    from arbiter.engine.scripted_twin import make_scripted_twin as _scenario_twin
     return _scenario_twin()
 
 

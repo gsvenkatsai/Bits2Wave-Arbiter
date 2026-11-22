@@ -11,6 +11,7 @@ from arbiter.telemetry.frame import (
     TwinFrame,
     TwinIntervalFrame,
     UserFrame,
+    build_frame,
     build_frame_message,
     extract_engine_frame_components,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "TwinFrame",
     "TwinIntervalFrame",
     "KpiFrame",
+    "build_frame",
     "build_frame_message",
     "extract_engine_frame_components",
     "record_2am_collision",

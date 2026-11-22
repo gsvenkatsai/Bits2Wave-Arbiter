@@ -32,7 +32,6 @@ from fastapi.testclient import TestClient
 
 from arbiter.api.routes import (
     get_db_path,
-    get_decision_engine,
     get_monitor,
     set_decision_engine,
 )
@@ -54,7 +53,6 @@ from arbiter.shared.v2_contracts import (
 from arbiter.telemetry.impact import (
     ImpactCalculator,
     resolve_tariff,
-    store_impact_record,
 )
 from arbiter.telemetry.monitor import KPITelemetryMonitor
 

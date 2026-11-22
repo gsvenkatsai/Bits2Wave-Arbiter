@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from typing import Any, List, Optional
+from typing import Any, List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, ValidationError
@@ -113,7 +113,6 @@ _current_twin_prediction: Optional[TwinPredictionV2] = None
 
 def get_simulation_engine() -> Any:
     """Returns the registered active SimulationEngine (if any)."""
-    global _simulation_engine_singleton
     return _simulation_engine_singleton
 
 
@@ -163,79 +162,80 @@ _latest_cell_states: list[CellState] = []
 
 
 def _get_cell_states() -> list[CellState]:
-    """Retrieve current states of all cells."""
+    """Retrieve current states of all cells from the latest ingested frame (Contract C4)."""
     global _latest_cell_states
     if _latest_cell_states:
         return _latest_cell_states
-    from arbiter.simulator.grid import HexagonalGrid
-    from arbiter.simulator.cell import CellEntity
-    grid = HexagonalGrid()
-    cells = grid.generate_5_cell_cluster(isd=500.0)
-    baseline_stats = {
-        "cell_A": (35, 0.875),
-        "cell_B": (4, 0.100),
-        "cell_C": (4, 0.100),
-        "cell_D": (6, 0.150),
-        "cell_E": (5, 0.125),
-    }
-    _latest_cell_states = [
-        CellEntity(c).to_cell_state(
-            active_users=baseline_stats.get(c.cell_id, (0, 0.0))[0],
-            load_ratio=baseline_stats.get(c.cell_id, (0, 0.0))[1],
-        )
-        for c in cells.values()
-    ]
-    return _latest_cell_states
+    if _latest_frame is not None and "cells" in _latest_frame and _latest_frame["cells"]:
+        _latest_cell_states = [
+            CellState(
+                cell_id=c.get("id") or c.get("cell_id", ""),
+                x_coord=float(c.get("x", 0.0)),
+                y_coord=float(c.get("y", 0.0)),
+                current_tx_power_dbm=float(c.get("tx_power_dbm", 43.0)),
+                antenna_tilt_deg=float(c.get("tilt_deg", 6.0)),
+                is_sleeping=bool(c.get("is_sleeping", False)),
+                active_users=int(c.get("active_users", 0)),
+                load_ratio=float(c.get("load_ratio", 0.0)),
+                neighbor_cell_ids=c.get("neighbor_cell_ids", []),
+            )
+            for c in _latest_frame["cells"]
+        ]
+        return _latest_cell_states
+    return []
 
 
 # ---------------------------------------------------------------------------
 # Twin Prediction & Drift Helpers
 # ---------------------------------------------------------------------------
 
-def _get_or_load_twin_prediction() -> TwinPredictionV2:
+def get_twin_evaluator() -> Any:
+    """Returns the registered global DigitalTwinEvaluator instance (if any)."""
+    try:
+        from arbiter.twin.evaluator import get_global_evaluator
+
+        return get_global_evaluator()
+    except Exception:
+        return None
+
+
+def _get_or_load_twin_prediction(evaluator: Any = None) -> Optional[TwinPredictionV2]:
     """Load or return the current TwinPredictionV2 state with uncertainty intervals."""
     global _current_twin_prediction
     if _current_twin_prediction is not None:
         return _current_twin_prediction
 
-    from arbiter.twin.evaluator import get_global_evaluator
-
-    evaluator = get_global_evaluator()
-    if evaluator is not None and hasattr(evaluator, "predict_v2"):
+    ev = evaluator if evaluator is not None else get_twin_evaluator()
+    if ev is not None and hasattr(ev, "predict_v2"):
         try:
-            pred = evaluator.predict_v2([])
+            pred = ev.predict_v2([])
             if pred is not None:
                 _current_twin_prediction = pred
                 return _current_twin_prediction
         except Exception:
             pass
 
-    fixture_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "fixtures", "v2", "twin_prediction_v2.json")
-    )
-    if os.path.exists(fixture_path):
-        with open(fixture_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _current_twin_prediction = TwinPredictionV2.model_validate(data)
-    else:
-        _current_twin_prediction = TwinPredictionV2(
-            candidate_id="cand-2am-lb-offload-modify",
-            intervals=[
-                PredictionInterval(kpi="coverage_ratio", mean=0.942, lower=0.915, upper=0.965, coverage=0.90),
-                PredictionInterval(kpi="drop_rate_ratio", mean=0.004, lower=0.001, upper=0.008, coverage=0.90),
-                PredictionInterval(kpi="normalized_energy", mean=0.448, lower=0.410, upper=0.485, coverage=0.90),
-                PredictionInterval(kpi="normalized_interference", mean=0.285, lower=0.250, upper=0.320, coverage=0.90),
-            ],
-            calibrated=True,
-            n_calibration=50,
-        )
-    return _current_twin_prediction
+    return None
 
 
 def _inject_twin_drift(drift_scale: float = 1.8) -> TwinPredictionV2:
     """Drift hook: widens intervals and uncalibrates the digital twin prediction."""
     global _current_twin_prediction
     base = _get_or_load_twin_prediction()
+    if base is None:
+        # Default uncalibrated intervals if drift is injected without pre-existing prediction
+        _current_twin_prediction = TwinPredictionV2(
+            candidate_id="cand-drifted",
+            intervals=[
+                PredictionInterval(kpi="coverage_ratio", mean=0.942, lower=0.85, upper=0.99, coverage=0.75),
+                PredictionInterval(kpi="drop_rate_ratio", mean=0.004, lower=0.0, upper=0.02, coverage=0.75),
+                PredictionInterval(kpi="normalized_energy", mean=0.448, lower=0.35, upper=0.55, coverage=0.75),
+                PredictionInterval(kpi="normalized_interference", mean=0.285, lower=0.20, upper=0.38, coverage=0.75),
+            ],
+            calibrated=False,
+            n_calibration=0,
+        )
+        return _current_twin_prediction
 
     scale = max(1.1, float(drift_scale))
     widened_intervals: List[PredictionInterval] = []
@@ -409,7 +409,7 @@ async def ingest_telemetry(
         timestamp_epoch_ms=timestamp_epoch_ms,
         uncoord_dropped_users=uncoord_dropped,
         uncoord_power_kw=uncoord_power,
-        twin_prediction=current_twin.model_dump(),
+        twin_prediction=current_twin.model_dump() if current_twin else None,
     )
     await broadcast_tick_update(payload)
 
@@ -577,18 +577,24 @@ async def ingest_frame(
     twin = raw.get("twin")
     if not twin:
         pred = _get_or_load_twin_prediction()
-        twin = {
-            "calibrated": pred.calibrated,
-            "intervals": [
-                {
-                    "kpi": i.kpi,
-                    "mean": i.mean,
-                    "lower": i.lower,
-                    "upper": i.upper,
-                }
-                for i in pred.intervals
-            ],
-        }
+        if pred is not None:
+            twin = {
+                "calibrated": pred.calibrated,
+                "intervals": [
+                    {
+                        "kpi": i.kpi,
+                        "mean": i.mean,
+                        "lower": i.lower,
+                        "upper": i.upper,
+                    }
+                    for i in pred.intervals
+                ],
+            }
+        else:
+            twin = {
+                "calibrated": False,
+                "intervals": [],
+            }
 
     complete_frame: dict[str, Any] = {
         "type": "frame",
@@ -714,13 +720,14 @@ async def ingest_frame(
         except Exception:
             pass
 
+    twin_pred_obj = _get_or_load_twin_prediction()
     tick_update = build_tick_update(
         batch_tick=tick,
         ingress_proposals=ingress_proposals,
         arbitration_badges=arbitration_badges,
         samples=samples,
         timestamp_epoch_ms=sim_time_ms,
-        twin_prediction=_get_or_load_twin_prediction().model_dump(),
+        twin_prediction=twin_pred_obj.model_dump() if twin_pred_obj else None,
     )
     tick_update["aggregate_kpis"]["total_dropped_users"] = kpis.get(
         "dropped_users", 0
@@ -751,12 +758,28 @@ def get_latest_frame_endpoint() -> dict[str, Any]:
     ws_frame = get_latest_ws_frame()
     if ws_frame is not None:
         return ws_frame
-    global _latest_frame
     if _latest_frame is not None:
         return _latest_frame
 
     states = _get_cell_states()
     twin_pred = _get_or_load_twin_prediction()
+    twin_data: dict[str, Any] = {
+        "calibrated": False,
+        "intervals": [],
+    }
+    if twin_pred is not None:
+        twin_data = {
+            "calibrated": twin_pred.calibrated,
+            "intervals": [
+                {
+                    "kpi": i.kpi,
+                    "mean": i.mean,
+                    "lower": i.lower,
+                    "upper": i.upper,
+                }
+                for i in twin_pred.intervals
+            ],
+        }
     return {
         "type": "frame",
         "tick": 0,
@@ -782,18 +805,7 @@ def get_latest_frame_endpoint() -> dict[str, Any]:
         "decisions": [],
         "conflicts": [],
         "plans": [],
-        "twin": {
-            "calibrated": twin_pred.calibrated,
-            "intervals": [
-                {
-                    "kpi": i.kpi,
-                    "mean": i.mean,
-                    "lower": i.lower,
-                    "upper": i.upper,
-                }
-                for i in twin_pred.intervals
-            ],
-        },
+        "twin": twin_data,
         "kpis": {
             "dropped_users": 0,
             "mean_sinr_db": 9.51,
@@ -827,11 +839,15 @@ def get_counterfactual_frames_endpoint(
             detail=str(exc),
         )
 
+
 @router.get("/state/cells")
-def get_cells() -> list[dict[str, Any]]:
-    """GET /api/v1/state/cells — Latest physical cell configurations."""
+def get_cells() -> Any:
+    """GET /api/v1/state/cells — Latest physical cell configurations (Contract C4)."""
     states = _get_cell_states()
+    if not states:
+        return {"status": "no_data", "cells": []}
     return [s.model_dump() for s in states]
+
 
 
 @router.get("/decisions/history")
@@ -1087,13 +1103,105 @@ def get_plans(db_path: str = Depends(get_db_path)) -> list[dict[str, Any]]:
 # Feature #5: Uncertainty View & Digital Twin Drift
 # ---------------------------------------------------------------------------
 
+@router.get("/twin/intervals")
+def get_twin_intervals(
+    evaluator: Any = Depends(get_twin_evaluator),
+) -> dict[str, Any]:
+    """
+    GET /api/v1/twin/intervals — Conformal prediction intervals and calibration status (Contract C3).
+    With no evaluator: {"status": "no_evaluator", "calibrated": False, "intervals": []}.
+    With evaluator: return its intervals plus calibration_status().
+    """
+    if evaluator is None:
+        return {
+            "status": "no_evaluator",
+            "calibrated": False,
+            "intervals": [],
+        }
+
+    cal_status: dict[str, Any] = {}
+    if hasattr(evaluator, "calibration_status") and callable(getattr(evaluator, "calibration_status")):
+        try:
+            cal_status = getattr(evaluator, "calibration_status")()
+        except Exception:
+            cal_status = {}
+
+    calibrated = bool(cal_status.get("calibrated", False))
+    n_cal = int(cal_status.get("n_calibration", 0))
+    hw = cal_status.get("interval_halfwidth_db", None)
+
+    intervals_data: list[dict[str, Any]] = []
+    if hasattr(evaluator, "predict_v2") and callable(getattr(evaluator, "predict_v2")):
+        try:
+            pred = evaluator.predict_v2([])
+            if pred is not None:
+                if "calibrated" not in cal_status:
+                    calibrated = bool(getattr(pred, "calibrated", False))
+                if "n_calibration" not in cal_status:
+                    n_cal = int(getattr(pred, "n_calibration", 0))
+                for intv in getattr(pred, "intervals", []):
+                    intervals_data.append(
+                        intv.model_dump() if hasattr(intv, "model_dump") else dict(intv)
+                    )
+        except Exception:
+            pass
+    elif hasattr(evaluator, "predict_with_intervals") and callable(getattr(evaluator, "predict_with_intervals")):
+        try:
+            res = evaluator.predict_with_intervals()
+            for intv in (res or []):
+                intervals_data.append(
+                    intv.model_dump() if hasattr(intv, "model_dump") else dict(intv)
+                )
+        except Exception:
+            pass
+    elif hasattr(evaluator, "intervals"):
+        intvs = getattr(evaluator, "intervals")
+        if callable(intvs):
+            intvs = intvs()
+        for intv in (intvs or []):
+            intervals_data.append(
+                intv.model_dump() if hasattr(intv, "model_dump") else dict(intv)
+            )
+
+    return {
+        "status": "ok",
+        "calibrated": calibrated,
+        "n_calibration": n_cal,
+        "interval_halfwidth_db": hw,
+        "intervals": intervals_data,
+    }
+
+
 @router.get("/twin/prediction")
-def get_twin_prediction() -> dict[str, Any]:
+def get_twin_prediction(
+    evaluator: Any = Depends(get_twin_evaluator),
+) -> dict[str, Any]:
     """
     GET /api/v1/twin/prediction — Calibrated digital twin prediction intervals.
     """
-    pred = _get_or_load_twin_prediction()
-    return pred.model_dump()
+    if evaluator is None:
+        if _current_twin_prediction is not None:
+            return _current_twin_prediction.model_dump()
+        return {
+            "status": "no_evaluator",
+            "calibrated": False,
+            "intervals": [],
+        }
+    pred = _get_or_load_twin_prediction(evaluator=evaluator)
+    if pred is not None:
+        return pred.model_dump()
+    if hasattr(evaluator, "predict_v2") and callable(getattr(evaluator, "predict_v2")):
+        try:
+            p = evaluator.predict_v2([])
+            if p is not None:
+                return cast(dict[str, Any], p.model_dump())
+        except Exception:
+            pass
+    return {
+        "status": "no_evaluator",
+        "calibrated": False,
+        "intervals": [],
+    }
 
 
 @router.post("/twin/drift")

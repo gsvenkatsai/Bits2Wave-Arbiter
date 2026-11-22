@@ -22,6 +22,7 @@ PAGES = [
     ("404 Error", "http://127.0.0.1:8000/404"),
 ]
 
+
 def run_audit():
     options = Options()
     options.add_argument("--headless=new")

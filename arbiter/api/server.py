@@ -23,7 +23,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from arbiter.shared.database import init_database
@@ -143,7 +143,7 @@ def get_site_team_page() -> FileResponse:
 
 
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"], include_in_schema=False)
-def api_not_found(path: str):
+def api_not_found(path: str) -> None:
     raise HTTPException(status_code=404, detail="Not Found")
 
 
@@ -164,7 +164,7 @@ def get_favicon() -> FileResponse:
 
 
 @app.exception_handler(404)
-async def custom_404_handler(request: Request, exc: Exception):
+async def custom_404_handler(request: Request, exc: Exception) -> Response:
     if request.url.path.startswith("/api/"):
         detail = getattr(exc, "detail", "Not Found")
         return JSONResponse(status_code=404, content={"detail": detail})

@@ -5,7 +5,6 @@ Guarantees ACID transactional logging with idempotent deduplication.
 """
 from __future__ import annotations
 
-import sqlite3
 import threading
 from typing import Any, Dict, List, Optional, Union
 
@@ -25,17 +24,23 @@ CREATE TABLE IF NOT EXISTS commit_log (
     applied_at_epoch_ms INTEGER NOT NULL,
     rollback_flag INTEGER DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_commit_log_cell ON commit_log(target_cell_id);
-CREATE INDEX IF NOT EXISTS idx_commit_log_time ON commit_log(applied_at_epoch_ms);
+CREATE INDEX IF NOT EXISTS idx_commit_log_cell
+    ON commit_log(target_cell_id);
+CREATE INDEX IF NOT EXISTS idx_commit_log_time
+    ON commit_log(applied_at_epoch_ms);
 """
 
 
 class SQLiteCommitLogger:
-    """ACID-compliant commit logger recording actuation actions to SQLite (FR-7.3)."""
+    """ACID-compliant commit logger recording actuation actions to SQLite."""
 
-    def __init__(self, factory_or_path: Union[DatabaseConnectionFactory, str]) -> None:
+    def __init__(
+        self, factory_or_path: Union[DatabaseConnectionFactory, str]
+    ) -> None:
         if isinstance(factory_or_path, str):
-            self.factory: DatabaseConnectionFactory = DatabaseConnectionFactory(db_path=factory_or_path)
+            self.factory: DatabaseConnectionFactory = (
+                DatabaseConnectionFactory(db_path=factory_or_path)
+            )
         else:
             self.factory = factory_or_path
 
@@ -102,16 +107,23 @@ class SQLiteCommitLogger:
             return None
         return dict(row)
 
-    def get_commits_by_cell(self, target_cell_id: str) -> List[Dict[str, Any]]:
+    def get_commits_by_cell(
+        self, target_cell_id: str
+    ) -> List[Dict[str, Any]]:
         """Retrieve historical commits for a specific target cell."""
         conn = self.factory.get_connection()
-        query = "SELECT * FROM commit_log WHERE target_cell_id = ? ORDER BY commit_seq ASC"
+        query = (
+            "SELECT * FROM commit_log WHERE target_cell_id = ? "
+            "ORDER BY commit_seq ASC"
+        )
         cursor = conn.cursor()
         cursor.execute(query, (target_cell_id,))
         rows = cursor.fetchall()
         return [dict(r) for r in rows]
 
-    def update_rollback_flag(self, commit_id: str, rollback_flag: int = 1) -> bool:
+    def update_rollback_flag(
+        self, commit_id: str, rollback_flag: int = 1
+    ) -> bool:
         """Update rollback_flag on an existing commit log row."""
         conn = self.factory.get_connection()
         query = "UPDATE commit_log SET rollback_flag = ? WHERE commit_id = ?"
@@ -120,3 +132,7 @@ class SQLiteCommitLogger:
             cursor.execute(query, (int(rollback_flag), commit_id))
             conn.commit()
             return bool(cursor.rowcount > 0)
+
+    def close(self) -> None:
+        """Close all connections managed by the factory."""
+        self.factory.close_all()

@@ -238,6 +238,8 @@ def test_cli_main_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
             "8",
             "--cells",
             "5",
+            "--twin",
+            "scripted",
         ],
     )
     main()
