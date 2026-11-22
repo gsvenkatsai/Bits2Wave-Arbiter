@@ -1433,8 +1433,29 @@ function fetchCellStates() {
         cell_D: { x: 125, y: 50, name: "Cell D (NW)" },
         cell_E: { x: 160, y: 170, name: "Cell E (South)" }
       };
+      const BENGALURU_COORDS = {
+        cell_A: { x: 120, y: 105, name: "Majestic" },
+        cell_B: { x: 168, y: 134, name: "Koramangala" },
+        cell_C: { x: 180, y: 102, name: "Indiranagar" },
+        cell_D: { x: 148, y: 105, name: "MG Road" },
+        cell_E: { x: 112, y: 144, name: "Jayanagar" },
+        cell_F: { x: 296, y: 94,  name: "Whitefield" },
+        cell_G: { x: 216, y: 209, name: "Electronic City" },
+        cell_H: { x: 136, y: 47,  name: "Hebbal" },
+        cell_I: { x: 144, y: 5,   name: "Yelahanka" },
+        cell_J: { x: 80,  y: 162, name: "Banashankari" },
+        cell_K: { x: 68,  y: 94,  name: "Rajajinagar" },
+        cell_L: { x: 232, y: 99,  name: "Marathahalli" },
+        cell_M: { x: 96,  y: 81,  name: "Malleshwaram" },
+        cell_N: { x: 148, y: 154, name: "BTM Layout" },
+        cell_O: { x: 200, y: 152, name: "HSR Layout" },
+        cell_P: { x: 128, y: 183, name: "Bannerghatta Rd" }
+      };
+      const isBengaluru = cellsList.length > 5 || cellsList.some((c) => c.cell_id === "cell_F");
       STATE.cells = cellsList.map((sc) => {
-        const meta = CANONICAL_COORDS[sc.cell_id] || { x: 160, y: 110, name: sc.cell_id };
+        const meta = isBengaluru
+          ? (BENGALURU_COORDS[sc.cell_id] || { x: 160, y: 110, name: sc.cell_id })
+          : (CANONICAL_COORDS[sc.cell_id] || { x: 160, y: 110, name: sc.cell_id });
         return {
           id: sc.cell_id,
           name: meta.name,
@@ -1636,9 +1657,12 @@ async function selectTopology2D(topoName) {
             };
             svgX = canonical[c.id]?.x ?? 160;
             svgY = canonical[c.id]?.y ?? 110;
+          } else if (c.norm_x !== undefined && c.norm_y !== undefined) {
+            svgX = Math.round(c.norm_x * 320);
+            svgY = Math.round(c.norm_y * 220);
           } else {
             svgX = Math.round(35 + ((c.x - minX) / spanX) * 250);
-            svgY = Math.round(30 + ((c.y - minY) / spanY) * 160);
+            svgY = Math.round(30 + ((maxY - c.y) / spanY) * 160);
           }
           return {
             id: c.id,
