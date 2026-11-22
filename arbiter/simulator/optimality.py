@@ -24,7 +24,7 @@ from arbiter.engine.utility import UtilityCalculator
 from arbiter.queue.orchestrator import QueueOrchestrator
 from arbiter.shared.v2_contracts import OptimalityResult, RiskDial
 from arbiter.simulator.engine import SimulationEngine
-from arbiter.engine.scripted_twin import make_scripted_twin as _scenario_twin
+from arbiter.simulator.toy_twin import get_scripted_twin
 
 
 def _score_fork(
@@ -196,7 +196,7 @@ def compute_optimality(
         for cid, cell in engine.cells.items()
     }
     orchestrator = QueueOrchestrator(
-        twin=_scenario_twin(),
+        twin=get_scripted_twin(),
         adjacency=adj,
         max_workers=2,
     )
