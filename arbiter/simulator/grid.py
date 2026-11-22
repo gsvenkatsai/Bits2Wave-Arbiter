@@ -1,5 +1,9 @@
 """Hexagonal cellular grid generation and spatial topology calculations."""
+from __future__ import annotations
+
+import json
 import math
+import os
 from typing import Any, Dict, List, Sequence, Tuple, Union, cast
 import networkx as nx
 import numpy as np
@@ -72,6 +76,103 @@ class HexagonalGrid:
                 is_sleeping=False,
                 neighbor_cell_ids=list(neighbors),
             )
+        return result
+
+    @classmethod
+    def generate_7_cell_cluster(
+        cls, isd: float = 500.0
+    ) -> Dict[str, CellConfiguration]:
+        """Generate 7-cell single-tier hexagonal cluster (cell_A through cell_G).
+
+        Center: cell_A at (0, 0)
+        Ring: 6 cells (cell_B..cell_G) at distance isd (angles 0, 60, ..., 300 deg).
+        """
+        all_ids = [f"cell_{chr(ord('A') + i)}" for i in range(7)]
+        coords: List[Tuple[float, float]] = [(0.0, 0.0)]
+        angles = [math.radians(deg) for deg in range(0, 360, 60)]
+        for angle in angles:
+            x = isd * math.cos(angle)
+            y = isd * math.sin(angle)
+            coords.append((round(x, 4), round(y, 4)))
+
+        temp_cells: List[CellConfiguration] = []
+        for cell_id, (x, y) in zip(all_ids, coords):
+            temp_cells.append(
+                CellConfiguration(
+                    cell_id=cell_id,
+                    x_coord=x,
+                    y_coord=y,
+                    carrier_freq_mhz=2100.0,
+                    max_tx_power_dbm=46.0,
+                    min_tx_power_dbm=30.0,
+                    current_tx_power_dbm=43.0,
+                    antenna_tilt_deg=6.0,
+                    is_sleeping=False,
+                    neighbor_cell_ids=[],
+                )
+            )
+
+        adj_matrix = cls.compute_adjacency_matrix(temp_cells, isd=isd)
+        result: Dict[str, CellConfiguration] = {}
+        for i, cell in enumerate(temp_cells):
+            neighbors = [all_ids[j] for j in range(len(temp_cells)) if adj_matrix[i, j]]
+            cell.neighbor_cell_ids = sorted(neighbors)
+            result[cell.cell_id] = cell
+        return result
+
+    @classmethod
+    def generate_bengaluru_cluster(
+        cls, isd: float = 800.0
+    ) -> Dict[str, CellConfiguration]:
+        """Generate Bengaluru metropolitan telecom demo cluster (16 named towers).
+
+        Uses coordinates from topology_bengaluru.json or realistic metro layout.
+        """
+        topo_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "dashboard",
+                "assets",
+                "topology_bengaluru.json",
+            )
+        )
+        if os.path.exists(topo_path):
+            with open(topo_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            towers = data.get("towers", [])
+        else:
+            towers = [
+                {"id": "cell_A", "name": "Majestic", "x_m": 0.0, "y_m": 0.0, "tx_dbm": 43.0, "tilt_deg": 6.0},
+                {"id": "cell_B", "name": "Koramangala", "x_m": 600.0, "y_m": -550.0, "tx_dbm": 43.0, "tilt_deg": 6.0},
+                {"id": "cell_C", "name": "Indiranagar", "x_m": 750.0, "y_m": 50.0, "tx_dbm": 43.0, "tilt_deg": 6.0},
+                {"id": "cell_D", "name": "MG Road", "x_m": 350.0, "y_m": 0.0, "tx_dbm": 43.0, "tilt_deg": 6.0},
+                {"id": "cell_E", "name": "Jayanagar", "x_m": -100.0, "y_m": -750.0, "tx_dbm": 43.0, "tilt_deg": 6.0},
+            ]
+
+        temp_cells: List[CellConfiguration] = []
+        for t in towers:
+            temp_cells.append(
+                CellConfiguration(
+                    cell_id=t["id"],
+                    x_coord=float(t.get("x_m", 0.0)),
+                    y_coord=float(t.get("y_m", 0.0)),
+                    carrier_freq_mhz=float(t.get("freq_mhz", 2100.0)),
+                    max_tx_power_dbm=46.0,
+                    min_tx_power_dbm=30.0,
+                    current_tx_power_dbm=float(t.get("tx_dbm", 43.0)),
+                    antenna_tilt_deg=float(t.get("tilt_deg", 6.0)),
+                    is_sleeping=False,
+                    neighbor_cell_ids=[],
+                )
+            )
+
+        adj_matrix = cls.compute_adjacency_matrix(temp_cells, isd=isd)
+        result: Dict[str, CellConfiguration] = {}
+        for i, cell in enumerate(temp_cells):
+            neighbors = [temp_cells[j].cell_id for j in range(len(temp_cells)) if adj_matrix[i, j]]
+            cell.neighbor_cell_ids = sorted(neighbors)
+            result[cell.cell_id] = cell
         return result
 
     @classmethod

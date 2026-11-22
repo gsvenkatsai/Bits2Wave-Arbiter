@@ -19,11 +19,15 @@ class CoverageCapacityController(BaseController):
         poll_interval_ticks: int = 1,
         edge_sinr_threshold_db: float = 0.0,
         default_power_boost_db: float = 3.0,
+        instance_id: Optional[str] = None,
+        cell_scope: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
             controller_id=controller_id,
             controller_type=ControllerType.COVERAGE_CAPACITY,
             poll_interval_ticks=poll_interval_ticks,
+            instance_id=instance_id,
+            cell_scope=cell_scope,
         )
         self.edge_sinr_threshold_db = edge_sinr_threshold_db
         self.default_power_boost_db = default_power_boost_db
@@ -68,6 +72,8 @@ class CoverageCapacityController(BaseController):
         powers = cell_powers or {}
 
         for cell_id, sinr in edge_sinr_map.items():
+            if self.cell_scope is not None and cell_id not in self.cell_scope:
+                continue
             if sinr < self.edge_sinr_threshold_db:
                 curr_pwr = powers.get(cell_id, 43.0)
                 if curr_pwr < 46.0:

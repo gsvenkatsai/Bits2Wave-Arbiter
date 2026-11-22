@@ -74,6 +74,7 @@ export const CONTROLLER_SPECS = {
     color: "#10b981", // Green
     colorHex: 0x10b981,
     defaultPos: { ...DEFAULT_RING_POSITIONS.ENERGY_SAVING },
+    associatedCell: "cell_C",
   },
   LOAD_BALANCING: {
     abbrev: "LB",
@@ -81,6 +82,7 @@ export const CONTROLLER_SPECS = {
     color: "#38bdf8", // Blue
     colorHex: 0x38bdf8,
     defaultPos: { ...DEFAULT_RING_POSITIONS.LOAD_BALANCING },
+    associatedCell: "cell_D",
   },
   COVERAGE_CAPACITY: {
     abbrev: "CC",
@@ -88,6 +90,7 @@ export const CONTROLLER_SPECS = {
     color: "#f59e0b", // Amber
     colorHex: 0xf59e0b,
     defaultPos: { ...DEFAULT_RING_POSITIONS.COVERAGE_CAPACITY },
+    associatedCell: "cell_E",
   },
   PUBLIC_SAFETY: {
     abbrev: "PS",
@@ -95,6 +98,7 @@ export const CONTROLLER_SPECS = {
     color: "#ef4444", // Red
     colorHex: 0xef4444,
     defaultPos: { ...DEFAULT_RING_POSITIONS.PUBLIC_SAFETY },
+    associatedCell: "cell_B",
   },
 };
 
@@ -259,4 +263,35 @@ export function detectUserHandovers(prevUsers = [], currUsers = []) {
   }
 
   return handovers;
+}
+
+/**
+ * Map load balancing or handover proposals to an offload arrow descriptor between cells.
+ */
+export function mapOffloadArrow(proposals = [], decisions = []) {
+  const lbProposal = proposals.find(
+    (p) => p.controller_type === "LOAD_BALANCING" && (p.parameter === "OFFLOAD_RATIO" || p.param === "OFFLOAD_RATIO")
+  );
+  const lbDecision = decisions.find(
+    (d) => d.action === "MODIFY" || d.action === "APPROVE"
+  );
+
+  if (lbProposal || lbDecision) {
+    const sourceCell = (lbProposal && lbProposal.source_cell_id) || "cell_A";
+    const targetCell = (lbProposal && lbProposal.target_cell_id) || (lbDecision && lbDecision.target_cell_id) || "cell_B";
+    const ratio = (lbDecision && lbDecision.approved_value !== undefined)
+      ? Number(lbDecision.approved_value)
+      : (lbProposal ? Number(lbProposal.requested_value || 0.4) : 0.1528);
+
+    return {
+      type: "OFFLOAD_ARROW",
+      sourceCell,
+      targetCell,
+      offloadRatio: ratio,
+      label: `OFFLOAD ${(ratio * 100).toFixed(1)}% (${sourceCell} -> ${targetCell})`,
+      color: "#60A5FA",
+    };
+  }
+
+  return null;
 }

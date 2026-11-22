@@ -87,6 +87,33 @@
           STORY MODE (0.25x)
         </div>
 
+        <!-- Topology Select Dropdown -->
+        <div class="topology-select-wrap" title="Cluster Topology Preset">
+          <select id="topology-select" class="hud-select" aria-label="Topology Selection">
+            <option value="5_CELL_CORE" selected>5_CELL_CORE</option>
+            <option value="7_CELL">7_CELL</option>
+            <option value="19_CELL">19_CELL</option>
+            <option value="BENGALURU_DEMO">BENGALURU_DEMO</option>
+          </select>
+        </div>
+
+        <!-- Map / Grid Toggle Button -->
+        <button id="btn-toggle-map" class="hud-btn" title="Toggle Map / Grid / Both [M]">[M] Map: ON</button>
+
+        <!-- Map Dim Slider -->
+        <div class="dim-slider-wrap" title="Ground Map Dimming">
+          <span class="dim-label">DIM:</span>
+          <input type="range" id="map-dim-slider" min="0.1" max="0.95" step="0.05" value="0.60" class="hud-slider" aria-label="Map Dimming Slider">
+        </div>
+
+        <!-- ARBITER Mode Toggle (Engaged vs Bypassed) -->
+        <button id="btn-toggle-arbiter-mode" class="hud-btn arbiter-mode-btn" title="Toggle ARBITER Coordinated Engine vs Raw Baseline">
+          <span class="mode-dot">●</span> <span id="arbiter-mode-label">ARBITER: ENGAGED</span>
+        </button>
+
+        <!-- Scenario Injector Toggle Button -->
+        <button id="btn-toggle-injector" class="hud-btn primary" title="Open Scenario Injector & Simulation Controls [I]">⚡ INJECTOR</button>
+
         <!-- NOC Side Panel Toggle Button -->
         <button id="btn-toggle-noc" class="hud-btn" title="Toggle NOC Diagnostics Side Panel [N]">[N] NOC</button>
 
@@ -97,6 +124,145 @@
 
     <!-- Persistent Amber Banner for Scripted Twin / Mock Proposal Sink -->
     <div id="amber-mock-banner" class="amber-banner" style="display: none; background: #d97706; color: #ffffff; text-align: center; font-weight: 700; padding: 6px 12px; font-size: 11px; letter-spacing: 0.08em; z-index: 1000; position: relative;"></div>
+
+    <!-- Collapsible Scenario Injector Drawer -->
+    <aside id="scenario-injector-panel" class="scenario-injector-panel hud-interactive" style="display: none;" aria-label="Scenario Injector and Simulation Lab">
+      <div class="injector-header">
+        <div class="injector-title-group">
+          <span class="injector-icon">⚡</span>
+          <span class="injector-title">SCENARIO INJECTOR &amp; SIMULATION LAB</span>
+        </div>
+        <button id="btn-close-injector" class="drawer-toggle-btn" title="Close Scenario Injector">[✕]</button>
+      </div>
+
+      <!-- Live Narration Banner -->
+      <div id="injector-narration-banner" class="injector-narration" style="display: none;">
+        <span class="narration-icon">📢</span>
+        <span id="injector-narration-text" class="narration-text">--</span>
+      </div>
+
+      <div class="injector-body">
+        <!-- Section A: 1-Click Preset Scenarios -->
+        <div class="injector-section">
+          <div class="injector-section-title">1-CLICK PRESET SCENARIOS</div>
+          <div class="preset-grid">
+            <button class="injector-preset-btn" data-preset="2_am_collision" title="ES wants Cell B sleep while LB offloads 40% into Cell B">
+              💥 2 AM Collision
+            </button>
+            <button class="injector-preset-btn" data-preset="stadium_surge" title="Sudden surge of 80 users on Cell A">
+              🏟️ Stadium Surge
+            </button>
+            <button class="injector-preset-btn" data-preset="cell_outage" title="Forced power outage on Cell B triggering LB offload">
+              🔌 Cell Outage
+            </button>
+            <button class="injector-preset-btn" data-preset="emergency_preempt" title="High-priority Public Safety emergency preempts routine sleep">
+              🚨 Emergency Preempt
+            </button>
+            <button class="injector-preset-btn" data-preset="ping_pong" title="Competing LB controllers ping-ponging load in a cycle">
+              🏓 Ping-Pong Loop
+            </button>
+          </div>
+        </div>
+
+        <!-- Section B: Simulation Transport Controls -->
+        <div class="injector-section">
+          <div class="injector-section-title">SIMULATION ENGINE TRANSPORT</div>
+          <div class="sim-transport-bar">
+            <button id="btn-sim-play" class="hud-btn primary" title="Run Continuous Simulation">▶ Play</button>
+            <button id="btn-sim-pause" class="hud-btn" title="Pause Simulation">⏸ Pause</button>
+            <button id="btn-sim-step" class="hud-btn" title="Advance Engine 1 Discrete Tick">⏭ Step 1 Tick</button>
+            <button id="btn-sim-reset" class="hud-btn" title="Reset Simulation Engine">↺ Reset</button>
+            <select id="sim-speed-select" class="hud-select" title="Simulation Engine Speed">
+              <option value="0.5">0.5x</option>
+              <option value="1.0" selected>1.0x</option>
+              <option value="2.0">2.0x</option>
+              <option value="4.0">4.0x</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section C: Custom Proposal Injection -->
+        <div class="injector-section">
+          <div class="injector-section-title">CUSTOM PROPOSAL INJECTION</div>
+          <form id="form-custom-inject" class="custom-inject-form">
+            <div class="form-row">
+              <label>Controller:
+                <select id="inject-ctrl-type" class="hud-select">
+                  <option value="load_balancing">Load Balancing (LB)</option>
+                  <option value="coverage_capacity">Coverage &amp; Capacity (CCO)</option>
+                  <option value="energy_saving">Energy Saving (ES)</option>
+                  <option value="public_safety">Public Safety (PS)</option>
+                </select>
+              </label>
+              <label>Target Cell:
+                <select id="inject-target-cell" class="hud-select">
+                  <option value="cell_A">Cell A (Core)</option>
+                  <option value="cell_B">Cell B (East)</option>
+                  <option value="cell_C">Cell C (NE)</option>
+                  <option value="cell_D">Cell D (NW)</option>
+                  <option value="cell_E">Cell E (South)</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Parameter:
+                <select id="inject-param" class="hud-select">
+                  <option value="OFFLOAD_RATIO">OFFLOAD_RATIO (0.0 - 1.0)</option>
+                  <option value="TX_POWER_DBM">TX_POWER_DBM (0.0 - 46.0)</option>
+                  <option value="SLEEP_STATE">SLEEP_STATE (0 or 1)</option>
+                  <option value="TILT">TILT (0.0 - 15.0°)</option>
+                  <option value="CIO">CIO (-10.0 to 10.0 dB)</option>
+                </select>
+              </label>
+              <label>Requested Value:
+                <input type="number" id="inject-value" step="0.01" value="0.40" class="hud-input">
+              </label>
+            </div>
+            <div class="form-row form-checkbox-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="inject-emergency">
+                <span>Emergency Flag (Public Safety)</span>
+              </label>
+              <button type="submit" id="btn-submit-inject" class="hud-btn primary">Inject Proposal</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Section D: Live Topology & Controller Mutation -->
+        <div class="injector-section">
+          <div class="injector-section-title">TOPOLOGY &amp; CONTROLLER SCALING</div>
+          <div class="topo-action-grid">
+            <form id="form-add-tower" class="mini-form">
+              <span class="mini-form-title">+ Add Cell Tower</span>
+              <div class="form-row compact">
+                <input type="text" id="add-cell-id" placeholder="ID (cell_F)" required class="hud-input">
+                <input type="text" id="add-cell-name" placeholder="Name (HSR Layout)" required class="hud-input">
+              </div>
+              <div class="form-row compact">
+                <input type="number" id="add-cell-x" placeholder="X meters" value="200" class="hud-input">
+                <input type="number" id="add-cell-y" placeholder="Y meters" value="200" class="hud-input">
+                <button type="submit" class="hud-btn btn-sm primary">Add Tower</button>
+              </div>
+            </form>
+            <form id="form-add-ctrl-instance" class="mini-form">
+              <span class="mini-form-title">+ Add Scoped Controller Instance</span>
+              <div class="form-row compact">
+                <select id="add-inst-type" class="hud-select">
+                  <option value="load_balancing">LB Instance</option>
+                  <option value="energy_saving">ES Instance</option>
+                  <option value="coverage_capacity">CCO Instance</option>
+                </select>
+                <input type="text" id="add-inst-id" placeholder="Instance ID (lb_south)" required class="hud-input">
+              </div>
+              <div class="form-row compact">
+                <input type="text" id="add-inst-scope" placeholder="Cell Scope (e.g. cell_A,cell_B)" class="hud-input">
+                <button type="submit" class="hud-btn btn-sm primary">Add Instance</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </aside>
 
     <!-- Main KPI Tiles (Glass tiles in one row under header) -->
     <div class="kpi-row hud-interactive" role="region" aria-label="Key Performance Indicators">
@@ -149,7 +315,10 @@
     <div id="counterfactual-delta-panel" class="delta-panel hud-interactive" style="display: none;" role="region" aria-label="Counterfactual Delta Analysis">
       <div class="delta-header">
         <span>WITHOUT ARBITER — COUNTERFACTUAL DELTA</span>
-        <span id="delta-horizon" class="delta-horizon-badge">HORIZON: 20 TICKS</span>
+        <div class="delta-header-right">
+          <span id="delta-horizon" class="delta-horizon-badge">HORIZON: 20 TICKS</span>
+          <button id="btn-close-delta-panel" class="delta-close-btn" title="Close Popover (Esc)" aria-label="Close">×</button>
+        </div>
       </div>
       <div class="delta-grid">
         <div class="delta-item">
@@ -281,6 +450,7 @@
           <option value="2.0">2.0x</option>
           <option value="4.0">4.0x</option>
         </select>
+        <span class="map-credit-line" title="Map Source Attribution">Map: mapplan.com (demo use)</span>
       </div>
     </footer>
   </div>

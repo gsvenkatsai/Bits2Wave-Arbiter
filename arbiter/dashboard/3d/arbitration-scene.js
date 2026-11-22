@@ -18,6 +18,7 @@ import {
   mapConflictsToEdges,
   mapDecisionsToVerdicts,
   detectUserHandovers,
+  mapOffloadArrow,
 } from './arbitration-mapper.js';
 
 export class ArbitrationSceneLayer {
@@ -33,12 +34,14 @@ export class ArbitrationSceneLayer {
     // Controller Nodes
     this.controllerNodes = new Map(); // 'ENERGY_SAVING' -> { mesh, halo, sprite, spec, pos }
     this.controllerPulses = new Map();
+    this.controllerLines = new Map();
 
     // In-flight proposal and verdict animations
     this.activePackets = [];
     this.activeConflictArcs = [];
     this.activeVerdicts = [];
     this.activeHandovers = [];
+    this.activeOffloadArrows = [];
     this.heldPackets = new Map(); // commandId -> { mesh, angle, badge }
 
     // Twin shimmer state
@@ -63,6 +66,56 @@ export class ArbitrationSceneLayer {
   // ---------------------------------------------------------------------------
   // 1. Controller Nodes
   // ---------------------------------------------------------------------------
+  getTowerHeadPosition(cellId) {
+    if (this.cellEntities && this.cellEntities.has(cellId)) {
+      const ent = this.cellEntities.get(cellId);
+      if (ent && ent.group) {
+        return new THREE.Vector3(ent.group.position.x, 78.5, ent.group.position.z);
+      }
+    }
+    const defaults = {
+      cell_A: new THREE.Vector3(0, 78.5, 0),
+      cell_B: new THREE.Vector3(500, 78.5, 0),
+      cell_C: new THREE.Vector3(250, 78.5, 433.01),
+      cell_D: new THREE.Vector3(-250, 78.5, 433.01),
+      cell_E: new THREE.Vector3(0, 78.5, -500.0),
+    };
+    return defaults[cellId] || new THREE.Vector3(0, 78.5, 0);
+  }
+
+  updateNetworkLines() {
+    if (!this.controllerLines) return;
+    const centerTowerPos = this.getTowerHeadPosition('cell_A');
+    for (const [, item] of this.controllerLines.entries()) {
+      const towerHeadPos = this.getTowerHeadPosition(item.spec.associatedCell || 'cell_A');
+      const linePoints = [
+        towerHeadPos,
+        new THREE.Vector3(item.pos.x, item.pos.y, item.pos.z),
+        new THREE.Vector3(this.corePosition.x, this.corePosition.y, this.corePosition.z),
+        centerTowerPos,
+      ];
+      item.line.geometry.setFromPoints(linePoints);
+      item.line.computeLineDistances();
+    }
+
+    // Connect ARBITER Core to all towers across the city
+    if (this.cellEntities && this.coreTowerLines) {
+      const pts = [];
+      for (const [cellId, entity] of this.cellEntities.entries()) {
+        if (cellId === 'cell_A') continue;
+        if (entity && entity.group && entity.group.visible) {
+          pts.push(this.corePosition.clone());
+          pts.push(new THREE.Vector3(entity.group.position.x, 78.5, entity.group.position.z));
+        }
+      }
+      if (pts.length > 0) {
+        this.coreTowerLines.geometry.setFromPoints(pts);
+        this.coreTowerLines.computeLineDistances();
+        this.coreTowerLines.visible = true;
+      }
+    }
+  }
+
   setupControllerNodes() {
     for (const [key, spec] of Object.entries(CONTROLLER_SPECS)) {
       const nodeGroup = new THREE.Group();
@@ -97,22 +150,28 @@ export class ArbitrationSceneLayer {
       labelSprite.position.set(0, 24, 0);
       nodeGroup.add(labelSprite);
 
-      // Thin dotted network connection line to ARBITER Core
+      // Dotted network line touching the tower antenna, passing through the controller,
+      // connecting into ARBITER Core, and touching down into central Cell A antenna
+      const towerHeadPos = this.getTowerHeadPosition(spec.associatedCell || 'cell_A');
+      const centerTowerPos = this.getTowerHeadPosition('cell_A');
       const linePoints = [
+        towerHeadPos,
         new THREE.Vector3(pos.x, pos.y, pos.z),
         new THREE.Vector3(this.corePosition.x, this.corePosition.y, this.corePosition.z),
+        centerTowerPos,
       ];
       const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
       const lineMat = new THREE.LineDashedMaterial({
         color: 0xFFC800,
-        dashSize: 14,
+        dashSize: 22,
         gapSize: 9,
         transparent: true,
-        opacity: 0.35,
+        opacity: 0.90,
       });
       const netLine = new THREE.Line(lineGeo, lineMat);
       netLine.computeLineDistances();
       this.layerGroup.add(netLine);
+      this.controllerLines.set(key, { line: netLine, pos, spec });
 
       this.layerGroup.add(nodeGroup);
       this.controllerNodes.set(key, { group: nodeGroup, mesh, mat, halo, pos, spec });
@@ -126,8 +185,8 @@ export class ArbitrationSceneLayer {
     canvas.height = 110;
     const ctx = canvas.getContext('2d');
 
-    // Dark gold glass pill style
-    ctx.fillStyle = 'rgba(10, 10, 13, 0.92)';
+    // Telecom NOC glass pill style
+    ctx.fillStyle = 'rgba(11, 18, 32, 0.95)';
     ctx.strokeStyle = color;
     ctx.lineWidth = 5;
     ctx.beginPath();
@@ -135,17 +194,55 @@ export class ArbitrationSceneLayer {
     ctx.fill();
     ctx.stroke();
 
-    // Full untruncated name
-    ctx.fillStyle = '#F5F5F7';
+    const icons = {
+      ES: '⚡',
+      LB: '⚖️',
+      CC: '📶',
+      PS: '🚨',
+    };
+    const icon = icons[abbrev] || '⚙️';
+
+    ctx.fillStyle = color;
     ctx.font = 'bold 36px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(name, 256, 62);
+    ctx.textAlign = 'left';
+    ctx.fillText(`${icon} [${abbrev}]`, 32, 64);
+
+    ctx.fillStyle = '#E6EDF7';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText(name, 190, 62);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
     const sprite = new THREE.Sprite(mat);
     sprite.scale.set(160, 36, 1);
+    return sprite;
+  }
+
+  createRefereeLabelSprite() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 460;
+    canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = 'rgba(11, 18, 32, 0.95)';
+    ctx.strokeStyle = '#22D3EE';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(6, 6, 448, 84, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#22D3EE';
+    ctx.font = 'bold 34px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🛡️ ARBITER REFEREE', 230, 56);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(130, 27, 1);
     return sprite;
   }
 
@@ -236,6 +333,22 @@ export class ArbitrationSceneLayer {
     this.twinShimmerSprite.visible = false;
     this.coreGroup.add(this.twinShimmerSprite);
 
+    // 6. Central ARBITER Referee Badge (billboard)
+    this.refereeBadgeSprite = this.createRefereeLabelSprite();
+    this.refereeBadgeSprite.position.set(0, 82, 0);
+    this.coreGroup.add(this.refereeBadgeSprite);
+
+    // 7. Referee lines from ARBITER Core directly down to every tower head in the cluster
+    const coreLineMat = new THREE.LineDashedMaterial({
+      color: 0x22D3EE, // Glowing cyan referee telemetry link
+      dashSize: 20,
+      gapSize: 10,
+      transparent: true,
+      opacity: 0.80,
+    });
+    this.coreTowerLines = new THREE.LineSegments(new THREE.BufferGeometry(), coreLineMat);
+    this.layerGroup.add(this.coreTowerLines);
+
     this.layerGroup.add(this.coreGroup);
   }
 
@@ -305,6 +418,8 @@ export class ArbitrationSceneLayer {
   onFrame(frame) {
     if (!frame) return;
 
+    this.updateNetworkLines();
+
     const proposals = frame.proposals || [];
     const decisions = frame.decisions || [];
     const conflicts = frame.conflicts || [];
@@ -338,6 +453,12 @@ export class ArbitrationSceneLayer {
       const verdicts = mapDecisionsToVerdicts(decisions, proposals);
       for (const v of verdicts) {
         this.spawnVerdictAnimation(v);
+      }
+
+      // Check for offload handover arrow
+      const offloadDesc = mapOffloadArrow(proposals, decisions);
+      if (offloadDesc) {
+        this.spawnOffloadArrow(offloadDesc.sourceCell, offloadDesc.targetCell, offloadDesc.offloadRatio);
       }
     }
 
@@ -496,7 +617,7 @@ export class ArbitrationSceneLayer {
       : new THREE.Vector3(0, 20, 0);
 
     if (action === 'APPROVE') {
-      // Exits core and flies to target tower, turning green
+      // Exits core and flies to target tower, turning green (#34D399)
       const startPos = this.corePosition.clone();
       const midPos = startPos.clone().lerp(targetPos, 0.5);
       midPos.y += 60;
@@ -504,7 +625,7 @@ export class ArbitrationSceneLayer {
 
       const geo = new THREE.SphereGeometry(7, 12, 12);
       const mat = new THREE.MeshStandardMaterial({
-        color: 0x10b981,
+        color: 0x34D399,
         emissive: 0x059669,
         emissiveIntensity: 1.5,
       });
@@ -520,7 +641,7 @@ export class ArbitrationSceneLayer {
         verdict,
       });
     } else if (action === 'MODIFY') {
-      // Morphs requested value -> approved value, then flies out amber
+      // Morphs requested value -> approved value, then flies out cyan (#22D3EE)
       const startPos = this.corePosition.clone();
       const midPos = startPos.clone().lerp(targetPos, 0.5);
       midPos.y += 60;
@@ -528,8 +649,8 @@ export class ArbitrationSceneLayer {
 
       const geo = new THREE.SphereGeometry(7, 12, 12);
       const mat = new THREE.MeshStandardMaterial({
-        color: 0xf59e0b,
-        emissive: 0xd97706,
+        color: 0x22D3EE,
+        emissive: 0x0891B2,
         emissiveIntensity: 1.5,
       });
       const mesh = new THREE.Mesh(geo, mat);
@@ -538,7 +659,7 @@ export class ArbitrationSceneLayer {
       // Morphing countdown label
       const morphSprite = this.createPacketLabelSprite(
         `BISECT: ${verdict.morphLabel || 'MODIFIED'}`,
-        '#f59e0b'
+        '#22D3EE'
       );
       mesh.add(morphSprite);
       morphSprite.position.set(0, 16, 0);
@@ -552,11 +673,11 @@ export class ArbitrationSceneLayer {
         verdict,
       });
     } else if (action === 'DELAY') {
-      // Orbits the ARBITER core ring with a HOLD n/3 badge
+      // Orbits the ARBITER core ring with a HOLD n/3 amber badge (#FBBF24)
       const geo = new THREE.SphereGeometry(6, 12, 12);
       const mat = new THREE.MeshStandardMaterial({
-        color: 0xeab308,
-        emissive: 0xca8a04,
+        color: 0xFBBF24,
+        emissive: 0xD97706,
         emissiveIntensity: 1.2,
       });
       const mesh = new THREE.Mesh(geo, mat);
@@ -564,7 +685,7 @@ export class ArbitrationSceneLayer {
 
       const holdSprite = this.createPacketLabelSprite(
         `HOLD ${verdict.holdCount}/3 • ${verdict.reasonCode}`,
-        '#eab308'
+        '#FBBF24'
       );
       mesh.add(holdSprite);
       holdSprite.position.set(0, 15, 0);
@@ -576,7 +697,7 @@ export class ArbitrationSceneLayer {
         life: 2.0, // Orbits for ~2s
       });
     } else if (action === 'REJECT') {
-      // Red shatter explosion particle burst
+      // Red shatter explosion particle burst (#FB7185)
       this.spawnShatterExplosion(this.corePosition, verdict.reasonCode);
     }
   }
@@ -585,7 +706,7 @@ export class ArbitrationSceneLayer {
     const particleCount = 18;
     const particles = [];
     const geo = new THREE.BoxGeometry(2.5, 2.5, 2.5);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const mat = new THREE.MeshBasicMaterial({ color: 0xFB7185 });
 
     for (let i = 0; i < particleCount; i++) {
       const mesh = new THREE.Mesh(geo, mat);
@@ -599,7 +720,7 @@ export class ArbitrationSceneLayer {
       particles.push({ mesh, vel });
     }
 
-    const reasonSprite = this.createPacketLabelSprite(`REJECTED: ${reasonCode}`, '#ef4444');
+    const reasonSprite = this.createPacketLabelSprite(`REJECTED: ${reasonCode}`, '#FB7185');
     reasonSprite.position.copy(pos).add(new THREE.Vector3(0, 30, 0));
     this.layerGroup.add(reasonSprite);
 
@@ -609,6 +730,68 @@ export class ArbitrationSceneLayer {
       reasonSprite,
       life: 1.0,
       decay: 0.9,
+    });
+  }
+
+  spawnOffloadArrow(sourceCellId, targetCellId, offloadRatio) {
+    const srcTower = this.cellEntities.get(sourceCellId);
+    const dstTower = this.cellEntities.get(targetCellId);
+    if (!srcTower || !dstTower) return;
+
+    for (const oa of this.activeOffloadArrows) {
+      if (oa.sourceCellId === sourceCellId && oa.targetCellId === targetCellId) {
+        oa.life = 3.5;
+        return;
+      }
+    }
+
+    const startPos = srcTower.group.position.clone().add(new THREE.Vector3(0, 32, 0));
+    const endPos = dstTower.group.position.clone().add(new THREE.Vector3(0, 32, 0));
+    const midPos = startPos.clone().lerp(endPos, 0.5);
+    midPos.y += 40;
+
+    const curve = new THREE.QuadraticBezierCurve3(startPos, midPos, endPos);
+    const points = curve.getPoints(36);
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+
+    const mat = new THREE.LineDashedMaterial({
+      color: 0x22D3EE,
+      linewidth: 3,
+      scale: 1,
+      dashSize: 6,
+      gapSize: 3,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const line = new THREE.Line(geo, mat);
+    line.computeLineDistances();
+    this.layerGroup.add(line);
+
+    const coneGeo = new THREE.ConeGeometry(5, 14, 12);
+    const coneMat = new THREE.MeshStandardMaterial({
+      color: 0x22D3EE,
+      emissive: 0x0891B2,
+      emissiveIntensity: 1.2,
+    });
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    cone.position.copy(endPos);
+    const tangent = curve.getTangent(1.0).normalize();
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+    this.layerGroup.add(cone);
+
+    const pct = (offloadRatio * 100).toFixed(1);
+    const labelSprite = this.createPacketLabelSprite(`${pct}% OFFLOAD`, '#22D3EE');
+    labelSprite.position.copy(midPos).add(new THREE.Vector3(0, 14, 0));
+    this.layerGroup.add(labelSprite);
+
+    this.activeOffloadArrows.push({
+      sourceCellId,
+      targetCellId,
+      line,
+      cone,
+      labelSprite,
+      life: 3.5,
+      decay: 0.8,
     });
   }
 
@@ -783,6 +966,25 @@ export class ArbitrationSceneLayer {
         } else {
           beacon.material.opacity = beacon.userData.life * 0.35;
         }
+      }
+    }
+
+    // 10. Update Offload Arrows
+    for (let i = this.activeOffloadArrows.length - 1; i >= 0; i--) {
+      const oa = this.activeOffloadArrows[i];
+      oa.life -= dt * oa.decay;
+      if (oa.life <= 0) {
+        this.layerGroup.remove(oa.line);
+        this.layerGroup.remove(oa.cone);
+        this.layerGroup.remove(oa.labelSprite);
+        oa.line.geometry.dispose();
+        oa.cone.geometry.dispose();
+        this.activeOffloadArrows.splice(i, 1);
+      } else {
+        const op = Math.min(1.0, oa.life);
+        oa.line.material.opacity = op * 0.9;
+        oa.cone.material.opacity = op;
+        oa.labelSprite.material.opacity = op;
       }
     }
   }

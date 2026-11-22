@@ -1,4 +1,4 @@
-﻿# scripts/run_demo.ps1
+# scripts/run_demo.ps1
 # PROJECT ARBITER — 3D Real-time Demo Runner
 # Starts Uvicorn server, polls /health until ready, launches browser to /dashboard/3d,
 # and starts the simulation engine streaming real frames over WebSockets.
@@ -8,7 +8,8 @@ param(
     [float]$Pace = 1.0,
     [switch]$NoBrowser,
     [switch]$Scripted,
-    [switch]$MockSink
+    [switch]$MockSink,
+    [int]$Cells = 16
 )
 
 $ErrorActionPreference = "Stop"
@@ -115,7 +116,7 @@ if (-not $NoBrowser) {
 }
 
 # 5. Start engine with explicit --twin and queue options
-$engineArgs = @("-m", "arbiter.simulator.engine", "--scenario", "2am_collision", "--stream-ws", "--ticks", "$Ticks", "--pace", "$Pace", "--twin", "$twinKind")
+$engineArgs = @("-m", "arbiter.simulator.engine", "--scenario", "2am_collision", "--stream-ws", "--ticks", "$Ticks", "--pace", "$Pace", "--twin", "$twinKind", "--cells", "$Cells")
 if (-not $MockSink) {
     $engineArgs += "--use-real-queue"
 }

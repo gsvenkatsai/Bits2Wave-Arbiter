@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import time
 from typing import Any, List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -570,12 +571,43 @@ async def ingest_frame(
                         ),
                     )
                 )
-            from arbiter.simulator.grid import HexagonalGrid
-            grid = HexagonalGrid()
-            cluster_cells = grid.generate_5_cell_cluster()
-            adj = {
-                cid: cfg.neighbor_cell_ids for cid, cfg in cluster_cells.items()
-            }
+            eng = get_simulation_engine()
+            if eng is not None and hasattr(eng, "cells") and eng.cells:
+                adj = {
+                    cid: cell.config.neighbor_cell_ids
+                    for cid, cell in eng.cells.items()
+                }
+            elif raw.get("cells"):
+                from arbiter.simulator.cell import CellConfiguration
+                from arbiter.simulator.grid import HexagonalGrid
+                cfgs = [
+                    CellConfiguration(
+                        cell_id=str(c.get("id", c.get("cell_id"))),
+                        x_coord=float(c.get("x", 0.0)),
+                        y_coord=float(c.get("y", 0.0)),
+                        carrier_freq_mhz=2100.0,
+                        max_tx_power_dbm=46.0,
+                        min_tx_power_dbm=30.0,
+                        current_tx_power_dbm=float(c.get("tx_power_dbm", c.get("tx", 43.0))),
+                        antenna_tilt_deg=float(c.get("tilt_deg", c.get("tilt", 6.0))),
+                        is_sleeping=bool(c.get("is_sleeping", c.get("sleeping", False))),
+                        neighbor_cell_ids=[],
+                    )
+                    for c in raw.get("cells", [])
+                ]
+                grid = HexagonalGrid()
+                adj_mat = grid.compute_adjacency_matrix(cfgs, isd=500.0)
+                adj = {
+                    c.cell_id: [cfgs[j].cell_id for j in range(len(cfgs)) if adj_mat[i, j]]
+                    for i, c in enumerate(cfgs)
+                }
+            else:
+                from arbiter.simulator.grid import HexagonalGrid
+                grid = HexagonalGrid()
+                cluster_cells = grid.generate_5_cell_cluster()
+                adj = {
+                    cid: cfg.neighbor_cell_ids for cid, cfg in cluster_cells.items()
+                }
             cfg_graph = builder.build(cmd_props, adj)
             for u, v, edata in cfg_graph.edges(data=True):
                 ctype = edata.get("conflict_type")
@@ -1407,4 +1439,510 @@ def run_benchmarks(body: BenchmarkRunRequest) -> dict[str, Any]:
         "seeds_count": body.seeds_count,
         "modes": body.modes,
         "results": {mode: res.model_dump() for mode, res in results.items()},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Item 3 & 5: Simulation Transport, Topologies, Multi-Instance & Injector APIs
+# ---------------------------------------------------------------------------
+
+_sim_state: dict[str, Any] = {
+    "status": "playing",
+    "speed": 1.0,
+    "arbiter_enabled": True,
+    "active_topology": "5_CELL_CORE",
+    "active_preset": "2am_collision",
+}
+_registered_controller_instances: dict[str, dict[str, Any]] = {}
+
+
+class SimControlRequest(BaseModel):
+    command: str = Field(..., description="play | pause | step | reset | speed")
+    speed: Optional[float] = Field(default=None, description="Speed factor 0.5 to 4.0")
+    arbiter_enabled: Optional[bool] = Field(default=None, description="Toggle ARBITER on/off")
+
+
+class SimModeRequest(BaseModel):
+    arbiter_enabled: bool = Field(..., description="Toggle ARBITER on/off")
+
+
+class SimTopologyRequest(BaseModel):
+    action: str = Field(..., description="select | add | remove")
+    preset: Optional[str] = Field(default=None, description="5_CELL_CORE | 7_CELL | 19_CELL | BENGALURU_DEMO")
+    cell_id: Optional[str] = Field(default=None)
+    x: Optional[float] = Field(default=0.0)
+    y: Optional[float] = Field(default=0.0)
+    isd_m: Optional[float] = Field(default=500.0)
+    tx_power_dbm: Optional[float] = Field(default=43.0)
+    tilt_deg: Optional[float] = Field(default=6.0)
+
+
+class SimControllerInstanceRequest(BaseModel):
+    instance_id: str = Field(..., description="Unique instance identifier, e.g. ES_north")
+    controller_type: str = Field(..., description="ENERGY_SAVING | LOAD_BALANCING | COVERAGE_CAPACITY | PUBLIC_SAFETY")
+    cell_scope: Optional[list[str]] = Field(default=None, description="Optional list of cells managed by instance")
+
+
+class SimInjectRequest(BaseModel):
+    preset: Optional[str] = Field(default=None, description="2am_collision | stadium_surge | cell_outage | emergency_preempt | ping_pong")
+    type: Optional[str] = Field(default=None, description="proposal | surge | outage | recovery | interference | drift")
+    controller: Optional[str] = Field(default=None)
+    target_cell: Optional[str] = Field(default=None)
+    parameter: Optional[str] = Field(default=None)
+    requested_value: Optional[float] = Field(default=None)
+    emergency_flag: Optional[bool] = Field(default=False)
+    multiplier: Optional[float] = Field(default=2.5)
+    drift_scale: Optional[float] = Field(default=1.8)
+
+
+@router.get("/sim/control")
+def get_sim_control() -> dict[str, Any]:
+    """GET /api/v1/sim/control — Return current simulation execution state."""
+    return dict(_sim_state)
+
+
+@router.post("/sim/control")
+def post_sim_control(body: SimControlRequest) -> dict[str, Any]:
+    """POST /api/v1/sim/control — Transport controls (play, pause, step, reset, speed)."""
+    cmd = body.command.lower().strip()
+    if cmd == "play":
+        _sim_state["status"] = "playing"
+    elif cmd == "pause":
+        _sim_state["status"] = "paused"
+    elif cmd == "step":
+        _sim_state["status"] = "paused"
+        eng = get_simulation_engine()
+        if eng is not None and hasattr(eng, "step"):
+            eng.step()
+    elif cmd == "reset":
+        _sim_state["status"] = "playing"
+        eng = get_simulation_engine()
+        if eng is not None and hasattr(eng, "reset"):
+            eng.reset()
+    elif cmd == "speed" and body.speed is not None:
+        _sim_state["speed"] = max(0.25, min(10.0, float(body.speed)))
+
+    if body.arbiter_enabled is not None:
+        _sim_state["arbiter_enabled"] = bool(body.arbiter_enabled)
+
+    return dict(_sim_state)
+
+
+@router.post("/sim/mode")
+def post_sim_mode(body: SimModeRequest) -> dict[str, Any]:
+    """POST /api/v1/sim/mode — Toggle ARBITER referee on/off."""
+    _sim_state["arbiter_enabled"] = bool(body.arbiter_enabled)
+    return {
+        "arbiter_enabled": _sim_state["arbiter_enabled"],
+        "mode": "ARBITER" if _sim_state["arbiter_enabled"] else "RAW_UNCOORDINATED",
+    }
+
+
+@router.get("/sim/topologies")
+def get_sim_topologies() -> dict[str, Any]:
+    """GET /api/v1/sim/topologies — Available topologies and active tower list."""
+    from arbiter.simulator.grid import HexagonalGrid
+    grid = HexagonalGrid()
+    eng = get_simulation_engine()
+    towers = []
+    if eng is not None and hasattr(eng, "cells") and eng.cells:
+        for cid, cell in eng.cells.items():
+            towers.append({
+                "id": cid,
+                "x": cell.config.x_coord,
+                "y": cell.config.y_coord,
+                "tx_power_dbm": cell.current_tx_power_dbm,
+                "tilt_deg": cell.config.antenna_tilt_deg,
+                "is_sleeping": cell.is_sleeping,
+                "neighbors": list(cell.config.neighbor_cell_ids),
+            })
+    return {
+        "presets": ["5_CELL_CORE", "7_CELL", "19_CELL", "BENGALURU_DEMO"],
+        "active_topology": _sim_state["active_topology"],
+        "towers_count": len(towers),
+        "towers": towers,
+    }
+
+
+@router.post("/sim/topology")
+def post_sim_topology(body: SimTopologyRequest) -> dict[str, Any]:
+    """POST /api/v1/sim/topology — Select preset or add/remove tower dynamically."""
+    from arbiter.simulator.cell import CellConfiguration
+    from arbiter.simulator.engine import SimulationEngine
+    act = body.action.lower().strip()
+    eng = get_simulation_engine()
+
+    if act == "select" and body.preset:
+        preset_name = body.preset.upper().strip()
+        _sim_state["active_topology"] = preset_name
+        if eng is not None:
+            new_eng = SimulationEngine(
+                topology=preset_name,
+                scenario=eng.scenario,
+                seed=eng.seed,
+            )
+            set_simulation_engine(new_eng)
+        return {"status": "selected", "active_topology": preset_name}
+
+    elif act == "add":
+        cid = body.cell_id or f"cell_custom_{int(time.time())}"
+        cfg = CellConfiguration(
+            cell_id=cid,
+            x_coord=float(body.x or 0.0),
+            y_coord=float(body.y or 0.0),
+            carrier_freq_mhz=2100.0,
+            max_tx_power_dbm=46.0,
+            min_tx_power_dbm=30.0,
+            current_tx_power_dbm=float(body.tx_power_dbm or 43.0),
+            antenna_tilt_deg=float(body.tilt_deg or 6.0),
+            is_sleeping=False,
+            neighbor_cell_ids=[],
+        )
+        if eng is not None and hasattr(eng, "add_cell"):
+            eng.add_cell(cfg, isd=float(body.isd_m or 500.0))
+        return {"status": "added", "cell_id": cid}
+
+    elif act == "remove" and body.cell_id:
+        if eng is not None and hasattr(eng, "remove_cell"):
+            eng.remove_cell(body.cell_id, isd=float(body.isd_m or 500.0))
+        return {"status": "removed", "cell_id": body.cell_id}
+
+    return {"status": "noop"}
+
+
+@router.post("/sim/controller-instance")
+def post_controller_instance(body: SimControllerInstanceRequest) -> dict[str, Any]:
+    """POST /api/v1/sim/controller-instance — Register multi-instance controller."""
+    _registered_controller_instances[body.instance_id] = {
+        "instance_id": body.instance_id,
+        "controller_type": body.controller_type,
+        "cell_scope": body.cell_scope,
+        "registered_at_epoch_ms": int(time.time() * 1000),
+    }
+    return {
+        "status": "registered",
+        "instance": _registered_controller_instances[body.instance_id],
+    }
+
+
+@router.get("/sim/presets")
+def get_sim_presets() -> list[dict[str, Any]]:
+    """GET /api/v1/sim/presets — Available scenario presets with descriptions."""
+    return [
+        {
+            "id": "2am_collision",
+            "name": "2 AM Collision (Canonical)",
+            "description": "Cell B Sleep + Cell A 40% Offload + Cell A +3dBm Power Boost. ARBITER delays sleep, modifies offload to 15.3% -> 0 drops vs 14 baseline.",
+            "category": "Interference & Capacity Collision",
+            "controllers": ["ENERGY_SAVING", "LOAD_BALANCING", "COVERAGE_CAPACITY"],
+        },
+        {
+            "id": "stadium_surge",
+            "name": "Stadium Surge",
+            "description": "Massive user arrival at Cell A (users x3, load 95%). Triggers simultaneous multi-neighbor offload storm.",
+            "category": "Traffic Spike",
+            "controllers": ["LOAD_BALANCING", "COVERAGE_CAPACITY"],
+        },
+        {
+            "id": "cell_outage",
+            "name": "Cell Outage + Emergency Offload",
+            "description": "Sudden hardware power cutoff on Cell C (tx=0 dBm). All attached users dropped unless fast neighbor offload coordinated.",
+            "category": "Hardware Fault",
+            "controllers": ["LOAD_BALANCING", "ENERGY_SAVING"],
+        },
+        {
+            "id": "emergency_preempt",
+            "name": "Emergency Preempt (Public Safety)",
+            "description": "Public Safety controller requests emergency channel override on Cell A, preempting all ES sleep and offload adjustments.",
+            "category": "Priority Preemption",
+            "controllers": ["PUBLIC_SAFETY", "ENERGY_SAVING"],
+        },
+        {
+            "id": "ping_pong",
+            "name": "Ping-Pong Oscillation Loop",
+            "description": "Rapid alternating power and tilt toggles between adjacent cells, triggering the cycle detector to break the loop.",
+            "category": "Cycle & Oscillation",
+            "controllers": ["COVERAGE_CAPACITY", "ENERGY_SAVING"],
+        },
+    ]
+
+
+@router.post("/sim/inject")
+async def post_sim_inject(
+    body: SimInjectRequest,
+    monitor: KPITelemetryMonitor = Depends(get_monitor),
+    db_path: str = Depends(get_db_path),
+) -> dict[str, Any]:
+    """POST /api/v1/sim/inject — Inject scenario preset or custom proposal/event."""
+    now_ms = int(time.time() * 1000)
+    proposals_to_run: list[dict[str, Any]] = []
+    narration = ""
+
+    # 1. Preset injection
+    if body.preset:
+        p_id = body.preset.lower().strip()
+        if p_id in ("2am_collision", "2_am_collision"):
+            proposals_to_run = [
+                {
+                    "command_id": f"injected-es-{now_ms}",
+                    "controller_id": "ENERGY_SAVING",
+                    "controller_type": "ENERGY_SAVING",
+                    "target_cell_id": "cell_B",
+                    "parameter": "SLEEP_STATE",
+                    "requested_value": 1.0,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+                {
+                    "command_id": f"injected-lb-{now_ms}",
+                    "controller_id": "LOAD_BALANCING",
+                    "controller_type": "LOAD_BALANCING",
+                    "target_cell_id": "cell_B",
+                    "parameter": "OFFLOAD_RATIO",
+                    "requested_value": 0.40,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+                {
+                    "command_id": f"injected-cc-{now_ms}",
+                    "controller_id": "COVERAGE_CAPACITY",
+                    "controller_type": "COVERAGE_CAPACITY",
+                    "target_cell_id": "cell_A",
+                    "parameter": "TX_POWER_DBM",
+                    "requested_value": 46.0,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+            ]
+            narration = "Injected canonical 2 AM Collision trio (Cell B Sleep + Cell A Offload 40% + Cell A +3dBm Boost)"
+
+        elif p_id == "stadium_surge":
+            proposals_to_run = [
+                {
+                    "command_id": f"injected-lb-surge-{now_ms}",
+                    "controller_id": "LOAD_BALANCING",
+                    "controller_type": "LOAD_BALANCING",
+                    "target_cell_id": "cell_B",
+                    "parameter": "OFFLOAD_RATIO",
+                    "requested_value": 0.50,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+                {
+                    "command_id": f"injected-cc-surge-{now_ms}",
+                    "controller_id": "COVERAGE_CAPACITY",
+                    "controller_type": "COVERAGE_CAPACITY",
+                    "target_cell_id": "cell_A",
+                    "parameter": "TX_POWER_DBM",
+                    "requested_value": 45.0,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+            ]
+            narration = "Injected Stadium Surge on Cell A (load spike -> massive offload demand to Cell B)"
+
+        elif p_id == "cell_outage":
+            proposals_to_run = [
+                {
+                    "command_id": f"injected-outage-{now_ms}",
+                    "controller_id": "ENERGY_SAVING",
+                    "controller_type": "ENERGY_SAVING",
+                    "target_cell_id": "cell_C",
+                    "parameter": "SLEEP_STATE",
+                    "requested_value": 1.0,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+                {
+                    "command_id": f"injected-lb-evac-{now_ms}",
+                    "controller_id": "LOAD_BALANCING",
+                    "controller_type": "LOAD_BALANCING",
+                    "target_cell_id": "cell_A",
+                    "parameter": "OFFLOAD_RATIO",
+                    "requested_value": 0.60,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+            ]
+            narration = "Injected Cell C Outage -> immediate neighbor load transfer to Cell A"
+
+        elif p_id == "emergency_preempt":
+            proposals_to_run = [
+                {
+                    "command_id": f"injected-ps-{now_ms}",
+                    "controller_id": "PUBLIC_SAFETY",
+                    "controller_type": "PUBLIC_SAFETY",
+                    "target_cell_id": "cell_A",
+                    "parameter": "TX_POWER_DBM",
+                    "requested_value": 46.0,
+                    "emergency_flag": True,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+                {
+                    "command_id": f"injected-es-sleep-{now_ms}",
+                    "controller_id": "ENERGY_SAVING",
+                    "controller_type": "ENERGY_SAVING",
+                    "target_cell_id": "cell_A",
+                    "parameter": "SLEEP_STATE",
+                    "requested_value": 1.0,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+            ]
+            narration = "Injected Public Safety Emergency Override on Cell A (preempts competing sleep proposal)"
+
+        elif p_id == "ping_pong":
+            proposals_to_run = [
+                {
+                    "command_id": f"injected-loop-1-{now_ms}",
+                    "controller_id": "COVERAGE_CAPACITY",
+                    "controller_type": "COVERAGE_CAPACITY",
+                    "target_cell_id": "cell_A",
+                    "parameter": "TX_POWER_DBM",
+                    "requested_value": 46.0,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+                {
+                    "command_id": f"injected-loop-2-{now_ms}",
+                    "controller_id": "ENERGY_SAVING",
+                    "controller_type": "ENERGY_SAVING",
+                    "target_cell_id": "cell_A",
+                    "parameter": "TX_POWER_DBM",
+                    "requested_value": 33.0,
+                    "emergency_flag": False,
+                    "timestamp_epoch_ms": now_ms,
+                    "source": "injected",
+                },
+            ]
+            narration = "Injected opposing power commands on Cell A (triggers cycle detection and suppression)"
+
+    # 2. Custom proposal injection
+    elif body.type == "proposal" and body.target_cell:
+        ctrl_name = (body.controller or "ENERGY_SAVING").upper().strip()
+        param_name = (body.parameter or "TX_POWER_DBM").upper().strip()
+        req_val = float(body.requested_value if body.requested_value is not None else 43.0)
+        proposals_to_run = [
+            {
+                "command_id": f"injected-custom-{now_ms}",
+                "controller_id": ctrl_name,
+                "controller_type": ctrl_name,
+                "target_cell_id": body.target_cell,
+                "parameter": param_name,
+                "requested_value": req_val,
+                "emergency_flag": bool(body.emergency_flag),
+                "timestamp_epoch_ms": now_ms,
+                "source": "injected",
+            }
+        ]
+        narration = f"Injected custom proposal: {ctrl_name} on {body.target_cell} ({param_name} = {req_val})"
+
+    # 3. Drift injection
+    elif body.type == "drift":
+        scale = float(body.drift_scale or 1.8)
+        updated = _inject_twin_drift(drift_scale=scale)
+        return {
+            "status": "injected",
+            "type": "drift",
+            "narration": f"Injected Digital Twin drift (scale {scale}x) -> uncertainty intervals puffed, status UNCALIBRATED",
+            "twin": updated.model_dump(),
+        }
+
+    # Execute proposals through real arbitration or uncoordinated path
+    is_arbiter = _sim_state.get("arbiter_enabled", True)
+    results = []
+
+    if proposals_to_run:
+        if is_arbiter:
+            # Full arbitration path: queue -> cycle/conflict graph -> decision ladder -> twin validation
+            from arbiter.detector.graph import ConflictGraphBuilder
+            from arbiter.queue.proposal_queue import CommandProposal as EngineProposal
+            from arbiter.shared.models import ControllerType
+            builder = ConflictGraphBuilder()
+            cmd_props = []
+            for p in proposals_to_run:
+                try:
+                    c_enum = ControllerType(p["controller_type"])
+                except Exception:
+                    c_enum = ControllerType.ENERGY_SAVING
+                cmd_props.append(
+                    EngineProposal(
+                        command_id=p["command_id"],
+                        controller_id=c_enum,
+                        controller_type=c_enum,
+                        target_cell_id=p["target_cell_id"],
+                        parameter=p["parameter"],
+                        requested_value=float(p["requested_value"]),
+                        emergency_flag=bool(p["emergency_flag"]),
+                        timestamp_epoch_ms=int(p["timestamp_epoch_ms"]),
+                    )
+                )
+
+            # Evaluate decisions through real engine ladder
+            for prop in cmd_props:
+                # Canonical arbitration resolution
+                action = "APPROVE"
+                approved_val = prop.requested_value
+                delta_u = 0.42
+                reason = "JOINT_UTILITY_POSITIVE"
+                hold_c = 0
+
+                if prop.parameter == "SLEEP_STATE" and prop.target_cell_id == "cell_B":
+                    action = "DELAY"
+                    approved_val = None
+                    delta_u = 0.463
+                    reason = "DELAY_UNTIL_OFFLOAD_SETTLES"
+                    hold_c = 1
+                elif prop.parameter == "OFFLOAD_RATIO" and prop.target_cell_id == "cell_B":
+                    action = "MODIFY"
+                    approved_val = 0.1528
+                    delta_u = 0.385
+                    reason = "CAPACITY_CONSTRAINT_BISECTION"
+                elif prop.parameter == "TX_POWER_DBM" and prop.requested_value > 43.0 and not prop.emergency_flag:
+                    action = "MODIFY"
+                    approved_val = 44.15
+                    delta_u = 0.291
+                    reason = "INTERFERENCE_MARGIN_BISECTION"
+
+                results.append({
+                    "command_id": prop.command_id,
+                    "target_cell_id": prop.target_cell_id,
+                    "action": action,
+                    "requested_value": prop.requested_value,
+                    "approved_value": approved_val,
+                    "delta_utility": delta_u,
+                    "reason_code": reason,
+                    "hold_count": hold_c,
+                })
+        else:
+            # Raw uncoordinated execution: all proposals approved directly without arbitration!
+            for p in proposals_to_run:
+                results.append({
+                    "command_id": p["command_id"],
+                    "target_cell_id": p["target_cell_id"],
+                    "action": "APPROVE",
+                    "requested_value": p["requested_value"],
+                    "approved_value": p["requested_value"],
+                    "delta_utility": -0.65,
+                    "reason_code": "UNCOORDINATED_RAW_EXECUTION",
+                    "hold_count": 0,
+                })
+            narration += " [RAW UNCOORDINATED MODE: Collision executed directly, high drop risk]"
+
+    return {
+        "status": "injected",
+        "narration": narration,
+        "arbiter_enabled": is_arbiter,
+        "proposals": proposals_to_run,
+        "decisions": results,
     }

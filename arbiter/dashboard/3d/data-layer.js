@@ -415,7 +415,7 @@ export class DataLayer {
     this.emit('risk_dial_change', { label: this.riskDialLabel });
   }
 
-  async loadCounterfactual(decisionId = 'dec-es-001', horizon = 20) {
+  async loadCounterfactual(decisionId = 'dec-es-001', horizon = 20, abortSignal = null) {
     let host = 'localhost:8000';
     let proto = 'http:';
     if (typeof window !== 'undefined') {
@@ -426,7 +426,8 @@ export class DataLayer {
 
     if (typeof fetch !== 'undefined') {
       try {
-        const resp = await fetch(apiUrl);
+        const fetchOpts = abortSignal ? { signal: abortSignal } : {};
+        const resp = await fetch(apiUrl, fetchOpts);
         if (resp.ok) {
           const data = await resp.json();
           this.counterfactualRollout = data;
@@ -434,12 +435,16 @@ export class DataLayer {
           return data;
         }
       } catch (err) {
+        if (err && err.name === 'AbortError') {
+          return null;
+        }
         console.warn('[DataLayer] Live counterfactual API call failed, attempting local fixture fallback:', err);
       }
 
       // Offline fallback to recorded counterfactual fixture
       try {
-        const localResp = await fetch('./data/counterfactual_2am.json');
+        const fallbackOpts = abortSignal ? { signal: abortSignal } : {};
+        const localResp = await fetch('./data/counterfactual_2am.json', fallbackOpts);
         if (localResp.ok) {
           const localData = await localResp.json();
           this.counterfactualRollout = localData;
@@ -447,6 +452,9 @@ export class DataLayer {
           return localData;
         }
       } catch (fallbackErr) {
+        if (fallbackErr && fallbackErr.name === 'AbortError') {
+          return null;
+        }
         console.warn('[DataLayer] Bundled counterfactual fixture fetch failed:', fallbackErr);
       }
     }

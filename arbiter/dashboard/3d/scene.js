@@ -26,6 +26,32 @@ const COVERAGE_TX_MAX = 46.0;
 const COVERAGE_R_MIN = 150.0;
 const COVERAGE_R_MAX = 330.0;
 
+export const BENGALURU_NAMES = {
+  cell_A: 'Majestic',
+  cell_B: 'Koramangala',
+  cell_C: 'Indiranagar',
+  cell_D: 'MG Road',
+  cell_E: 'Jayanagar',
+  cell_F: 'Whitefield',
+  cell_G: 'Electronic City',
+  cell_H: 'Hebbal',
+  cell_I: 'Yelahanka',
+  cell_J: 'Banashankari',
+  cell_K: 'Rajajinagar',
+  cell_L: 'Marathahalli',
+  cell_M: 'Malleshwaram',
+  cell_N: 'BTM Layout',
+  cell_O: 'HSR Layout',
+  cell_P: 'Bannerghatta Rd',
+};
+
+export function getCellDisplayName(id, data = {}) {
+  if (data.display_name) return `${data.display_name} (${id})`;
+  if (data.name && !data.name.startsWith('cell_')) return `${data.name} (${id})`;
+  if (BENGALURU_NAMES[id]) return `${BENGALURU_NAMES[id]} (${id})`;
+  return id.replace('cell_', 'Tower ');
+}
+
 /**
  * Coverage disc radius mapping formula:
  * R(tx) = R_min + (R_max - R_min) * ((tx - tx_min) / (tx_max - tx_min))
@@ -272,6 +298,9 @@ export class Arbiter3DScene {
     // 8. RF Connection Lines (Single buffer draw call)
     this.setupConnectionLines();
 
+    // 8a. Inter-Tower Backhaul Mesh Lines
+    this.setupBackhaulLines();
+
     // 8b. Arbitration Layer (Controllers, Core, Packets, Conflict Arcs, Verdicts)
     this.arbitrationLayer = new ArbitrationSceneLayer(this.scene, {
       cellEntities: this.cellEntities,
@@ -318,10 +347,10 @@ export class Arbiter3DScene {
   }
 
   setupGround() {
-    // 1. Near-black ground plane (--bg: #0A0A0D)
-    const groundGeo = new THREE.PlaneGeometry(6000, 6000);
+    // 1. Deep navy ground plane (--bg: #0B1220)
+    const groundGeo = new THREE.PlaneGeometry(8000, 8000);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x0A0A0D,
+      color: 0x0B1220,
       roughness: 0.95,
       metalness: 0.05,
     });
@@ -331,40 +360,50 @@ export class Arbiter3DScene {
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    // 2. Warm radial vignette (gold ~6% opacity fading to near-black)
-    const vignetteCanvas = document.createElement('canvas');
-    vignetteCanvas.width = 512;
-    vignetteCanvas.height = 512;
-    const vCtx = vignetteCanvas.getContext('2d');
-    const vGrad = vCtx.createRadialGradient(256, 256, 0, 256, 256, 256);
-    vGrad.addColorStop(0, 'rgba(255, 200, 0, 0.06)');
-    vGrad.addColorStop(0.4, 'rgba(255, 200, 0, 0.02)');
-    vGrad.addColorStop(0.85, 'rgba(10, 10, 13, 0.0)');
-    vGrad.addColorStop(1, 'rgba(10, 10, 13, 0.0)');
-    vCtx.fillStyle = vGrad;
-    vCtx.fillRect(0, 0, 512, 512);
-
-    const vignetteTex = new THREE.CanvasTexture(vignetteCanvas);
-    const vignetteGeo = new THREE.PlaneGeometry(4500, 4500);
-    const vignetteMat = new THREE.MeshBasicMaterial({
-      map: vignetteTex,
+    // 2. Real Bengaluru Map Background Ground Texture (Item 4)
+    const loader = new THREE.TextureLoader();
+    this.mapTexture = loader.load('assets/bengaluru_map.png');
+    this.mapTexture.colorSpace = THREE.SRGBColorSpace;
+    const mapGeo = new THREE.PlaneGeometry(4200, 5500);
+    this.mapMaterial = new THREE.MeshBasicMaterial({
+      map: this.mapTexture,
       transparent: true,
+      opacity: 0.88,
+      side: THREE.DoubleSide,
       depthWrite: false,
-      blending: THREE.NormalBlending,
     });
-    const vignetteMesh = new THREE.Mesh(vignetteGeo, vignetteMat);
-    vignetteMesh.rotation.x = -Math.PI / 2;
-    vignetteMesh.position.y = -0.6;
-    this.scene.add(vignetteMesh);
+    this.mapMesh = new THREE.Mesh(mapGeo, this.mapMaterial);
+    this.mapMesh.rotation.x = Math.PI / 2;
+    this.mapMesh.position.set(300, 0.15, -100);
+    this.scene.add(this.mapMesh);
 
-    // 3. Faint gold-tinted ground grid at ~4% opacity (removing teal/blue grid)
-    const grid = new THREE.GridHelper(3500, 70, 0x554415, 0x221B0A);
-    grid.position.y = 0;
-    if (grid.material) {
-      grid.material.transparent = true;
-      grid.material.opacity = 0.04;
+    // 3. Faint telecom grid
+    this.gridHelper = new THREE.GridHelper(5000, 100, 0x1F2D4A, 0x111B2E);
+    this.gridHelper.position.y = 0.2;
+    if (this.gridHelper.material) {
+      this.gridHelper.material.transparent = true;
+      this.gridHelper.material.opacity = 0.12;
     }
-    this.scene.add(grid);
+    this.scene.add(this.gridHelper);
+  }
+
+  setMapGridMode(mode) {
+    if (mode === 'grid') {
+      if (this.mapMesh) this.mapMesh.visible = false;
+      if (this.gridHelper) this.gridHelper.visible = true;
+    } else if (mode === 'map') {
+      if (this.mapMesh) this.mapMesh.visible = true;
+      if (this.gridHelper) this.gridHelper.visible = false;
+    } else {
+      if (this.mapMesh) this.mapMesh.visible = true;
+      if (this.gridHelper) this.gridHelper.visible = true;
+    }
+  }
+
+  setMapOpacity(opacity) {
+    if (this.mapMaterial) {
+      this.mapMaterial.opacity = opacity;
+    }
   }
 
   setupDustParticles() {
@@ -452,8 +491,9 @@ export class Arbiter3DScene {
     this.lineMaterial = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.35,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.85,
+      blending: THREE.NormalBlending,
+      depthWrite: false,
     });
 
     this.connectionLines = new THREE.LineSegments(
@@ -461,6 +501,64 @@ export class Arbiter3DScene {
       this.lineMaterial
     );
     this.scene.add(this.connectionLines);
+  }
+
+  setupBackhaulLines() {
+    this.backhaulGroup = new THREE.Group();
+    this.scene.add(this.backhaulGroup);
+    this.lastBackhaulTopologyKey = '';
+  }
+
+  updateBackhaulLines(cells) {
+    if (!cells || cells.length === 0) return;
+    const key = cells.map((c) => c.id).sort().join(',');
+    if (this.lastBackhaulTopologyKey === key) return;
+    this.lastBackhaulTopologyKey = key;
+
+    while (this.backhaulGroup.children.length > 0) {
+      const child = this.backhaulGroup.children[0];
+      this.backhaulGroup.remove(child);
+      if (child.geometry) child.geometry.dispose();
+    }
+
+    const cellMap = new Map();
+    for (const c of cells) {
+      cellMap.set(c.id, c);
+    }
+
+    const drawnPairs = new Set();
+    const points = [];
+
+    for (const c of cells) {
+      const x1 = Number(c.x) || 0;
+      const z1 = Number(c.y) || 0;
+      const neighbors = c.neighbors || [];
+      for (const nid of neighbors) {
+        const pairKey = [c.id, nid].sort().join('--');
+        if (drawnPairs.has(pairKey)) continue;
+        drawnPairs.add(pairKey);
+
+        const nCell = cellMap.get(nid);
+        if (nCell) {
+          const x2 = Number(nCell.x) || 0;
+          const z2 = Number(nCell.y) || 0;
+          points.push(new THREE.Vector3(x1, 75.0, z1));
+          points.push(new THREE.Vector3(x2, 75.0, z2));
+        }
+      }
+    }
+
+    if (points.length > 0) {
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({
+        color: 0x22D3EE, // Glowing cyan backhaul mesh connecting neighboring towers
+        transparent: true,
+        opacity: 0.70,
+        depthWrite: false,
+      });
+      const lines = new THREE.LineSegments(geo, mat);
+      this.backhaulGroup.add(lines);
+    }
   }
 
   setupEventListeners() {
@@ -480,6 +578,54 @@ export class Arbiter3DScene {
       }
     };
     window.addEventListener('keydown', this.onKeyDown);
+
+    // Raycaster for clicking controller nodes and cell towers
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+    let pointerDownPos = null;
+
+    this.onPointerDown = (e) => {
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+    };
+
+    this.onPointerUp = (e) => {
+      if (pointerDownPos) {
+        const dx = Math.abs(e.clientX - pointerDownPos.x);
+        const dy = Math.abs(e.clientY - pointerDownPos.y);
+        if (dx > 6 || dy > 6) return; // Drag / orbit move, not click
+      }
+
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      // 1. Raycast Controller Nodes (filter live ingress)
+      if (this.arbitrationLayer && this.arbitrationLayer.controllerNodes) {
+        for (const [key, node] of this.arbitrationLayer.controllerNodes.entries()) {
+          const hits = this.raycaster.intersectObjects([node.mesh, node.halo], true);
+          if (hits.length > 0) {
+            window.dispatchEvent(new CustomEvent('controller_selected', { detail: { controllerType: key } }));
+            return;
+          }
+        }
+      }
+
+      // 2. Raycast Cell Towers (open cell inspector)
+      if (this.cellEntities) {
+        for (const [cellId, entity] of this.cellEntities.entries()) {
+          const hits = this.raycaster.intersectObject(entity.group, true);
+          if (hits.length > 0) {
+            window.dispatchEvent(new CustomEvent('cell_selected', { detail: { cellId } }));
+            return;
+          }
+        }
+      }
+    };
+
+    this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
+    this.renderer.domElement.addEventListener('pointerup', this.onPointerUp);
   }
 
   setCameraPreset(presetNumber) {
@@ -694,7 +840,7 @@ export class Arbiter3DScene {
 
     const title = document.createElement('div');
     title.className = 'cell-label-title';
-    title.textContent = id;
+    title.textContent = getCellDisplayName(id, data);
     pill.appendChild(title);
 
     const subtitle = document.createElement('div');
@@ -806,6 +952,9 @@ export class Arbiter3DScene {
     // Ensure non-overlapping Voronoi footprints are computed & cached
     this.updateVoronoiFootprints(cells);
 
+    // Draw visible inter-tower mesh backhaul lines
+    this.updateBackhaulLines(cells);
+
     for (const cellData of cells) {
       const entity = this.getOrCreateCellEntity(cellData);
       entity.group.visible = true;
@@ -815,14 +964,14 @@ export class Arbiter3DScene {
       const load = Math.max(0.0, Math.min(1.0, cellData.load_ratio || 0.0));
       const isOverloaded = load > 0.75;
 
-      // Update Tower Materials & Load Ring
+      // Update Tower Materials & Load Ring based on Telecom-NOC Palette
       if (isSleeping) {
         // Dimmed grey sleeping tower
         entity.mastMat.color.setHex(0x475569);
         entity.cabinMat.color.setHex(0x1E222B);
         entity.beaconMat.color.setHex(0x334155);
         entity.beaconMat.emissive.setHex(0x000000);
-        entity.beaconMat.emissiveIntensity = 0.0; // Completely dark
+        entity.beaconMat.emissiveIntensity = 0.0;
         entity.gaugeRingMat.color.setHex(0x475569);
         entity.gaugeRingMat.emissive.setHex(0x000000);
         entity.gaugeRingMat.opacity = 0.3;
@@ -835,40 +984,58 @@ export class Arbiter3DScene {
           entity.footprintLineMat.opacity = 0.25;
         }
       } else if (isOverloaded) {
-        // Overloaded tower: amber load ring & footprint
+        // Red (>75% load) - Cell A at 93% load shows red (#FB7185)
         entity.mastMat.color.setHex(0xE2E8F0);
         entity.cabinMat.color.setHex(0x1E222B);
-        entity.beaconMat.color.setHex(0xFFC800);
-        entity.beaconMat.emissive.setHex(0xFFB020);
+        entity.beaconMat.color.setHex(0xFB7185);
+        entity.beaconMat.emissive.setHex(0xFB7185);
         entity.beaconMat.emissiveIntensity = 1.8;
-        entity.gaugeRingMat.color.setHex(0xFFB020);
-        entity.gaugeRingMat.emissive.setHex(0xFFB020);
+        entity.gaugeRingMat.color.setHex(0xFB7185);
+        entity.gaugeRingMat.emissive.setHex(0xFB7185);
         entity.gaugeRingMat.opacity = 0.95;
+
+        // Footprint tint: red
+        if (entity.footprintMat) {
+          entity.footprintMat.color.setHex(0xFB7185);
+          entity.footprintMat.opacity = 0.10;
+          entity.footprintLineMat.color.setHex(0xFB7185);
+          entity.footprintLineMat.opacity = 0.50;
+        }
+      } else if (load >= 0.40) {
+        // Amber (40-75% load - #FBBF24)
+        entity.mastMat.color.setHex(0xE2E8F0);
+        entity.cabinMat.color.setHex(0x1E222B);
+        entity.beaconMat.color.setHex(0xFBBF24);
+        entity.beaconMat.emissive.setHex(0xFBBF24);
+        entity.beaconMat.emissiveIntensity = 1.6;
+        entity.gaugeRingMat.color.setHex(0xFBBF24);
+        entity.gaugeRingMat.emissive.setHex(0xFBBF24);
+        entity.gaugeRingMat.opacity = 0.90;
 
         // Footprint tint: amber
         if (entity.footprintMat) {
-          entity.footprintMat.color.setHex(0xFFB020);
-          entity.footprintMat.opacity = 0.08;
-          entity.footprintLineMat.color.setHex(0xFFB020);
-          entity.footprintLineMat.opacity = 0.50;
+          entity.footprintMat.color.setHex(0xFBBF24);
+          entity.footprintMat.opacity = 0.07;
+          entity.footprintLineMat.color.setHex(0xFBBF24);
+          entity.footprintLineMat.opacity = 0.35;
         }
       } else {
-        // Active balanced tower: white-metal mast, gold/cyan load ring, gold footprint
+        // Emerald Green (<40% load - #34D399)
         entity.mastMat.color.setHex(0xE2E8F0);
         entity.cabinMat.color.setHex(0x1E222B);
-        entity.beaconMat.color.setHex(0xFFC800);
-        entity.beaconMat.emissive.setHex(0xFFD84A);
-        entity.beaconMat.emissiveIntensity = 1.6;
-        entity.gaugeRingMat.color.setHex(0xFFFFFF); // Balanced white/cyan
-        entity.gaugeRingMat.emissive.setHex(0xFFC800);
+        entity.beaconMat.color.setHex(0x34D399);
+        entity.beaconMat.emissive.setHex(0x34D399);
+        entity.beaconMat.emissiveIntensity = 1.5;
+        entity.gaugeRingMat.color.setHex(0x34D399);
+        entity.gaugeRingMat.emissive.setHex(0x34D399);
         entity.gaugeRingMat.opacity = 0.85;
 
-        // Footprint tint: gold
+        // Footprint tint: green
         if (entity.footprintMat) {
-          entity.footprintMat.color.setHex(0xFFC800);
-          entity.footprintMat.opacity = 0.04;
-          entity.footprintLineMat.color.setHex(0xFFC800);
-          entity.footprintLineMat.opacity = 0.25;
+          entity.footprintMat.color.setHex(0x34D399);
+          entity.footprintMat.opacity = 0.05;
+          entity.footprintLineMat.color.setHex(0x34D399);
+          entity.footprintLineMat.opacity = 0.30;
         }
       }
 
@@ -896,7 +1063,7 @@ export class Arbiter3DScene {
       if (entity.domLabel) {
         const { pill, title, subtitle } = entity.domLabel;
         pill.style.display = 'flex';
-        title.textContent = entity.id;
+        title.textContent = getCellDisplayName(entity.id, cellData);
 
         const ues = cellData.active_users !== undefined ? cellData.active_users : 0;
         const loadPct = Math.round(load * 100);
@@ -1205,9 +1372,9 @@ export class Arbiter3DScene {
         this.linePositions[lineVertexIdx + 1] = 75.0;
         this.linePositions[lineVertexIdx + 2] = cellPos.z;
 
-        this.lineColors[lineVertexIdx] = color.r * 0.7;
-        this.lineColors[lineVertexIdx + 1] = color.g * 0.7;
-        this.lineColors[lineVertexIdx + 2] = color.b * 0.7;
+        this.lineColors[lineVertexIdx] = color.r;
+        this.lineColors[lineVertexIdx + 1] = color.g;
+        this.lineColors[lineVertexIdx + 2] = color.b;
         lineVertexIdx += 3;
       }
     }

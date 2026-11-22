@@ -22,11 +22,15 @@ class EnergySavingController(BaseController):
         consecutive_low_ticks: int = 5,
         low_load_threshold: float = 0.15,
         cooldown_ticks: int = 10,
+        instance_id: Optional[str] = None,
+        cell_scope: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
             controller_id=controller_id,
             controller_type=ControllerType.ENERGY_SAVING,
             poll_interval_ticks=poll_interval_ticks,
+            instance_id=instance_id,
+            cell_scope=cell_scope,
         )
         self.consecutive_low_ticks = consecutive_low_ticks
         self.low_load_threshold = low_load_threshold
@@ -75,6 +79,8 @@ class EnergySavingController(BaseController):
             cell_loads = {str(k): float(v) for k, v in metrics.items()}
 
         for cell_id, load in cell_loads.items():
+            if self.cell_scope is not None and cell_id not in self.cell_scope:
+                continue
             self.load_history[cell_id].append(load)
             n_ticks = self.consecutive_low_ticks
             recent_history = self.load_history[cell_id][-n_ticks:]

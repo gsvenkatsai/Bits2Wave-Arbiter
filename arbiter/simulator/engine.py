@@ -82,6 +82,10 @@ class SimulationEngine:
         grid = HexagonalGrid()
         if "19" in topology:
             cell_configs = grid.generate_19_cell_cluster(isd=500.0)
+        elif "7" in topology:
+            cell_configs = grid.generate_7_cell_cluster(isd=500.0)
+        elif "bengaluru" in topology.lower() or "blr" in topology.lower():
+            cell_configs = grid.generate_bengaluru_cluster()
         else:
             cell_configs = grid.generate_5_cell_cluster(isd=500.0)
 
@@ -600,6 +604,33 @@ class SimulationEngine:
             "meta": frame_meta,
         }
 
+    def add_cell(
+        self, cell_config: CellConfiguration, isd: float = 500.0
+    ) -> None:
+        """Add a cell tower dynamically to the live simulation."""
+        self.cells[cell_config.cell_id] = CellEntity(config=cell_config)
+        self.recompute_neighbors(isd=isd)
+
+    def remove_cell(self, cell_id: str, isd: float = 500.0) -> None:
+        """Remove a cell tower dynamically from the live simulation."""
+        if cell_id in self.cells:
+            del self.cells[cell_id]
+            self.recompute_neighbors(isd=isd)
+
+    def recompute_neighbors(self, isd: float = 500.0) -> None:
+        """Dynamically recompute spatial 1-hop and 2-hop cell adjacencies from coordinates."""
+        grid = HexagonalGrid()
+        configs = {cid: cell.config for cid, cell in self.cells.items()}
+        cell_list = list(configs.values())
+        adj = grid.compute_adjacency_matrix(cell_list, isd=isd)
+        for i, c in enumerate(cell_list):
+            neighbors = [
+                cell_list[j].cell_id for j in range(len(cell_list)) if adj[i, j]
+            ]
+            c.neighbor_cell_ids = sorted(neighbors)
+            self.cells[c.cell_id].config.neighbor_cell_ids = sorted(neighbors)
+        self.bounds = grid.bounds(configs, isd=isd)
+
 
 def main() -> None:
     """CLI runner for standalone simulation scenarios."""
@@ -613,7 +644,17 @@ def main() -> None:
         "--ticks", type=int, default=300, help="Number of ticks (100ms each)"
     )
     parser.add_argument(
-        "--cells", type=int, default=5, choices=[5, 19], help="Cluster size"
+        "--cells",
+        type=int,
+        default=5,
+        choices=[5, 16, 19],
+        help="Cluster size (5, 16 for Bengaluru, 19)",
+    )
+    parser.add_argument(
+        "--topology",
+        type=str,
+        default=None,
+        help="Cluster topology: 'BENGALURU', '19_CELL', or '5_CELL_CORE'",
     )
     parser.add_argument("--seed", type=int, default=42, help="RNG seed")
     parser.add_argument(
@@ -676,7 +717,14 @@ def main() -> None:
         else f"http://127.0.0.1:{api_port}"
     )
 
-    topology = "19_CELL" if args.cells == 19 else "5_CELL_CORE"
+    if args.topology:
+        topology = args.topology
+    elif args.cells == 19:
+        topology = "19_CELL"
+    elif args.cells == 16:
+        topology = "BENGALURU"
+    else:
+        topology = "5_CELL_CORE"
 
     if args.mock_sink:
         use_real_queue = False

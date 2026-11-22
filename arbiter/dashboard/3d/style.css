@@ -17,49 +17,58 @@
    ========================================================================= */
 :root {
   /* Surfaces & Backgrounds */
-  --bg-primary: var(--bg, #0A0A0D);
-  --bg-warm: var(--bg-warm, #15110A);
-  --bg-glass: rgba(15, 17, 10, 0.88);
-  --bg-glass-card: rgba(15, 17, 10, 0.85);
-  --bg-glass-modal: rgba(15, 17, 10, 0.95);
+  --bg-primary: var(--bg, #0B1220);
+  --bg-warm: var(--bg-warm, #0E1626);
+  --bg-glass: rgba(17, 27, 46, 0.90);
+  --bg-glass-card: rgba(17, 27, 46, 0.88);
+  --bg-glass-modal: rgba(14, 22, 38, 0.96);
 
   /* Hairlines & Borders */
-  --border-subtle: var(--border, rgba(255, 255, 255, 0.10));
-  --border-strong: var(--border-strong, rgba(255, 255, 255, 0.18));
-  --border-gold: rgba(255, 200, 0, 0.35);
+  --border-subtle: var(--border, #1F2D4A);
+  --border-strong: var(--border-strong, rgba(34, 211, 238, 0.28));
+  --border-gold: rgba(34, 211, 238, 0.35);
 
-  /* Gold Theme Accents */
-  --gold: #FFC800;
-  --gold-soft: #FFD84A;
-  --gold-glow: rgba(255, 200, 0, 0.35);
-  --gold-dim: rgba(255, 200, 0, 0.12);
+  /* Theme Accents */
+  --primary: #22D3EE;
+  --blue: #3B82F6;
+  --gold: #22D3EE;
+  --gold-soft: #67E8F9;
+  --gold-glow: rgba(34, 211, 238, 0.35);
+  --gold-dim: rgba(34, 211, 238, 0.12);
 
   /* Typography Colors */
-  --text-primary: var(--text, #F5F5F7);
-  --text-muted: var(--muted, #B8B3A7);
-  --text-dim: var(--text-dim, #787367);
+  --text-primary: var(--text, #E6EDF7);
+  --text-muted: var(--muted, #8DA2C4);
+  --text-dim: var(--text-dim, #64748B);
 
   /* Fonts */
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
 
   /* Radii Scale */
-  --radius-sm: 12px;
-  --radius-md: 20px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
   --radius-full: 999px;
 
   /* Preserved Semantic Data Colors */
-  --color-green: var(--ok, #2EE6A6);
-  --color-amber: var(--warn, #FFB020);
-  --color-red: var(--bad, #FF4D5E);
-  --color-info: var(--info, #4FC3F7);
-  --color-cyan: var(--gold, #FFC800);
+  --color-green: var(--ok, #34D399);
+  --color-amber: var(--warn, #FBBF24);
+  --color-red: var(--bad, #FB7185);
+  --color-info: var(--info, #22D3EE);
+  --color-cyan: #22D3EE;
 
   /* Controller Semantic Colors */
-  --ctrl-es: #2EE6A6;
-  --ctrl-lb: #4FC3F7;
-  --ctrl-cc: #FFB020;
-  --ctrl-ps: #FF4D5E;
+  --ctrl-es: #2DD4BF;
+  --ctrl-lb: #60A5FA;
+  --ctrl-cc: #A78BFA;
+  --ctrl-cco: #A78BFA;
+  --ctrl-ps: #FB7185;
+
+  /* Verdict Colors */
+  --verdict-approve: #34D399;
+  --verdict-modify: #22D3EE;
+  --verdict-delay: #FBBF24;
+  --verdict-reject: #FB7185;
 }
 
 /* Accessible Global Reset */
@@ -1200,8 +1209,9 @@ html, body {
 .delta-panel {
   position: absolute;
   top: 130px;
-  right: 16px;
+  right: 324px;
   width: 320px;
+  max-width: calc(100vw - 360px);
   background: var(--bg-glass);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 77, 94, 0.4);
@@ -1209,9 +1219,18 @@ html, body {
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   z-index: 25;
-  display: flex;
+  display: none;
+  pointer-events: none;
   flex-direction: column;
   gap: 10px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.delta-panel.active {
+  display: flex !important;
+  pointer-events: auto !important;
+  opacity: 1;
 }
 
 .delta-header {
@@ -1226,6 +1245,35 @@ html, body {
   align-items: center;
   border-bottom: 1px solid rgba(255, 77, 94, 0.2);
   padding-bottom: 6px;
+}
+
+.delta-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delta-close-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 77, 94, 0.3);
+  color: #fca5a5;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.delta-close-btn:hover {
+  background: rgba(255, 77, 94, 0.25);
+  border-color: #f87171;
+  color: #fff;
 }
 
 .delta-horizon-badge {
@@ -1607,4 +1655,266 @@ html, body {
     padding: 4px 8px;
     font-size: 11px;
   }
+}
+
+/* =========================================================================
+   Scenario Injector Panel & Header Controls
+   ========================================================================= */
+.topology-select-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.hud-select {
+  background: rgba(17, 27, 46, 0.90);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.hud-select:hover, .hud-select:focus {
+  border-color: var(--primary);
+}
+
+.dim-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(17, 27, 46, 0.75);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+}
+
+.dim-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.hud-slider {
+  width: 60px;
+  height: 4px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.arbiter-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #34D399 !important;
+  color: #34D399 !important;
+  background: rgba(52, 211, 153, 0.12) !important;
+  font-weight: 700;
+}
+
+.arbiter-mode-btn.bypassed {
+  border: 1px solid #FB7185 !important;
+  color: #FB7185 !important;
+  background: rgba(251, 113, 133, 0.12) !important;
+}
+
+.mode-dot {
+  font-size: 9px;
+}
+
+/* Scenario Injector Drawer */
+.scenario-injector-panel {
+  position: absolute;
+  top: 65px;
+  left: 16px;
+  width: 440px;
+  max-height: calc(100vh - 140px);
+  background: rgba(17, 27, 46, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.injector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(14, 22, 38, 0.85);
+}
+
+.injector-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.injector-icon {
+  font-size: 16px;
+}
+
+.injector-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+}
+
+.injector-narration {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(34, 211, 238, 0.15);
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.narration-icon {
+  font-size: 14px;
+}
+
+.injector-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.injector-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.injector-preset-btn {
+  background: rgba(14, 22, 38, 0.90);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.injector-preset-btn:hover {
+  border-color: var(--primary);
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.sim-transport-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.custom-inject-form, .mini-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.form-row.compact {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.form-row label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hud-input {
+  background: rgba(14, 22, 38, 0.90);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.hud-input:focus {
+  border-color: var(--primary);
+}
+
+.form-checkbox-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.topo-action-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mini-form {
+  background: rgba(14, 22, 38, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.mini-form-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.map-credit-line {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.8;
+  padding: 0 4px;
 }

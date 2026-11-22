@@ -16,11 +16,15 @@ class PublicSafetyController(BaseController):
         self,
         controller_id: str = "ctrl-ps-01",
         poll_interval_ticks: int = 1,
+        instance_id: Optional[str] = None,
+        cell_scope: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
             controller_id=controller_id,
             controller_type=ControllerType.PUBLIC_SAFETY,
             poll_interval_ticks=poll_interval_ticks,
+            instance_id=instance_id,
+            cell_scope=cell_scope,
         )
 
     def evaluate_telemetry(self, metrics: Any) -> List[CommandProposal]:

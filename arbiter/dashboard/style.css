@@ -9,41 +9,57 @@
    LINEAR DESIGN SYSTEM TOKENS (NOC High-Density Console Mapped to Site Tokens)
    ========================================================================== */
 :root {
+  /* Telecom-NOC Color Palette */
+  --bg: #0B1220;
+  --panel: #111B2E;
+  --panel-2: #0E1626;
+  --border: #1F2D4A;
+  --text: #E6EDF7;
+  --muted: #8DA2C4;
+  --primary: #22D3EE;
+  --blue: #3B82F6;
+
   /* 4-Step Surface Ladder mapped to site tokens */
-  --surface-canvas:   var(--bg, #0A0A0D);
-  --surface-base:     var(--bg-warm, #15110A);
-  --surface-elevated: var(--surface-strong, rgba(255, 255, 255, 0.07));
-  --surface-overlay:  rgba(21, 17, 10, 0.95);
+  --surface-canvas:   var(--bg, #0B1220);
+  --surface-base:     var(--panel, #111B2E);
+  --surface-elevated: var(--panel-2, #0E1626);
+  --surface-overlay:  rgba(14, 22, 38, 0.95);
 
   /* Hairlines mapped to site tokens */
-  --hairline-subtle:  var(--border, rgba(255, 255, 255, 0.10));
-  --hairline-strong:  var(--border-strong, rgba(255, 255, 255, 0.18));
-  --hairline-active:  var(--gold, #FFC800);
+  --hairline-subtle:  var(--border, #1F2D4A);
+  --hairline-strong:  rgba(34, 211, 238, 0.28);
+  --hairline-active:  var(--primary, #22D3EE);
 
   /* Neutral Chrome Typography */
-  --text-primary:     var(--text, #F5F5F7);
-  --text-secondary:   var(--muted, #B8B3A7);
-  --text-muted:       var(--text-dim, #787367);
+  --text-primary:     var(--text, #E6EDF7);
+  --text-secondary:   var(--muted, #8DA2C4);
+  --text-muted:       #64748B;
 
   /* Accent & Action Palette */
-  --accent-cyan:      var(--gold, #FFC800);
-  --accent-glow:      var(--gold-glow, rgba(255, 200, 0, 0.35));
-  --accent-gold:      var(--gold, #FFC800);
-  --accent-gold-glow: var(--gold-glow, rgba(255, 200, 0, 0.35));
+  --accent-cyan:      #22D3EE;
+  --accent-glow:      rgba(34, 211, 238, 0.35);
+  --accent-gold:      #22D3EE;
+  --accent-gold-glow: rgba(34, 211, 238, 0.35);
 
-  /* Semantic data colors strictly preserved for readability */
-  --action-approve:   #10b981;   /* Emerald */
-  --action-approve-tint: rgba(16, 185, 129, 0.10);
-  --action-modify:    #3b82f6;   /* Blue */
-  --action-modify-tint:  rgba(59, 130, 246, 0.10);
-  --action-delay:     #f59e0b;   /* Amber */
-  --action-delay-tint:   rgba(245, 158, 11, 0.10);
-  --action-reject:    #ef4444;   /* Coral */
-  --action-reject-tint:  rgba(239, 68, 68, 0.12);
-  --action-reject-glow:  rgba(239, 68, 68, 0.35);
+  /* Semantic data colors strictly mapped to telecom-NOC palette */
+  --action-approve:      #34D399;   /* Emerald */
+  --action-approve-tint: rgba(52, 211, 153, 0.15);
+  --action-modify:       #22D3EE;   /* Cyan */
+  --action-modify-tint:  rgba(34, 211, 238, 0.15);
+  --action-delay:        #FBBF24;   /* Amber */
+  --action-delay-tint:   rgba(251, 191, 36, 0.15);
+  --action-reject:       #FB7185;   /* Coral Red */
+  --action-reject-tint:  rgba(251, 113, 133, 0.15);
+  --action-reject-glow:  rgba(251, 113, 133, 0.35);
 
-  --badge-purple-bg:  rgba(168, 85, 247, 0.12);
-  --badge-purple-fg:  #c084fc;
+  /* Controllers */
+  --ctrl-es:  #2DD4BF;
+  --ctrl-lb:  #60A5FA;
+  --ctrl-cco: #A78BFA;
+  --ctrl-ps:  #FB7185;
+
+  --badge-purple-bg:  rgba(167, 139, 250, 0.15);
+  --badge-purple-fg:  #A78BFA;
 
   /* Radii scale: 4 / 8 / 12 */
   --radius-sm: 4px;
@@ -1933,4 +1949,192 @@ body {
   color: var(--text-muted);
   font-style: italic;
   line-height: 1.3;
+}
+
+/* =========================================================================
+   2D NOC Header Controls & Scenario Injector Modal
+   ========================================================================= */
+.noc-select {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+}
+.noc-select:hover, .noc-select:focus {
+  border-color: var(--primary);
+}
+
+.btn-arbiter-toggle {
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid #34D399;
+  color: #34D399;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-arbiter-toggle.bypassed {
+  background: rgba(251, 113, 133, 0.12);
+  border-color: #FB7185;
+  color: #FB7185;
+}
+
+.btn-injector-toggle {
+  background: rgba(34, 211, 238, 0.15);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.btn-injector-toggle:hover {
+  background: rgba(34, 211, 238, 0.25);
+}
+
+/* 2D Topology Toolbar */
+.topology-sub-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.topo-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.topo-btn:hover, .topo-btn.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.topo-dim-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.topo-slider {
+  width: 50px;
+  height: 3px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.map-credit-line-2d {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 9px;
+  color: var(--muted);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* Scenario Injector Modal */
+.injector-modal-card {
+  width: 540px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.injector-body-2d {
+  padding: 14px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.injector-section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+.preset-btn-2d {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.preset-btn-2d:hover {
+  border-color: var(--primary);
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--primary);
+}
+
+.noc-input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+.noc-input:focus {
+  border-color: var(--primary);
+}
+
+.noc-btn {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.noc-btn:hover {
+  border-color: var(--primary);
+}
+.noc-btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #0B1220;
+  font-weight: 700;
+}
+.noc-btn.primary:hover {
+  background: #67E8F9;
 }

@@ -83,6 +83,7 @@ const DOM = {
   storyBanner: document.getElementById('story-mode-banner'),
 
   counterfactualDeltaPanel: document.getElementById('counterfactual-delta-panel'),
+  btnCloseDeltaPanel: document.getElementById('btn-close-delta-panel'),
   deltaDrops: document.getElementById('delta-drops'),
   deltaSinr: document.getElementById('delta-sinr'),
   deltaPower: document.getElementById('delta-power'),
@@ -97,6 +98,30 @@ const DOM = {
   perfStats: document.getElementById('perf-stats'),
   fpsVal: document.getElementById('fps-val'),
   frameTimeVal: document.getElementById('frame-time-val'),
+
+  topologySelect: document.getElementById('topology-select'),
+  btnToggleMap: document.getElementById('btn-toggle-map'),
+  mapDimSlider: document.getElementById('map-dim-slider'),
+  btnToggleArbiterMode: document.getElementById('btn-toggle-arbiter-mode'),
+  arbiterModeLabel: document.getElementById('arbiter-mode-label'),
+  btnToggleInjector: document.getElementById('btn-toggle-injector'),
+  btnCloseInjector: document.getElementById('btn-close-injector'),
+  scenarioInjectorPanel: document.getElementById('scenario-injector-panel'),
+  injectorNarrationBanner: document.getElementById('injector-narration-banner'),
+  injectorNarrationText: document.getElementById('injector-narration-text'),
+  btnSimPlay: document.getElementById('btn-sim-play'),
+  btnSimPause: document.getElementById('btn-sim-pause'),
+  btnSimStep: document.getElementById('btn-sim-step'),
+  btnSimReset: document.getElementById('btn-sim-reset'),
+  simSpeedSelect: document.getElementById('sim-speed-select'),
+  formCustomInject: document.getElementById('form-custom-inject'),
+  injectCtrlType: document.getElementById('inject-ctrl-type'),
+  injectTargetCell: document.getElementById('inject-target-cell'),
+  injectParam: document.getElementById('inject-param'),
+  injectValue: document.getElementById('inject-value'),
+  injectEmergency: document.getElementById('inject-emergency'),
+  formAddTower: document.getElementById('form-add-tower'),
+  formAddCtrlInstance: document.getElementById('form-add-ctrl-instance'),
 };
 
 // URL Parameters
@@ -139,6 +164,110 @@ updateProvenanceBadge();
 
 // Event Log State (Max 8 verdicts)
 const eventLogHistory = [];
+
+let currentCfRequestId = 0;
+let currentCfAbortController = null;
+let activeVerdictRow = null;
+let popoverHoverTimeout = null;
+
+function hideCounterfactualPopover() {
+  if (currentCfAbortController) {
+    try {
+      currentCfAbortController.abort();
+    } catch (_) {}
+    currentCfAbortController = null;
+  }
+  if (popoverHoverTimeout) {
+    clearTimeout(popoverHoverTimeout);
+    popoverHoverTimeout = null;
+  }
+  if (DOM.counterfactualDeltaPanel) {
+    DOM.counterfactualDeltaPanel.classList.remove('active');
+    DOM.counterfactualDeltaPanel.style.display = 'none';
+    DOM.counterfactualDeltaPanel.style.pointerEvents = 'none';
+  }
+  if (activeVerdictRow) {
+    activeVerdictRow.classList.remove('active-verdict-hover');
+    activeVerdictRow = null;
+  }
+}
+
+async function showCounterfactualPopover(verdict, rowElement, isClick = false) {
+  if (!DOM.counterfactualDeltaPanel) return;
+
+  if (currentCfAbortController) {
+    try {
+      currentCfAbortController.abort();
+    } catch (_) {}
+  }
+  currentCfAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const requestId = ++currentCfRequestId;
+
+  if (activeVerdictRow && activeVerdictRow !== rowElement) {
+    activeVerdictRow.classList.remove('active-verdict-hover');
+  }
+  activeVerdictRow = rowElement;
+  if (rowElement) {
+    rowElement.classList.add('active-verdict-hover');
+  }
+
+  // Position relative to row without covering drawer header or spilling offscreen
+  if (rowElement && DOM.counterfactualDeltaPanel) {
+    const rowRect = rowElement.getBoundingClientRect();
+    const panelHeight = 160;
+    const minTop = 96;
+    const maxTop = Math.max(minTop, window.innerHeight - panelHeight - 40);
+    const targetTop = Math.max(minTop, Math.min(maxTop, rowRect.top - 20));
+    DOM.counterfactualDeltaPanel.style.top = `${targetTop}px`;
+
+    const drawerRect = DOM.verdictDrawer ? DOM.verdictDrawer.getBoundingClientRect() : { left: window.innerWidth - 320 };
+    DOM.counterfactualDeltaPanel.style.right = `${Math.max(16, window.innerWidth - drawerRect.left + 12)}px`;
+  }
+
+  DOM.counterfactualDeltaPanel.classList.add('active');
+  DOM.counterfactualDeltaPanel.style.display = 'flex';
+  DOM.counterfactualDeltaPanel.style.pointerEvents = 'auto';
+
+  const decId = verdict.commandId || verdict.decisionId || 'dec-es-001';
+  try {
+    const data = await dataLayer.loadCounterfactual(decId, 20, currentCfAbortController ? currentCfAbortController.signal : null);
+    if (requestId !== currentCfRequestId) return;
+  } catch (err) {
+    if (requestId === currentCfRequestId && err && err.name !== 'AbortError') {
+      console.warn('[Popover] Counterfactual load error:', err);
+    }
+  }
+}
+
+function attachVerdictRowEvents(row, v) {
+  row.style.cursor = 'pointer';
+  row.title = 'Hover or click to view counterfactual rollout for this decision';
+
+  row.addEventListener('mouseenter', () => {
+    if (popoverHoverTimeout) clearTimeout(popoverHoverTimeout);
+    popoverHoverTimeout = setTimeout(() => {
+      showCounterfactualPopover(v, row, false);
+    }, 100);
+  });
+
+  row.addEventListener('mouseleave', (e) => {
+    if (popoverHoverTimeout) clearTimeout(popoverHoverTimeout);
+    const related = e.relatedTarget;
+    if (DOM.counterfactualDeltaPanel && DOM.counterfactualDeltaPanel.contains(related)) {
+      return;
+    }
+    hideCounterfactualPopover();
+  });
+
+  row.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (activeVerdictRow === row && DOM.counterfactualDeltaPanel && DOM.counterfactualDeltaPanel.classList.contains('active')) {
+      hideCounterfactualPopover();
+    } else {
+      showCounterfactualPopover(v, row, true);
+    }
+  });
+}
 
 function addVerdictToEventLog(verdict, tick) {
   eventLogHistory.unshift({ verdict, tick, time: new Date() });
@@ -183,15 +312,7 @@ function renderEventLog() {
     row.appendChild(actionSpan);
     row.appendChild(reasonSpan);
 
-    // Click row to inspect counterfactual rollout for this verdict
-    row.style.cursor = 'pointer';
-    row.title = 'Click to view counterfactual rollout for this decision';
-    row.addEventListener('click', async () => {
-      setGhostWorldActive(true);
-      const decId = v.commandId || v.decisionId || 'dec-es-001';
-      await dataLayer.loadCounterfactual(decId, 20);
-    });
-
+    attachVerdictRowEvents(row, v);
     DOM.eventLogList.appendChild(row);
   }
 
@@ -202,16 +323,10 @@ function renderEventLog() {
       const v = item.verdict;
       const row = document.createElement('div');
       row.className = 'event-log-row';
-      row.style.cursor = 'pointer';
-      row.title = 'Click to inspect counterfactual rollout';
       row.innerHTML = `<span class="log-ctrl ctrl-${(v.controllerAbbrev || 'REF').toLowerCase()}">${v.controllerAbbrev || 'REF'}</span> ` +
         `<span class="log-action action-${v.action.toLowerCase()}">${v.action}</span> ` +
         `<span class="log-reason">${v.targetCellId ? v.targetCellId + ' • ' : ''}${v.reasonCode}</span>`;
-      row.addEventListener('click', async () => {
-        setGhostWorldActive(true);
-        const decId = v.commandId || v.decisionId || 'dec-es-001';
-        await dataLayer.loadCounterfactual(decId, 20);
-      });
+      attachVerdictRowEvents(row, v);
       DOM.sideDecisionsList.appendChild(row);
     }
   }
@@ -722,9 +837,76 @@ window.addEventListener('keydown', (e) => {
     scene.setCameraPreset(1);
   } else if (e.key === '2') {
     scene.setCameraPreset(2);
+  } else if (e.key === 'm' || e.key === 'M') {
+    cycleMapMode();
+  } else if (e.key === 'i' || e.key === 'I') {
+    toggleInjectorDrawer();
   } else if (e.key === 'Escape') {
     if (DOM.helpModal) DOM.helpModal.style.display = 'none';
     if (DOM.nocSidePanel) DOM.nocSidePanel.classList.add('collapsed');
+    if (DOM.scenarioInjectorPanel) DOM.scenarioInjectorPanel.style.display = 'none';
+    hideCounterfactualPopover();
+  }
+});
+
+// Counterfactual Popover Dismiss Handlers
+if (DOM.btnCloseDeltaPanel) {
+  DOM.btnCloseDeltaPanel.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideCounterfactualPopover();
+  });
+}
+
+if (DOM.counterfactualDeltaPanel) {
+  DOM.counterfactualDeltaPanel.addEventListener('mouseleave', (e) => {
+    const related = e.relatedTarget;
+    if (activeVerdictRow && activeVerdictRow.contains(related)) {
+      return;
+    }
+    hideCounterfactualPopover();
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (DOM.counterfactualDeltaPanel && DOM.counterfactualDeltaPanel.classList.contains('active')) {
+    if (!DOM.counterfactualDeltaPanel.contains(e.target) && (!activeVerdictRow || !activeVerdictRow.contains(e.target))) {
+      hideCounterfactualPopover();
+    }
+  }
+});
+
+// 3D Scene Interactions: Controller Filter & Cell Inspector
+window.addEventListener('controller_selected', (e) => {
+  const cType = e.detail?.controllerType;
+  if (!cType) return;
+  // If NOC panel collapsed, expand it
+  if (DOM.nocSidePanel && DOM.nocSidePanel.classList.contains('collapsed')) {
+    toggleNocPanel();
+  }
+  // Filter or highlight event log
+  const items = document.querySelectorAll('.event-log-item');
+  items.forEach((item) => {
+    if (item.textContent.toUpperCase().includes(cType)) {
+      item.style.borderLeft = '3px solid #22D3EE';
+      item.style.background = 'rgba(34, 211, 238, 0.1)';
+    } else {
+      item.style.borderLeft = '';
+      item.style.background = '';
+    }
+  });
+});
+
+window.addEventListener('cell_selected', (e) => {
+  const cellId = e.detail?.cellId;
+  if (!cellId) return;
+  // Expand NOC panel to inspect cell
+  if (DOM.nocSidePanel && DOM.nocSidePanel.classList.contains('collapsed')) {
+    toggleNocPanel();
+  }
+  // Focus cell in inspector if element exists
+  const inspectorHeader = document.querySelector('.cell-inspector-header');
+  if (inspectorHeader) {
+    inspectorHeader.textContent = `CELL INSPECTION: ${cellId.toUpperCase()}`;
   }
 });
 
@@ -740,6 +922,260 @@ if (showStats) {
     if (DOM.frameTimeVal) DOM.frameTimeVal.textContent = scene.frameTimeMs;
   }, 500);
 }
+
+// Map & Grid Mode Switching
+let currentMapMode = 'map';
+function cycleMapMode() {
+  if (currentMapMode === 'map') currentMapMode = 'grid';
+  else if (currentMapMode === 'grid') currentMapMode = 'both';
+  else currentMapMode = 'map';
+
+  scene.setMapGridMode(currentMapMode);
+  if (DOM.btnToggleMap) {
+    if (currentMapMode === 'map') DOM.btnToggleMap.textContent = '[M] Map: ON';
+    else if (currentMapMode === 'grid') DOM.btnToggleMap.textContent = '[M] Grid: ON';
+    else DOM.btnToggleMap.textContent = '[M] Both: ON';
+  }
+}
+if (DOM.btnToggleMap) {
+  DOM.btnToggleMap.addEventListener('click', cycleMapMode);
+}
+if (DOM.mapDimSlider) {
+  DOM.mapDimSlider.addEventListener('input', (e) => {
+    scene.setMapOpacity(parseFloat(e.target.value));
+  });
+}
+
+// ARBITER Engine Mode (Engaged vs Bypassed)
+let isArbiterEngaged = true;
+async function toggleArbiterMode() {
+  try {
+    const res = await fetch('/api/v1/sim/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arbiter_enabled: !isArbiterEngaged })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      isArbiterEngaged = data.arbiter_enabled;
+      updateArbiterModeUI();
+    }
+  } catch (err) {
+    console.error('Failed to toggle ARBITER mode', err);
+  }
+}
+function updateArbiterModeUI() {
+  if (!DOM.btnToggleArbiterMode) return;
+  if (isArbiterEngaged) {
+    DOM.btnToggleArbiterMode.classList.remove('bypassed');
+    if (DOM.arbiterModeLabel) DOM.arbiterModeLabel.textContent = 'ARBITER: ENGAGED';
+  } else {
+    DOM.btnToggleArbiterMode.classList.add('bypassed');
+    if (DOM.arbiterModeLabel) DOM.arbiterModeLabel.textContent = 'ARBITER: BYPASSED';
+  }
+}
+if (DOM.btnToggleArbiterMode) {
+  DOM.btnToggleArbiterMode.addEventListener('click', toggleArbiterMode);
+}
+
+// Scenario Injector Drawer Visibility
+function toggleInjectorDrawer() {
+  if (!DOM.scenarioInjectorPanel) return;
+  const isHidden = DOM.scenarioInjectorPanel.style.display === 'none';
+  DOM.scenarioInjectorPanel.style.display = isHidden ? 'flex' : 'none';
+}
+if (DOM.btnToggleInjector) {
+  DOM.btnToggleInjector.addEventListener('click', toggleInjectorDrawer);
+}
+if (DOM.btnCloseInjector) {
+  DOM.btnCloseInjector.addEventListener('click', () => {
+    if (DOM.scenarioInjectorPanel) DOM.scenarioInjectorPanel.style.display = 'none';
+  });
+}
+
+// Simulation Transport Controls
+async function sendSimControl(action, extra = {}) {
+  try {
+    await fetch('/api/v1/sim/control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...extra })
+    });
+  } catch (err) {
+    console.error('Sim control error', err);
+  }
+}
+if (DOM.btnSimPlay) DOM.btnSimPlay.addEventListener('click', () => sendSimControl('play'));
+if (DOM.btnSimPause) DOM.btnSimPause.addEventListener('click', () => sendSimControl('pause'));
+if (DOM.btnSimStep) DOM.btnSimStep.addEventListener('click', () => sendSimControl('step'));
+if (DOM.btnSimReset) DOM.btnSimReset.addEventListener('click', () => sendSimControl('reset'));
+if (DOM.simSpeedSelect) {
+  DOM.simSpeedSelect.addEventListener('change', (e) => {
+    sendSimControl('speed', { speed: parseFloat(e.target.value) });
+  });
+}
+
+// 1-Click Preset Buttons
+const presetButtons = document.querySelectorAll('.injector-preset-btn');
+presetButtons.forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const preset = btn.getAttribute('data-preset');
+    try {
+      const res = await fetch('/api/v1/sim/inject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preset })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.narration && DOM.injectorNarrationText) {
+          DOM.injectorNarrationText.textContent = data.narration;
+          if (DOM.injectorNarrationBanner) DOM.injectorNarrationBanner.style.display = 'flex';
+        }
+        if (data.verdicts && Array.isArray(data.verdicts)) {
+          data.verdicts.forEach(v => eventLogHistory.unshift(v));
+          renderEventLog();
+        }
+      }
+    } catch (err) {
+      console.error('Preset error', err);
+    }
+  });
+});
+
+// Custom Proposal Injection Form
+if (DOM.formCustomInject) {
+  DOM.formCustomInject.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const proposal = {
+      controller_type: DOM.injectCtrlType ? DOM.injectCtrlType.value : 'load_balancing',
+      target_cell: DOM.injectTargetCell ? DOM.injectTargetCell.value : 'cell_A',
+      parameter: DOM.injectParam ? DOM.injectParam.value : 'OFFLOAD_RATIO',
+      requested_value: DOM.injectValue ? parseFloat(DOM.injectValue.value) : 0.40,
+      emergency: DOM.injectEmergency ? DOM.injectEmergency.checked : false
+    };
+    try {
+      const res = await fetch('/api/v1/sim/inject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposal })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.narration && DOM.injectorNarrationText) {
+          DOM.injectorNarrationText.textContent = data.narration;
+          if (DOM.injectorNarrationBanner) DOM.injectorNarrationBanner.style.display = 'flex';
+        }
+        if (data.verdicts && Array.isArray(data.verdicts)) {
+          data.verdicts.forEach(v => eventLogHistory.unshift(v));
+          renderEventLog();
+        }
+      }
+    } catch (err) {
+      console.error('Custom proposal injection error', err);
+    }
+  });
+}
+
+// Topology Selection & Mutation
+function updateCellDropdowns(cells) {
+  if (!DOM.injectTargetCell || !Array.isArray(cells)) return;
+  while (DOM.injectTargetCell.firstChild) {
+    DOM.injectTargetCell.removeChild(DOM.injectTargetCell.firstChild);
+  }
+  cells.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.name || c.id} (${c.id})`;
+    DOM.injectTargetCell.appendChild(opt);
+  });
+}
+
+if (DOM.topologySelect) {
+  DOM.topologySelect.addEventListener('change', async (e) => {
+    try {
+      const res = await fetch('/api/v1/sim/topology', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'select', topology: e.target.value })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.cells) updateCellDropdowns(data.cells);
+      }
+    } catch (err) {
+      console.error('Failed to select topology', err);
+    }
+  });
+}
+
+if (DOM.formAddTower) {
+  DOM.formAddTower.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const cellId = document.getElementById('add-cell-id').value.trim();
+    const cellName = document.getElementById('add-cell-name').value.trim();
+    const cellX = parseFloat(document.getElementById('add-cell-x').value) || 200;
+    const cellY = parseFloat(document.getElementById('add-cell-y').value) || 200;
+    const cell = {
+      id: cellId,
+      name: cellName,
+      x: cellX,
+      y: cellY,
+      tx_power_dbm: 43.0,
+      tilt_deg: 6.0,
+      capacity: 100,
+      users: 10
+    };
+    try {
+      const res = await fetch('/api/v1/sim/topology', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_cell', cell })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.cells) updateCellDropdowns(data.cells);
+        DOM.formAddTower.reset();
+      }
+    } catch (err) {
+      console.error('Failed to add tower', err);
+    }
+  });
+}
+
+if (DOM.formAddCtrlInstance) {
+  DOM.formAddCtrlInstance.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const ctrlType = document.getElementById('add-inst-type').value;
+    const instId = document.getElementById('add-inst-id').value.trim();
+    const rawScope = document.getElementById('add-inst-scope').value;
+    const scope = rawScope.split(',').map(s => s.trim()).filter(Boolean);
+    try {
+      const res = await fetch('/api/v1/sim/controller-instance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          controller_type: ctrlType,
+          instance_id: instId,
+          cell_scope: scope.length > 0 ? scope : null
+        })
+      });
+      if (res.ok) {
+        DOM.formAddCtrlInstance.reset();
+      }
+    } catch (err) {
+      console.error('Failed to add controller instance', err);
+    }
+  });
+}
+
+// Initial fetch of topologies to populate cell dropdown
+fetch('/api/v1/sim/topologies')
+  .then(res => res.json())
+  .then(data => {
+    if (data.cells) updateCellDropdowns(data.cells);
+  })
+  .catch(() => {});
 
 // 6. Connect Data Stream
 dataLayer.connect();

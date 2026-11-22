@@ -23,11 +23,15 @@ class LoadBalancingController(BaseController):
         poll_interval_ticks: int = 1,
         high_load_threshold: float = 0.75,
         default_offload_ratio: float = 0.40,
+        instance_id: Optional[str] = None,
+        cell_scope: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
             controller_id=controller_id,
             controller_type=ControllerType.LOAD_BALANCING,
             poll_interval_ticks=poll_interval_ticks,
+            instance_id=instance_id,
+            cell_scope=cell_scope,
         )
         self.high_load_threshold = high_load_threshold
         self.default_offload_ratio = default_offload_ratio
@@ -83,6 +87,8 @@ class LoadBalancingController(BaseController):
             return proposals
 
         for cell_id, load in cell_loads.items():
+            if self.cell_scope is not None and cell_id not in self.cell_scope:
+                continue
             if load > self.high_load_threshold:
                 neighbors = adjacency_map.get(cell_id, [])
                 if neighbors:

@@ -9,30 +9,49 @@
  */
 
 :root {
-  /* Color Palette */
-  --bg: #0A0A0D;
-  --bg-warm: #15110A;
-  --surface: rgba(255, 255, 255, 0.04);
-  --surface-strong: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.10);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --border-gold: rgba(255, 200, 0, 0.35);
+  /* Telecom-NOC Color Palette (Navy + Cyan + Emerald) */
+  --bg: #0B1220;
+  --panel: #111B2E;
+  --panel-2: #0E1626;
+  --bg-warm: #0E1626;
+  --surface: rgba(17, 27, 46, 0.75);
+  --surface-strong: rgba(17, 27, 46, 0.90);
+  --border: #1F2D4A;
+  --border-strong: rgba(34, 211, 238, 0.28);
+  --border-gold: rgba(34, 211, 238, 0.35);
 
+  --primary: #22D3EE;
+  --blue: #3B82F6;
+
+  /* Gold Design Tokens for Site */
   --gold: #FFC800;
   --gold-soft: #FFD84A;
   --gold-glow: rgba(255, 200, 0, 0.35);
   --gold-dim: rgba(255, 200, 0, 0.12);
 
-  --text: #F5F5F7;
-  --muted: #B8B3A7;
-  --text-dim: #787367;
+  --text: #E6EDF7;
+  --muted: #8DA2C4;
+  --text-dim: #64748B;
+
+  /* Semantic Verdicts */
+  --verdict-approve: #34D399;
+  --verdict-modify: #22D3EE;
+  --verdict-delay: #FBBF24;
+  --verdict-reject: #FB7185;
 
   /* Semantic State Colors */
-  --ok: #2EE6A6;
-  --ok-glow: rgba(46, 230, 166, 0.25);
-  --warn: #FFB020;
-  --bad: #FF4D5E;
-  --info: #4FC3F7;
+  --ok: #34D399;
+  --ok-glow: rgba(52, 211, 153, 0.25);
+  --warn: #FBBF24;
+  --bad: #FB7185;
+  --info: #22D3EE;
+
+  /* Controllers */
+  --ctrl-es: #2DD4BF;
+  --ctrl-lb: #60A5FA;
+  --ctrl-cco: #A78BFA;
+  --ctrl-cc: #A78BFA;
+  --ctrl-ps: #FB7185;
 
   /* Corner Radii */
   --radius-sm: 12px;

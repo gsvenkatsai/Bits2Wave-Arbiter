@@ -76,7 +76,12 @@ const STATE = {
   twinPrediction: null,
   paretoFrontier: null,
   impactData: null,
-  optimalityData: null
+  optimalityData: null,
+
+  is2dMapVisible: true,
+  map2dDim: 0.35,
+  isEditLayoutActive: false,
+  isArbiterEngaged: true
 };
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -135,6 +140,32 @@ const DOM = {
   inspectTilt: document.getElementById("inspectTilt"),
   inspectLoad: document.getElementById("inspectLoad"),
   inspectUsers: document.getElementById("inspectUsers"),
+
+  // 2D Topology, Scenario Injector & Simulation Controls
+  topologySelect: document.getElementById("topologySelect"),
+  btnArbiterMode: document.getElementById("btnArbiterMode"),
+  arbiterMode2DText: document.getElementById("arbiterMode2DText"),
+  btnToggleInjector: document.getElementById("btnToggleInjector"),
+  btnCloseInjectorModal: document.getElementById("btnCloseInjectorModal"),
+  scenarioInjectorModal: document.getElementById("scenarioInjectorModal"),
+  narrationBanner2D: document.getElementById("narrationBanner2D"),
+  narrationText2D: document.getElementById("narrationText2D"),
+  btnToggle2DMap: document.getElementById("btnToggle2DMap"),
+  map2dDimSlider: document.getElementById("map2dDimSlider"),
+  btnEditLayout: document.getElementById("btnEditLayout"),
+  btnSimPlay2D: document.getElementById("btnSimPlay2D"),
+  btnSimPause2D: document.getElementById("btnSimPause2D"),
+  btnSimStep2D: document.getElementById("btnSimStep2D"),
+  btnSimReset2D: document.getElementById("btnSimReset2D"),
+  simSpeed2D: document.getElementById("simSpeed2D"),
+  formCustomInject2D: document.getElementById("formCustomInject2D"),
+  injectCtrlType2D: document.getElementById("injectCtrlType2D"),
+  injectTargetCell2D: document.getElementById("injectTargetCell2D"),
+  injectParam2D: document.getElementById("injectParam2D"),
+  injectValue2D: document.getElementById("injectValue2D"),
+  injectEmergency2D: document.getElementById("injectEmergency2D"),
+  formAddTower2D: document.getElementById("formAddTower2D"),
+  formAddCtrl2D: document.getElementById("formAddCtrl2D"),
 
   // Flight Recorder Modal
   flightRecorderModal: document.getElementById("flightRecorderModal"),
@@ -349,7 +380,7 @@ function checkLatestFrameMeta() {
         updateAmberBanner(frame.meta);
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function handleTickUpdate(msg) {
@@ -453,6 +484,10 @@ function renderIngressRows(proposals, timestamp) {
     tr.appendChild(tdReq);
     tr.appendChild(tdVerdict);
     tr.appendChild(tdReason);
+
+    if (STATE.controllerFilter && !String(p.controller || "").toUpperCase().includes(STATE.controllerFilter)) {
+      tr.style.display = "none";
+    }
 
     DOM.ingressTableBody.insertBefore(tr, DOM.ingressTableBody.firstChild);
   });
@@ -574,7 +609,7 @@ function openFlightRecorder(decisionId, tick) {
     .then((plans) => {
       renderPlanTimeline(plans);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function populateCounterfactualDetails(cf) {
@@ -683,7 +718,7 @@ function fetchTwinPrediction() {
       STATE.twinPrediction = pred;
       updateUncertaintyView(pred);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function updateUncertaintyView(twin) {
@@ -780,7 +815,7 @@ function setRiskDialPreset(presetKey) {
       updateRiskDialDisplay(applied);
       fetchParetoFrontier();
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function updateRiskDialDisplay(dial) {
@@ -808,7 +843,7 @@ function fetchParetoFrontier() {
       STATE.paretoFrontier = res;
       renderParetoFrontier(res);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function renderParetoFrontier(res) {
@@ -959,7 +994,7 @@ function fetchImpactTelemetry() {
       STATE.impactData = data;
       renderImpactData(data);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function renderImpactData(data) {
@@ -1005,7 +1040,7 @@ function fetchOptimalityBenchmark() {
       STATE.optimalityData = opt;
       renderOptimalityData(opt);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function renderOptimalityData(opt) {
@@ -1035,6 +1070,38 @@ function renderOptimalityData(opt) {
 // 5-CELL HONEYCOMB TOPOLOGY SVG
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 5-CELL HONEYCOMB TOPOLOGY SVG WITH VISIBLE CONTROL FLOW
+// ---------------------------------------------------------------------------
+
+const CONTROLLER_2D = [
+  { id: "ES", name: "Energy Saving", icon: "⚡", x: 38, y: 38, color: "#2DD4BF" },
+  { id: "LB", name: "Load Balancing", icon: "⚖️", x: 282, y: 38, color: "#60A5FA" },
+  { id: "CC", name: "Coverage Capacity", icon: "📶", x: 38, y: 185, color: "#A78BFA" },
+  { id: "PS", name: "Public Safety", icon: "🚨", x: 282, y: 185, color: "#FB7185" },
+];
+
+function setControllerFilter(ctrlId) {
+  STATE.controllerFilter = STATE.controllerFilter === ctrlId ? null : ctrlId;
+  renderHexTopology();
+  filterIngressRows();
+}
+
+function filterIngressRows() {
+  if (!DOM.ingressTableBody) return;
+  const rows = DOM.ingressTableBody.querySelectorAll("tr");
+  rows.forEach((r) => {
+    if (r.querySelector(".empty-state")) return;
+    const ctrlCell = r.children[1];
+    if (!ctrlCell) return;
+    if (!STATE.controllerFilter || ctrlCell.textContent.trim().toUpperCase().includes(STATE.controllerFilter)) {
+      r.style.display = "";
+    } else {
+      r.style.display = "none";
+    }
+  });
+}
+
 function renderHexTopology() {
   if (!DOM.hexTopologySvg) return;
   clearChildren(DOM.hexTopologySvg);
@@ -1053,12 +1120,107 @@ function renderHexTopology() {
     return;
   }
 
-  const r = 28;
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  // Arrow marker for offload arrow
+  const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+  marker.setAttribute("id", "arrowhead-offload");
+  marker.setAttribute("markerWidth", "6");
+  marker.setAttribute("markerHeight", "6");
+  marker.setAttribute("refX", "4");
+  marker.setAttribute("refY", "3");
+  marker.setAttribute("orient", "auto");
+  const arrowPoly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  arrowPoly.setAttribute("points", "0 0, 6 3, 0 6");
+  arrowPoly.setAttribute("fill", "#22D3EE");
+  marker.appendChild(arrowPoly);
+  defs.appendChild(marker);
+  DOM.hexTopologySvg.appendChild(defs);
+
+  // Referee position (just above cluster center)
+  const refX = 160;
+  const refY = 85;
+
+  // 0. Optional Real Bengaluru Map Background Layer (Item 4)
+  if (STATE.is2dMapVisible) {
+    const mapImg = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    mapImg.setAttribute("href", "assets/bengaluru_map.png");
+    mapImg.setAttribute("x", "0");
+    mapImg.setAttribute("y", "0");
+    mapImg.setAttribute("width", "320");
+    mapImg.setAttribute("height", "220");
+    mapImg.setAttribute("preserveAspectRatio", "none");
+    mapImg.setAttribute("opacity", String(STATE.map2dDim));
+    DOM.hexTopologySvg.appendChild(mapImg);
+  }
+
+  // 1. Draw Control Flow Links from Controllers to ARBITER Referee
+  CONTROLLER_2D.forEach((ctrl) => {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(ctrl.x));
+    line.setAttribute("y1", String(ctrl.y));
+    line.setAttribute("x2", String(refX));
+    line.setAttribute("y2", String(refY));
+    line.setAttribute("stroke", ctrl.color);
+    line.setAttribute("stroke-width", STATE.controllerFilter === ctrl.id ? "2.5" : "1.2");
+    line.setAttribute("stroke-opacity", STATE.controllerFilter && STATE.controllerFilter !== ctrl.id ? "0.2" : "0.55");
+    line.setAttribute("stroke-dasharray", "3 2");
+    DOM.hexTopologySvg.appendChild(line);
+  });
+
+  // 2. Draw Verdict Lines from ARBITER Referee to Cells
+  STATE.cells.forEach((c) => {
+    const vLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    vLine.setAttribute("x1", String(refX));
+    vLine.setAttribute("y1", String(refY));
+    vLine.setAttribute("x2", String(c.x));
+    vLine.setAttribute("y2", String(c.y));
+    let verdictColor = "#34D399"; // APPROVE green default
+    if (c.id === "cell_B") verdictColor = "#FBBF24"; // DELAY amber
+    if (c.id === "cell_A") verdictColor = "#22D3EE"; // MODIFY cyan
+    vLine.setAttribute("stroke", verdictColor);
+    vLine.setAttribute("stroke-width", "1.5");
+    vLine.setAttribute("stroke-opacity", "0.65");
+    DOM.hexTopologySvg.appendChild(vLine);
+  });
+
+  // 3. Draw Curved Offload Arrow from Cell A to Cell B
+  const offloadCurve = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  offloadCurve.setAttribute("d", "M 160 102 Q 195 62 230 102");
+  offloadCurve.setAttribute("fill", "none");
+  offloadCurve.setAttribute("stroke", "#22D3EE");
+  offloadCurve.setAttribute("stroke-width", "2");
+  offloadCurve.setAttribute("stroke-dasharray", "4 2");
+  offloadCurve.setAttribute("marker-end", "url(#arrowhead-offload)");
+  DOM.hexTopologySvg.appendChild(offloadCurve);
+
+  const offloadLabelBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  offloadLabelBg.setAttribute("x", "165");
+  offloadLabelBg.setAttribute("y", "66");
+  offloadLabelBg.setAttribute("width", "62");
+  offloadLabelBg.setAttribute("height", "14");
+  offloadLabelBg.setAttribute("rx", "4");
+  offloadLabelBg.setAttribute("fill", "rgba(11, 18, 32, 0.9)");
+  offloadLabelBg.setAttribute("stroke", "#22D3EE");
+  offloadLabelBg.setAttribute("stroke-width", "1");
+  DOM.hexTopologySvg.appendChild(offloadLabelBg);
+
+  const offloadText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  offloadText.setAttribute("x", "196");
+  offloadText.setAttribute("y", "77");
+  offloadText.setAttribute("text-anchor", "middle");
+  offloadText.setAttribute("fill", "#22D3EE");
+  offloadText.setAttribute("font-family", "monospace");
+  offloadText.setAttribute("font-size", "7.5");
+  offloadText.setAttribute("font-weight", "bold");
+  offloadText.textContent = "15.3% OFFLOAD";
+  DOM.hexTopologySvg.appendChild(offloadText);
+
+  // 4. Draw Hexagonal Cells
+  const r = 26;
   STATE.cells.forEach((c) => {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.style.cursor = "pointer";
+    g.style.cursor = STATE.isEditLayoutActive ? "grab" : "pointer";
 
-    // Polygon coordinates for flat-topped hexagon
     let pts = "";
     for (let i = 0; i < 6; i++) {
       const angle = (i * 60) * (Math.PI / 180);
@@ -1071,9 +1233,21 @@ function renderHexTopology() {
     poly.setAttribute("points", pts);
 
     const isSelected = c.id === STATE.selectedCellId;
-    let fill = c.sleeping ? "#1e293b" : "rgba(16, 185, 129, 0.15)";
-    if (c.load > 0.75) fill = "rgba(239, 68, 68, 0.2)";
-    let stroke = isSelected ? "#00e5ff" : (c.sleeping ? "#475569" : "#10b981");
+    // Cell Load Heat Colors (Item 6): <40% green, 40-75% amber, >75% red
+    let fill = c.sleeping ? "#111B2E" : "rgba(52, 211, 153, 0.20)";
+    let stroke = isSelected ? "#22D3EE" : (c.sleeping ? "#475569" : "#34D399");
+    if (!c.sleeping) {
+      if (c.load > 0.75) {
+        fill = "rgba(251, 113, 133, 0.30)";
+        if (!isSelected) stroke = "#FB7185";
+      } else if (c.load >= 0.40) {
+        fill = "rgba(251, 191, 36, 0.25)";
+        if (!isSelected) stroke = "#FBBF24";
+      } else {
+        fill = "rgba(52, 211, 153, 0.20)";
+        if (!isSelected) stroke = "#34D399";
+      }
+    }
 
     poly.setAttribute("fill", fill);
     poly.setAttribute("stroke", stroke);
@@ -1081,24 +1255,134 @@ function renderHexTopology() {
 
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", String(c.x));
-    text.setAttribute("y", String(c.y + 4));
+    text.setAttribute("y", String(c.y + 3));
     text.setAttribute("text-anchor", "middle");
-    text.setAttribute("fill", "#f8fafc");
+    text.setAttribute("fill", "#E6EDF7");
     text.setAttribute("font-family", "monospace");
-    text.setAttribute("font-size", "10");
+    text.setAttribute("font-size", "9");
     text.setAttribute("font-weight", "600");
-    text.textContent = c.id.replace("cell_", "C_");
+    const displayName = c.name ? c.name.split(" ")[0] : c.id.replace("cell_", "C_");
+    text.textContent = displayName;
 
     g.appendChild(poly);
     g.appendChild(text);
 
-    g.addEventListener("click", () => {
-      STATE.selectedCellId = c.id;
-      renderHexTopology();
-      updateInspector(c);
-    });
+    const hoverTitle = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    hoverTitle.textContent = `${c.name || c.id} (${c.id}) - ${c.users || 0} users - ${Math.round((c.load || 0) * 100)}% load`;
+    g.appendChild(hoverTitle);
+
+    if (STATE.isEditLayoutActive) {
+      g.addEventListener("pointerdown", (pe) => {
+        pe.stopPropagation();
+        g.style.cursor = "grabbing";
+        const svgRect = DOM.hexTopologySvg.getBoundingClientRect();
+        const onMove = (me) => {
+          const sx = ((me.clientX - svgRect.left) / svgRect.width) * 320;
+          const sy = ((me.clientY - svgRect.top) / svgRect.height) * 220;
+          c.x = Math.max(15, Math.min(305, Math.round(sx)));
+          c.y = Math.max(15, Math.min(205, Math.round(sy)));
+          renderHexTopology();
+        };
+        const onUp = () => {
+          g.style.cursor = "grab";
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+      });
+    } else {
+      g.addEventListener("click", () => {
+        STATE.selectedCellId = c.id;
+        renderHexTopology();
+        updateInspector(c);
+      });
+    }
 
     DOM.hexTopologySvg.appendChild(g);
+  });
+
+  // 5. Draw ARBITER Referee Central Badge
+  const refG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const refRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  refRect.setAttribute("x", String(refX - 42));
+  refRect.setAttribute("y", String(refY - 9));
+  refRect.setAttribute("width", "84");
+  refRect.setAttribute("height", "18");
+  refRect.setAttribute("rx", "6");
+  refRect.setAttribute("fill", "rgba(11, 18, 32, 0.95)");
+  refRect.setAttribute("stroke", "#22D3EE");
+  refRect.setAttribute("stroke-width", "1.5");
+  refG.appendChild(refRect);
+
+  const refLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  refLabel.setAttribute("x", String(refX));
+  refLabel.setAttribute("y", String(refY + 3.5));
+  refLabel.setAttribute("text-anchor", "middle");
+  refLabel.setAttribute("fill", "#22D3EE");
+  refLabel.setAttribute("font-family", "sans-serif");
+  refLabel.setAttribute("font-size", "8");
+  refLabel.setAttribute("font-weight", "bold");
+  refLabel.textContent = "🛡️ ARBITER";
+  refG.appendChild(refLabel);
+  DOM.hexTopologySvg.appendChild(refG);
+
+  // 6. Draw 4 Peripheral Controller Nodes
+  CONTROLLER_2D.forEach((ctrl) => {
+    const cg = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    cg.style.cursor = "pointer";
+
+    const isFiltered = STATE.controllerFilter === ctrl.id;
+
+    if (isFiltered) {
+      const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      halo.setAttribute("cx", String(ctrl.x));
+      halo.setAttribute("cy", String(ctrl.y));
+      halo.setAttribute("r", "16");
+      halo.setAttribute("fill", "none");
+      halo.setAttribute("stroke", ctrl.color);
+      halo.setAttribute("stroke-width", "2");
+      halo.setAttribute("stroke-dasharray", "3 2");
+      cg.appendChild(halo);
+    }
+
+    const cCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    cCircle.setAttribute("cx", String(ctrl.x));
+    cCircle.setAttribute("cy", String(ctrl.y));
+    cCircle.setAttribute("r", "12");
+    cCircle.setAttribute("fill", "#111B2E");
+    cCircle.setAttribute("stroke", ctrl.color);
+    cCircle.setAttribute("stroke-width", isFiltered ? "2.5" : "1.5");
+    cg.appendChild(cCircle);
+
+    const cIcon = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    cIcon.setAttribute("x", String(ctrl.x));
+    cIcon.setAttribute("y", String(ctrl.y + 4));
+    cIcon.setAttribute("text-anchor", "middle");
+    cIcon.setAttribute("font-size", "10");
+    cIcon.textContent = ctrl.icon;
+    cg.appendChild(cIcon);
+
+    const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    cText.setAttribute("x", String(ctrl.x));
+    cText.setAttribute("y", String(ctrl.y + 19));
+    cText.setAttribute("text-anchor", "middle");
+    cText.setAttribute("fill", ctrl.color);
+    cText.setAttribute("font-family", "monospace");
+    cText.setAttribute("font-size", "7.5");
+    cText.setAttribute("font-weight", "bold");
+    cText.textContent = ctrl.id;
+    cg.appendChild(cText);
+
+    cg.addEventListener("click", () => {
+      setControllerFilter(ctrl.id);
+    });
+
+    const cTitle = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    cTitle.textContent = `${ctrl.name} (${ctrl.id}) — Click to filter live ingress`;
+    cg.appendChild(cTitle);
+
+    DOM.hexTopologySvg.appendChild(cg);
   });
 }
 
@@ -1115,7 +1399,12 @@ function updateInspector(c) {
     if (DOM.inspectUsers) DOM.inspectUsers.textContent = "--";
     return;
   }
-  if (DOM.inspectCellId) DOM.inspectCellId.textContent = c.name;
+  if (DOM.inspectCellId) {
+    const dName = c.name || c.id;
+    const uCount = c.users !== undefined ? c.users : "--";
+    const lPct = c.load !== undefined ? Math.round(c.load * 100) + "%" : "--%";
+    DOM.inspectCellId.textContent = `${dName} (${c.id}) - ${uCount} users - ${lPct} load`;
+  }
   if (DOM.inspectSleepBadge) {
     DOM.inspectSleepBadge.textContent = c.sleeping ? "SLEEP" : "ACTIVE";
     DOM.inspectSleepBadge.className = "badge " + (c.sleeping ? "badge-delay" : "badge-approve");
@@ -1140,8 +1429,8 @@ function fetchCellStates() {
       const CANONICAL_COORDS = {
         cell_A: { x: 160, y: 110, name: "Cell A (Core)" },
         cell_B: { x: 230, y: 110, name: "Cell B (East)" },
-        cell_C: { x: 195, y: 50,  name: "Cell C (NE)" },
-        cell_D: { x: 125, y: 50,  name: "Cell D (NW)" },
+        cell_C: { x: 195, y: 50, name: "Cell C (NE)" },
+        cell_D: { x: 125, y: 50, name: "Cell D (NW)" },
         cell_E: { x: 160, y: 170, name: "Cell E (South)" }
       };
       STATE.cells = cellsList.map((sc) => {
@@ -1162,7 +1451,7 @@ function fetchCellStates() {
       const current = STATE.cells.find((c) => c.id === STATE.selectedCellId) || STATE.cells[0];
       updateInspector(current);
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 
@@ -1307,6 +1596,73 @@ function startMockGenerator() {
 }
 
 
+function updateTargetCellDropdown(cells) {
+  if (!DOM.injectTargetCell2D || !Array.isArray(cells)) return;
+  clearChildren(DOM.injectTargetCell2D);
+  cells.forEach((c) => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = `${c.name || c.id} (${c.id})`;
+    DOM.injectTargetCell2D.appendChild(opt);
+  });
+}
+
+async function selectTopology2D(topoName) {
+  try {
+    const res = await fetch("/api/v1/sim/topology", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "select", topology: topoName })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.cells && data.cells.length > 0) {
+        let minX = Math.min(...data.cells.map((c) => c.x));
+        let maxX = Math.max(...data.cells.map((c) => c.x));
+        let minY = Math.min(...data.cells.map((c) => c.y));
+        let maxY = Math.max(...data.cells.map((c) => c.y));
+        let spanX = maxX - minX || 1;
+        let spanY = maxY - minY || 1;
+
+        STATE.cells = data.cells.map((c) => {
+          let svgX, svgY;
+          if (topoName === "5_CELL_CORE") {
+            const canonical = {
+              cell_A: { x: 160, y: 110 },
+              cell_B: { x: 230, y: 110 },
+              cell_C: { x: 195, y: 50 },
+              cell_D: { x: 125, y: 50 },
+              cell_E: { x: 160, y: 170 }
+            };
+            svgX = canonical[c.id]?.x ?? 160;
+            svgY = canonical[c.id]?.y ?? 110;
+          } else {
+            svgX = Math.round(35 + ((c.x - minX) / spanX) * 250);
+            svgY = Math.round(30 + ((c.y - minY) / spanY) * 160);
+          }
+          return {
+            id: c.id,
+            name: c.name || c.id,
+            x: svgX,
+            y: svgY,
+            tx: c.tx_power_dbm || 43.0,
+            tilt: c.tilt_deg || 6.0,
+            load: c.load_ratio || 0.20,
+            users: c.users || 10,
+            sleeping: false
+          };
+        });
+        updateTargetCellDropdown(STATE.cells);
+        STATE.selectedCellId = STATE.cells[0]?.id || "cell_A";
+        renderHexTopology();
+        updateInspector(STATE.cells[0]);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to select topology in 2D", err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // INITIALIZATION
 // ---------------------------------------------------------------------------
@@ -1345,6 +1701,11 @@ document.addEventListener("DOMContentLoaded", () => {
         DOM.flightRecorderModal.style.display = "none";
       }
     });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" || e.key === "Esc") {
+        DOM.flightRecorderModal.style.display = "none";
+      }
+    });
   }
 
   // Drift injection button
@@ -1367,6 +1728,232 @@ document.addEventListener("DOMContentLoaded", () => {
       setRiskDialPreset(pKey);
     });
   });
+
+  // 2D Topology, Scenario Injector & Simulation Controls
+  if (DOM.topologySelect) {
+    DOM.topologySelect.addEventListener("change", (e) => {
+      selectTopology2D(e.target.value);
+    });
+  }
+
+  if (DOM.btnArbiterMode) {
+    DOM.btnArbiterMode.addEventListener("click", async () => {
+      STATE.isArbiterEngaged = !STATE.isArbiterEngaged;
+      try {
+        const res = await fetch("/api/v1/sim/mode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ arbiter_enabled: STATE.isArbiterEngaged })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          STATE.isArbiterEngaged = data.arbiter_enabled;
+        }
+      } catch (err) {
+        console.error("Failed to toggle mode", err);
+      }
+      if (STATE.isArbiterEngaged) {
+        DOM.btnArbiterMode.classList.remove("bypassed");
+        if (DOM.arbiterMode2DText) DOM.arbiterMode2DText.textContent = "ARBITER: ENGAGED";
+      } else {
+        DOM.btnArbiterMode.classList.add("bypassed");
+        if (DOM.arbiterMode2DText) DOM.arbiterMode2DText.textContent = "ARBITER: BYPASSED";
+      }
+    });
+  }
+
+  if (DOM.btnToggle2DMap) {
+    DOM.btnToggle2DMap.addEventListener("click", () => {
+      STATE.is2dMapVisible = !STATE.is2dMapVisible;
+      DOM.btnToggle2DMap.textContent = STATE.is2dMapVisible ? "[Map: ON]" : "[Grid: ON]";
+      renderHexTopology();
+    });
+  }
+
+  if (DOM.map2dDimSlider) {
+    DOM.map2dDimSlider.addEventListener("input", (e) => {
+      STATE.map2dDim = 1.0 - parseFloat(e.target.value);
+      renderHexTopology();
+    });
+  }
+
+  if (DOM.btnEditLayout) {
+    DOM.btnEditLayout.addEventListener("click", () => {
+      STATE.isEditLayoutActive = !STATE.isEditLayoutActive;
+      DOM.btnEditLayout.classList.toggle("active", STATE.isEditLayoutActive);
+      DOM.btnEditLayout.textContent = STATE.isEditLayoutActive ? "[💾 Done Editing]" : "[✎ Edit Layout]";
+      renderHexTopology();
+    });
+  }
+
+  if (DOM.btnToggleInjector) {
+    DOM.btnToggleInjector.addEventListener("click", () => {
+      if (DOM.scenarioInjectorModal) DOM.scenarioInjectorModal.style.display = "flex";
+    });
+  }
+
+  if (DOM.btnCloseInjectorModal) {
+    DOM.btnCloseInjectorModal.addEventListener("click", () => {
+      if (DOM.scenarioInjectorModal) DOM.scenarioInjectorModal.style.display = "none";
+    });
+  }
+
+  const presetButtons2D = document.querySelectorAll(".preset-btn-2d");
+  presetButtons2D.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const preset = btn.getAttribute("data-preset");
+      try {
+        const res = await fetch("/api/v1/sim/inject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preset })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.narration && DOM.narrationText2D) {
+            DOM.narrationText2D.textContent = data.narration;
+            if (DOM.narrationBanner2D) DOM.narrationBanner2D.style.display = "flex";
+          }
+          fetchDecisions();
+        }
+      } catch (err) {
+        console.error("2D preset error", err);
+      }
+    });
+  });
+
+  const sendSim2D = async (action, extra = {}) => {
+    try {
+      await fetch("/api/v1/sim/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra })
+      });
+    } catch (err) {
+      console.error("2D sim control error", err);
+    }
+  };
+
+  if (DOM.btnSimPlay2D) DOM.btnSimPlay2D.addEventListener("click", () => sendSim2D("play"));
+  if (DOM.btnSimPause2D) DOM.btnSimPause2D.addEventListener("click", () => sendSim2D("pause"));
+  if (DOM.btnSimStep2D) DOM.btnSimStep2D.addEventListener("click", () => sendSim2D("step"));
+  if (DOM.btnSimReset2D) DOM.btnSimReset2D.addEventListener("click", () => sendSim2D("reset"));
+  if (DOM.simSpeed2D) {
+    DOM.simSpeed2D.addEventListener("change", (e) => {
+      sendSim2D("speed", { speed: parseFloat(e.target.value) });
+    });
+  }
+
+  if (DOM.formCustomInject2D) {
+    DOM.formCustomInject2D.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const proposal = {
+        controller_type: DOM.injectCtrlType2D ? DOM.injectCtrlType2D.value : "load_balancing",
+        target_cell: DOM.injectTargetCell2D ? DOM.injectTargetCell2D.value : "cell_A",
+        parameter: DOM.injectParam2D ? DOM.injectParam2D.value : "OFFLOAD_RATIO",
+        requested_value: DOM.injectValue2D ? parseFloat(DOM.injectValue2D.value) : 0.40,
+        emergency: DOM.injectEmergency2D ? DOM.injectEmergency2D.checked : false
+      };
+      try {
+        const res = await fetch("/api/v1/sim/inject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ proposal })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.narration && DOM.narrationText2D) {
+            DOM.narrationText2D.textContent = data.narration;
+            if (DOM.narrationBanner2D) DOM.narrationBanner2D.style.display = "flex";
+          }
+          fetchDecisions();
+        }
+      } catch (err) {
+        console.error("2D custom inject error", err);
+      }
+    });
+  }
+
+  if (DOM.formAddTower2D) {
+    DOM.formAddTower2D.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const cellId = document.getElementById("addCellId2D").value.trim();
+      const cellName = document.getElementById("addCellName2D").value.trim();
+      const cellX = parseFloat(document.getElementById("addCellX2D").value) || 200;
+      const cellY = parseFloat(document.getElementById("addCellY2D").value) || 200;
+      try {
+        const res = await fetch("/api/v1/sim/topology", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "add_cell",
+            cell: {
+              id: cellId,
+              name: cellName,
+              x: cellX,
+              y: cellY,
+              tx_power_dbm: 43.0,
+              tilt_deg: 6.0,
+              capacity: 100,
+              users: 10
+            }
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.cells) {
+            updateTargetCellDropdown(data.cells);
+            selectTopology2D(DOM.topologySelect ? DOM.topologySelect.value : "5_CELL_CORE");
+          }
+          DOM.formAddTower2D.reset();
+        }
+      } catch (err) {
+        console.error("Failed to add tower in 2D", err);
+      }
+    });
+  }
+
+  if (DOM.formAddCtrl2D) {
+    DOM.formAddCtrl2D.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const ctrlType = document.getElementById("addCtrlType2D").value;
+      const instId = document.getElementById("addCtrlId2D").value.trim();
+      const scope = document.getElementById("addCtrlScope2D").value.split(",").map((s) => s.trim()).filter(Boolean);
+      try {
+        await fetch("/api/v1/sim/controller-instance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            controller_type: ctrlType,
+            instance_id: instId,
+            cell_scope: scope.length > 0 ? scope : null
+          })
+        });
+        DOM.formAddCtrl2D.reset();
+      } catch (err) {
+        console.error("Failed to add controller in 2D", err);
+      }
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "i" || e.key === "I") {
+      if (DOM.scenarioInjectorModal) {
+        const isHidden = DOM.scenarioInjectorModal.style.display === "none";
+        DOM.scenarioInjectorModal.style.display = isHidden ? "flex" : "none";
+      }
+    } else if (e.key === "Escape" || e.key === "Esc") {
+      if (DOM.scenarioInjectorModal) DOM.scenarioInjectorModal.style.display = "none";
+    }
+  });
+
+  updateTargetCellDropdown(STATE.cells);
+  fetch("/api/v1/sim/topologies")
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.cells) updateTargetCellDropdown(data.cells);
+    })
+    .catch(() => { });
 
   // Connect & poll
   connectWebSocket();

@@ -22,10 +22,14 @@ class BaseController(ABC):
         controller_id: str,
         controller_type: ControllerType,
         poll_interval_ticks: int = 1,
+        instance_id: Optional[str] = None,
+        cell_scope: Optional[List[str]] = None,
     ) -> None:
         self.controller_id = controller_id
         self.controller_type = controller_type
         self.poll_interval_ticks = poll_interval_ticks
+        self.instance_id = instance_id or controller_id
+        self.cell_scope = list(cell_scope) if cell_scope is not None else None
 
     @abstractmethod
     def evaluate_telemetry(self, metrics: Any) -> List[CommandProposal]:
@@ -73,7 +77,7 @@ class BaseController(ABC):
 
         return CommandProposal(
             command_id=str(uuid.uuid4()),
-            controller_id=self.controller_id,
+            controller_id=self.instance_id,
             controller_type=self.controller_type,
             target_cell_id=target_cell_id,
             parameter=parameter,

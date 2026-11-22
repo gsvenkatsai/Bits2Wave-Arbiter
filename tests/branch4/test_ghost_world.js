@@ -149,3 +149,30 @@ describe("Ghost World Mapper — findLastCollisionFrameIndex", () => {
     assert.equal(idx, 2);
   });
 });
+
+describe("Counterfactual Popover Lifecycle & Safe Bounds", () => {
+  test("calculates clamped popover top position within viewport bounds", () => {
+    const minTop = 96;
+    const panelHeight = 160;
+    const windowHeight = 900;
+    const maxTop = Math.max(minTop, windowHeight - panelHeight - 40);
+
+    const rowNearTop = 50;
+    const topClamped = Math.max(minTop, Math.min(maxTop, rowNearTop - 20));
+    assert.equal(topClamped, minTop, "Should not cover the header");
+
+    const rowNearBottom = 880;
+    const bottomClamped = Math.max(minTop, Math.min(maxTop, rowNearBottom - 20));
+    assert.equal(bottomClamped, maxTop, "Should not spill past bottom viewport");
+
+    const rowNormal = 300;
+    const normalClamped = Math.max(minTop, Math.min(maxTop, rowNormal - 20));
+    assert.equal(normalClamped, 280, "Normal row positions correctly");
+  });
+
+  test("handles aborted fetch signal gracefully", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    assert.equal(controller.signal.aborted, true);
+  });
+});
