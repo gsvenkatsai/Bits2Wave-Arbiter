@@ -21,6 +21,7 @@ from arbiter.engine.contracts import (
     ActionType,
     ArbitrationDecision,
     CommandProposal,
+    ReasonCode,
     UtilityWeights,
 )
 from arbiter.engine.ladder import DecisionLadderEngine
@@ -187,8 +188,12 @@ class QueueOrchestrator:
     # -- tick --------------------------------------------------------------
     def on_tick(self, current_tick: int, timestamp_epoch_ms: int) -> Dict[str, Any]:
         """Run one arbitration tick and return the batch summary."""
+        rate_limited = self._queue.drain_rate_limited()
+        decisions: list[ArbitrationDecision] = [
+            self._rate_limit_decision(command, current_tick, timestamp_epoch_ms)
+            for command in rate_limited
+        ]
         batch = self._queue.flush_batch(current_tick)
-        decisions: list[ArbitrationDecision] = []
         if batch:
             graph = self._detector.build(batch, self._adjacency)
             components = self._partitioner.components(graph)
@@ -257,7 +262,33 @@ class QueueOrchestrator:
             "batch_tick": current_tick,
             "decisions_count": len(decisions),
             "decisions": decisions,
+            "rate_limited_count": len(rate_limited),
         }
+
+    def _rate_limit_decision(
+        self,
+        command: CommandProposal,
+        current_tick: int,
+        timestamp_epoch_ms: int,
+    ) -> ArbitrationDecision:
+        """Audit record for a proposal refused by the per-controller flood guard.
+
+        The reason code is the existing ``ReasonCode.NONE``: admission was
+        refused for volume, not for a safety, twin, ping-pong or uncertainty
+        reason. The flood cause is carried by the counters instead.
+        """
+        return ArbitrationDecision(
+            decision_id=str(uuid.uuid4()),
+            command_id=command.command_id,
+            batch_tick=int(current_tick),
+            action=ActionType.REJECT,
+            approved_value=None,
+            delta_utility=0.0,
+            reason_code=ReasonCode.NONE,
+            hold_count=command.hold_count,
+            twin_eval_count=0,
+            decided_at_epoch_ms=int(timestamp_epoch_ms),
+        )
 
     # -- latency -----------------------------------------------------------
     def _record_latency(self, elapsed_ms: float, decisions: int) -> None:
@@ -284,6 +315,17 @@ class QueueOrchestrator:
     def reset_latency(self) -> None:
         """Clear the latency window."""
         self._latencies.clear()
+
+    # -- flood guard -------------------------------------------------------
+    @property
+    def rate_limited_count(self) -> int:
+        """Total proposals refused by the per-controller flood guard."""
+        return self._queue.rate_limited_count
+
+    @property
+    def rate_limiter(self) -> Any:
+        """The per-controller admission guard (configuration + counters)."""
+        return self._queue.rate_limiter
 
 
 def build_default_orchestrator(

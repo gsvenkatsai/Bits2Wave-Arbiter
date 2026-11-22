@@ -76,7 +76,12 @@ def test_on_tick_returns_required_keys(make_proposal: Any) -> None:
 
     result = orchestrator.on_tick(current_tick=3, timestamp_epoch_ms=300)
 
-    assert set(result) == {"batch_tick", "decisions_count", "decisions"}
+    assert set(result) == {
+        "batch_tick",
+        "decisions_count",
+        "decisions",
+        "rate_limited_count",
+    }
     assert result["batch_tick"] == 3
     assert result["decisions_count"] == 1
     assert result["decisions"][0].command_id == "c1"
@@ -91,7 +96,12 @@ def test_on_tick_with_empty_queue_skips_detector_and_engine() -> None:
 
     result = orchestrator.on_tick(current_tick=1, timestamp_epoch_ms=100)
 
-    assert result == {"batch_tick": 1, "decisions_count": 0, "decisions": []}
+    assert result == {
+        "batch_tick": 1,
+        "decisions_count": 0,
+        "decisions": [],
+        "rate_limited_count": 0,
+    }
     assert detector.calls == []
     assert engine.calls == []
 
