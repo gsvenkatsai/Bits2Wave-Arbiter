@@ -1,0 +1,452 @@
+{
+  "seeds_eval": [
+    {
+      "seed": 101,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "bf5f2c2f8d4c474ba4d8f67c7547cf87",
+          "command_id": "87aee308-c367-4d30-a06c-975e7b4c7e93",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "ad391ff487fb485185347081f5753d7e",
+          "command_id": "8fbc49d0-e038-4d4b-91bd-5f607db2013e",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "a604381e66ea49608f0b8f485b4ac745",
+          "command_id": "c62f840d-6d51-4050-9923-3ad95cd05571",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 14,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 14,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1582
+    },
+    {
+      "seed": 102,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "b9794fc408534639b7e18e1aa0a6308e",
+          "command_id": "744106c2-373d-41de-8c21-cf15ee6d61a5",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "7aef0e917fae42baa5afae0ad09efa31",
+          "command_id": "8ad31cca-c3c2-458c-95b6-066cd17b36fa",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "3b380c7e020d40beadb4d1f0a9197f86",
+          "command_id": "cad7c537-ee9f-4777-90f9-2bf030aa633e",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 14,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 14,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1582
+    },
+    {
+      "seed": 103,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "4ba7335ad89245219240f78ebc235910",
+          "command_id": "6c7eb08f-b710-454c-b49a-cc6909e74ebc",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "b4b9b305609e4c8eb9756d571dc9868d",
+          "command_id": "bb88f83d-ed04-47b7-9390-b8cfedec8af9",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "d2726f12b54746f6b79c3ba7df47a040",
+          "command_id": "c1d17fc5-6845-45d3-be77-01db3562940b",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 14,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 14,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1582
+    },
+    {
+      "seed": 104,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "67aa8f68c2f24cc4a51e5202d588e386",
+          "command_id": "2928575f-3cad-46c4-87a1-c0bb48b5e4d6",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "438d01074b9945de9e06e31a41501058",
+          "command_id": "6ee1a536-3276-4c41-a04d-5e34a1e1e25f",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "2f366e6fa00c48128c30cc3082597687",
+          "command_id": "7c4b7e22-1081-487c-aa93-e39d4327d00c",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 14,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 14,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1582
+    },
+    {
+      "seed": 105,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "49dba8ba4d9e455bab5f5d4c1c8af5df",
+          "command_id": "2a547cf7-2dbd-4db3-9a95-cbff4245cce4",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "bb273c7a09fa449891ed6514d6e65015",
+          "command_id": "9e0fe2c4-7540-4fbb-b315-19b03b273284",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "1dd900085e0447d0941db3d197bf778d",
+          "command_id": "ae37310f-18ce-4977-abce-946209333960",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 16,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 16,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1808
+    },
+    {
+      "seed": 106,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "edf5e2e792a04683ac796c7d3fd73e8c",
+          "command_id": "62d2c295-a487-4598-818f-614616377be5",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "7d8a8873fbc749759a36329dd4b631d7",
+          "command_id": "a5b317d3-2892-4bc1-9431-af3b336d0649",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "2e518c5f415b4983bf395296349e8875",
+          "command_id": "cceaea73-0392-4d52-96d8-15229ebd7e30",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 15,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 15,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1695
+    },
+    {
+      "seed": 107,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "0b2119cabc914785aac316cc6fd33a7b",
+          "command_id": "069e1202-8cb3-433f-a8e9-d1f08f5191b4",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "041a264aabb944949188419c115af015",
+          "command_id": "e9a07e3f-3bae-41db-a778-f7bd28587169",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "8bd4841daa974edeb181aaebe89b4f82",
+          "command_id": "ee334b9a-eace-4830-9e26-e4eaef1d06a6",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 14,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 14,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1582
+    },
+    {
+      "seed": 108,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "411195d550ca41ed9764e297568b7fbd",
+          "command_id": "8a07a534-f8b6-4045-8d45-3b46e15251ef",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "d2ba9cc5fbac419c9f2a0d4d5b1802a5",
+          "command_id": "e4c8ff25-38e2-44b0-88ee-bb781494e96e",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "4325d7298257480ab87120102157cb95",
+          "command_id": "f9a59ad7-454f-419b-8859-04ace3da6e08",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 17,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 17,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1921
+    },
+    {
+      "seed": 109,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "0b7ebc40d49d430591a6c83ffb3af784",
+          "command_id": "159c13d0-413b-4d52-bca4-41dbda2d48f2",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "43ca4d2e19fe4578a6f7a28ee254fd65",
+          "command_id": "9333a511-e774-4647-bb59-bf2fea204d74",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "3e248d1cf37f4dbb891caf889f9b8496",
+          "command_id": "dd499abb-3072-40e8-9ffc-0f654f7c65e4",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 15,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 15,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1695
+    },
+    {
+      "seed": 110,
+      "cell_b_sleep_tick": null,
+      "cell_b_sleep_uncoord_tick": 7,
+      "decisions_count": 3,
+      "plan_steps": [
+        {
+          "decision_id": "d6f6ab85dc4548d2a3ee7905ddbb8869",
+          "command_id": "a01cda89-933f-43fd-90a8-7cb351abc2f1",
+          "target_cell_id": "cell_B",
+          "parameter": "SLEEP_STATE",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "f8dd745bf38240e28e0c05139afb73a4",
+          "command_id": "a2767f79-0fc8-4e3d-893c-894a269ba15c",
+          "target_cell_id": "cell_B",
+          "parameter": "OFFLOAD_RATIO",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        },
+        {
+          "decision_id": "6f462dff62fa4e02b7e755cf19103a88",
+          "command_id": "dab354e5-8026-493d-99d8-86a3e246b1de",
+          "target_cell_id": "cell_A",
+          "parameter": "TX_POWER_DBM",
+          "action": "REJECT",
+          "approved_value": null,
+          "reason_code": "FLOOR_BREACH",
+          "delta_utility": -0.2251305217368832
+        }
+      ],
+      "arbiter_peak_drops": 0,
+      "uncoord_peak_drops": 12,
+      "arbiter_unique_drops": 0,
+      "uncoord_unique_drops": 12,
+      "arbiter_summed_drops": 0,
+      "uncoord_summed_drops": 1356
+    }
+  ],
+  "energy_200_ticks": {
+    "energy_none_kj": 41.9526231496887,
+    "energy_unc_kj": 37.66628447634736,
+    "energy_arb_kj": 41.9526231496887,
+    "energy_none_kwh": 0.011653506430469083,
+    "energy_unc_kwh": 0.010462856798985376,
+    "energy_arb_kwh": 0.011653506430469083
+  }
+}

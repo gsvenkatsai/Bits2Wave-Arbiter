@@ -1,0 +1,231 @@
+{
+  "project": "PROJECT ARBITER",
+  "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+  "date": "2026-11-22T08:21:00Z",
+  "metrics": {
+    "pytest_count": {
+      "value": 579,
+      "unit": "tests",
+      "status": "measured",
+      "source_command": "python -m pytest tests/ -q",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "pytest_coverage": {
+      "value": 87.0,
+      "unit": "%",
+      "status": "measured",
+      "source_command": "python -m pytest --cov=arbiter --cov-report=term tests/ -q",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "node_tests_count": {
+      "value": 45,
+      "unit": "tests",
+      "status": "measured",
+      "source_command": "node --test tests/branch4/*.js tests/site/*.js",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "arbiter_decision_latency_mean": {
+      "value": 4.17,
+      "unit": "ms",
+      "status": "measured",
+      "source_command": "python -m arbiter.simulator.optimality --multi-seed --json",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "target_ric_latency": {
+      "value": 100.0,
+      "unit": "ms",
+      "status": "target",
+      "source_command": "O-RAN Near-RT RIC Control Loop Timing Spec (WG3)",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "optimality_gap_mean": {
+      "value": 0.01,
+      "unit": "%",
+      "status": "measured",
+      "source_command": "python -m arbiter.simulator.optimality --multi-seed --json",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "optimality_gap_worst": {
+      "value": 0.03,
+      "unit": "%",
+      "status": "measured",
+      "source_command": "python -m arbiter.simulator.optimality --multi-seed --json",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "brute_force_search_latency_mean": {
+      "value": 311.0,
+      "unit": "ms",
+      "status": "measured",
+      "source_command": "python -m arbiter.simulator.optimality --multi-seed --json",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "conformal_coverage_nominal": {
+      "value": 90.0,
+      "unit": "%",
+      "status": "target",
+      "source_command": "Conformal prediction configuration (alpha=0.10)",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "conformal_coverage_empirical": {
+      "value": 90.0,
+      "unit": "%",
+      "status": "measured",
+      "source_command": "python -m pytest tests/branch3/test_conformal_twin.py -k test_conformal_empirical_coverage_above_88_pct",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "conformal_halfwidth_calibrated": {
+      "value": 0.30,
+      "unit": "dB",
+      "status": "measured",
+      "source_command": "DigitalTwinEvaluator warmup on simulator state",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "collision_dropped_users_uncoord_peak": {
+      "value": 14.5,
+      "unit": "users",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "collision_dropped_users_arbiter_peak": {
+      "value": 0.0,
+      "unit": "users",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "collision_dropped_users_uncoord_unique": {
+      "value": 14.5,
+      "unit": "users",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "collision_dropped_users_arbiter_unique": {
+      "value": 0.0,
+      "unit": "users",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "collision_dropped_users_uncoord_summed": {
+      "value": 1662.6,
+      "unit": "user-ticks",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "collision_dropped_users_arbiter_summed": {
+      "value": 0.0,
+      "unit": "user-ticks",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "cell_b_sleep_uncoord_tick": {
+      "value": 6,
+      "unit": "tick",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "cell_b_sleep_arbiter": {
+      "value": "Never (Protected)",
+      "unit": "state",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "energy_none_200ticks_kj": {
+      "value": 2.0,
+      "unit": "kJ",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "energy_uncoord_200ticks_kj": {
+      "value": 1.99,
+      "unit": "kJ",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "energy_arbiter_200ticks_kj": {
+      "value": 2.0,
+      "unit": "kJ",
+      "status": "measured",
+      "source_command": "python artifacts/readme/measure_10seeds.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "cluster_step_latency_200cells": {
+      "value": 6.98,
+      "unit": "ms",
+      "status": "measured",
+      "source_command": "python artifacts/assessment/phase3_scalability.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "user_scaling_throughput_10k": {
+      "value": 3139027,
+      "unit": "UE/s",
+      "status": "measured",
+      "source_command": "python artifacts/assessment/phase3_scalability.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "conflict_detector_latency_10p": {
+      "value": 5.38,
+      "unit": "ms",
+      "status": "measured",
+      "source_command": "python artifacts/assessment/phase3_scalability.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "conflict_detector_latency_100p": {
+      "value": 153.64,
+      "unit": "ms",
+      "status": "measured",
+      "source_command": "python artifacts/assessment/phase3_scalability.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "conflict_detector_limit_100ms": {
+      "value": 75,
+      "unit": "proposals",
+      "status": "measured",
+      "source_command": "Interpolation of pairwise graph builder scaling curve",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    },
+    "sqlite_write_throughput": {
+      "value": 1320,
+      "unit": "writes/s",
+      "status": "measured",
+      "source_command": "python artifacts/assessment/phase3_scalability.py",
+      "git_sha": "ca182ea442c017b698af10ebc79ce356ad1877a8",
+      "date": "2026-11-22"
+    }
+  }
+}

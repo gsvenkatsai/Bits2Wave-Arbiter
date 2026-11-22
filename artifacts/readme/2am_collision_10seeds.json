@@ -1,0 +1,342 @@
+[
+  {
+    "seed": 101,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 14,
+    "uncoord_drops_unique": 14,
+    "uncoord_drops_summed": 1596,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "1692f6fa-3df7-4cb9-ac17-7b47d6ec3ee6",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "767a478c-5214-4f8b-a638-983835b92fb6",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "cf34b469-7061-4d26-a298-5a7768ca2b0e",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 102,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 14,
+    "uncoord_drops_unique": 14,
+    "uncoord_drops_summed": 1596,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "737d451b-b682-45d3-9c6b-bcd76b7e4448",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "b42d6ccb-a1f6-420e-8ec3-32f67820bc3f",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "d9fe6143-36ee-4d7c-b562-5e7c1e7b6e56",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 103,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 14,
+    "uncoord_drops_unique": 14,
+    "uncoord_drops_summed": 1596,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "21045a48-1b7f-40ce-99c5-f36b108f5e58",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "2895fdc8-0296-4d38-a37a-2375c9865684",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "e8fc340d-fbb0-475a-af0e-d227e79243cf",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 104,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 14,
+    "uncoord_drops_unique": 14,
+    "uncoord_drops_summed": 1596,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "0ee752be-3008-49c3-ad39-5fd17b6928bc",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "45c08842-1e79-442a-aa38-0aa1597147de",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "c03d0085-f740-4b14-b30e-044c0d404f75",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 105,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 16,
+    "uncoord_drops_unique": 16,
+    "uncoord_drops_summed": 1824,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "a56262a0-0b0b-4597-a0f6-2ebc3b271eb1",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "e345b230-5b5c-4e06-802e-8fde4b4bb606",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "f778b663-8085-4a41-adb2-b1e8d4102cd3",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 106,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 15,
+    "uncoord_drops_unique": 15,
+    "uncoord_drops_summed": 1710,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "0261d2e5-a400-4147-8b91-fbab411f1dd0",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "69cf86cc-c8b9-4836-90ac-109ac118465e",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "f4277925-ff04-4bfc-8fb2-1687fb6c6f79",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 107,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 14,
+    "uncoord_drops_unique": 14,
+    "uncoord_drops_summed": 1596,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "46149c35-693a-4e1b-a916-6d335d33659b",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "b8215d69-8e62-4e95-94ab-587415b795eb",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "d5465833-fa2f-48ec-a11f-ec2efb2edbf7",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 108,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 17,
+    "uncoord_drops_unique": 17,
+    "uncoord_drops_summed": 1938,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "9555b675-8748-492d-b124-c42958e06a39",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "dcd0eb17-115c-4e76-a4a4-e813e1d06859",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "eb33d62b-930a-4e99-9a60-f8550a96d106",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 109,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 15,
+    "uncoord_drops_unique": 15,
+    "uncoord_drops_summed": 1710,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "4515d0b4-b980-41e3-a856-c5367fd43fd9",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "45bb9104-07ad-4ebc-afdf-545d3270c25b",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "604d5aa7-a034-4b63-9138-99f3fd1b9c1e",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  },
+  {
+    "seed": 110,
+    "cell_b_sleep_tick_arbiter": null,
+    "cell_b_sleep_tick_uncoord": 6,
+    "arbiter_drops_peak": 0,
+    "arbiter_drops_unique": 0,
+    "arbiter_drops_summed": 0,
+    "uncoord_drops_peak": 12,
+    "uncoord_drops_unique": 12,
+    "uncoord_drops_summed": 1368,
+    "energy_none_kj": 2.0,
+    "energy_uncoord_kj": 1.99,
+    "energy_arbiter_kj": 2.0,
+    "decisions": [
+      {
+        "command_id": "76e8fd68-c8b6-4254-8258-fc798d76cc0d",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "bce50f8b-aff8-4593-932e-d77515137c13",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      },
+      {
+        "command_id": "fba41007-c4b0-4f31-93a2-4e6a795b52e1",
+        "action": "REJECT",
+        "reason_code": "FLOOR_BREACH",
+        "approved_value": null
+      }
+    ]
+  }
+]

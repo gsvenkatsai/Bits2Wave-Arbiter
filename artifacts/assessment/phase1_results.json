@@ -1,0 +1,763 @@
+{
+  "seeds_run": [
+    {
+      "seed": 101,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "04b63a49-9d46-41bb-81a9-e0e3e59bee15",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "50e0f4c9-8105-4b86-8424-c66d93f357e5",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "271e44d7-da49-4f55-9558-9aa47faa23e3",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "04b63a49-9d46-41bb-81a9-e0e3e59bee15",
+          "271e44d7-da49-4f55-9558-9aa47faa23e3"
+        ],
+        [
+          "04b63a49-9d46-41bb-81a9-e0e3e59bee15",
+          "50e0f4c9-8105-4b86-8424-c66d93f357e5"
+        ],
+        [
+          "271e44d7-da49-4f55-9558-9aa47faa23e3",
+          "50e0f4c9-8105-4b86-8424-c66d93f357e5"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "04b63a49-9d46-41bb-81a9-e0e3e59bee15",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "271e44d7-da49-4f55-9558-9aa47faa23e3",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "50e0f4c9-8105-4b86-8424-c66d93f357e5",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 2.69649998517707,
+      "coord_drops": 0,
+      "uncoord_drops": 18,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 102,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "74cb61ee-ced3-48ee-b9e7-92ce3713e9bc",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "efde3316-8d01-44ee-8077-fa3ac9d1a859",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "1779825a-83ab-4c14-bac1-a9e358652ecb",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "1779825a-83ab-4c14-bac1-a9e358652ecb",
+          "74cb61ee-ced3-48ee-b9e7-92ce3713e9bc"
+        ],
+        [
+          "1779825a-83ab-4c14-bac1-a9e358652ecb",
+          "efde3316-8d01-44ee-8077-fa3ac9d1a859"
+        ],
+        [
+          "74cb61ee-ced3-48ee-b9e7-92ce3713e9bc",
+          "efde3316-8d01-44ee-8077-fa3ac9d1a859"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "1779825a-83ab-4c14-bac1-a9e358652ecb",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "74cb61ee-ced3-48ee-b9e7-92ce3713e9bc",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "efde3316-8d01-44ee-8077-fa3ac9d1a859",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 1.0574000189080834,
+      "coord_drops": 0,
+      "uncoord_drops": 18,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 103,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "fa56a700-ed02-4013-88e1-4600782bb87a",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "fbcd03fd-7aeb-4efa-85dd-831bc9b085d1",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "36dbd207-031b-4153-b1cf-7b0616d135b3",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "36dbd207-031b-4153-b1cf-7b0616d135b3",
+          "fa56a700-ed02-4013-88e1-4600782bb87a"
+        ],
+        [
+          "36dbd207-031b-4153-b1cf-7b0616d135b3",
+          "fbcd03fd-7aeb-4efa-85dd-831bc9b085d1"
+        ],
+        [
+          "fa56a700-ed02-4013-88e1-4600782bb87a",
+          "fbcd03fd-7aeb-4efa-85dd-831bc9b085d1"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "36dbd207-031b-4153-b1cf-7b0616d135b3",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "fa56a700-ed02-4013-88e1-4600782bb87a",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "fbcd03fd-7aeb-4efa-85dd-831bc9b085d1",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 0.7277999829966575,
+      "coord_drops": 0,
+      "uncoord_drops": 18,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 104,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "3e1a75a8-6115-4085-b098-500ed3f177f6",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "568fdf17-386e-455f-8192-5ae21a8cba8e",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "6c52f359-7af0-43b0-bd87-683cafac8ce2",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "3e1a75a8-6115-4085-b098-500ed3f177f6",
+          "6c52f359-7af0-43b0-bd87-683cafac8ce2"
+        ],
+        [
+          "3e1a75a8-6115-4085-b098-500ed3f177f6",
+          "568fdf17-386e-455f-8192-5ae21a8cba8e"
+        ],
+        [
+          "568fdf17-386e-455f-8192-5ae21a8cba8e",
+          "6c52f359-7af0-43b0-bd87-683cafac8ce2"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "3e1a75a8-6115-4085-b098-500ed3f177f6",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "568fdf17-386e-455f-8192-5ae21a8cba8e",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "6c52f359-7af0-43b0-bd87-683cafac8ce2",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 1.1113999935332686,
+      "coord_drops": 18,
+      "uncoord_drops": 36,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 105,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "50437d40-5718-42bd-b74b-b6bcfdb75fa4",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "ad0381a8-4cc7-480c-8fac-2eeb53d21736",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "4b3b17a5-5105-4b15-99a8-955197910ba1",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "4b3b17a5-5105-4b15-99a8-955197910ba1",
+          "50437d40-5718-42bd-b74b-b6bcfdb75fa4"
+        ],
+        [
+          "4b3b17a5-5105-4b15-99a8-955197910ba1",
+          "ad0381a8-4cc7-480c-8fac-2eeb53d21736"
+        ],
+        [
+          "50437d40-5718-42bd-b74b-b6bcfdb75fa4",
+          "ad0381a8-4cc7-480c-8fac-2eeb53d21736"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "4b3b17a5-5105-4b15-99a8-955197910ba1",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "50437d40-5718-42bd-b74b-b6bcfdb75fa4",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "ad0381a8-4cc7-480c-8fac-2eeb53d21736",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 0.6496999994851649,
+      "coord_drops": 18,
+      "uncoord_drops": 18,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 106,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "1b58994f-b649-49af-be28-91a4b6fef82d",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "a1d50756-ec95-4c6e-9cd7-2393da0e340f",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "e625cb5f-6951-455f-b78d-f8e55442142a",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "1b58994f-b649-49af-be28-91a4b6fef82d",
+          "e625cb5f-6951-455f-b78d-f8e55442142a"
+        ],
+        [
+          "1b58994f-b649-49af-be28-91a4b6fef82d",
+          "a1d50756-ec95-4c6e-9cd7-2393da0e340f"
+        ],
+        [
+          "a1d50756-ec95-4c6e-9cd7-2393da0e340f",
+          "e625cb5f-6951-455f-b78d-f8e55442142a"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "1b58994f-b649-49af-be28-91a4b6fef82d",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "a1d50756-ec95-4c6e-9cd7-2393da0e340f",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "e625cb5f-6951-455f-b78d-f8e55442142a",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 0.8751999994274229,
+      "coord_drops": 36,
+      "uncoord_drops": 36,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 107,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "a4b2d844-ca11-4991-8c97-ae0b1721a572",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "d5689678-2539-464b-9de7-2415b5daf3b3",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "2a6f85c7-2fa6-4a02-be42-1120e33661c9",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "2a6f85c7-2fa6-4a02-be42-1120e33661c9",
+          "a4b2d844-ca11-4991-8c97-ae0b1721a572"
+        ],
+        [
+          "2a6f85c7-2fa6-4a02-be42-1120e33661c9",
+          "d5689678-2539-464b-9de7-2415b5daf3b3"
+        ],
+        [
+          "a4b2d844-ca11-4991-8c97-ae0b1721a572",
+          "d5689678-2539-464b-9de7-2415b5daf3b3"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "2a6f85c7-2fa6-4a02-be42-1120e33661c9",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "a4b2d844-ca11-4991-8c97-ae0b1721a572",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "d5689678-2539-464b-9de7-2415b5daf3b3",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 0.5418000218924135,
+      "coord_drops": 0,
+      "uncoord_drops": 18,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 108,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "c6d92483-11c7-4250-82c5-4261fe243c82",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "c91d6694-3604-422a-9fcd-4794100e05fb",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "f22163a7-2af8-4aa0-906c-b3b845120d74",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "c6d92483-11c7-4250-82c5-4261fe243c82",
+          "f22163a7-2af8-4aa0-906c-b3b845120d74"
+        ],
+        [
+          "c6d92483-11c7-4250-82c5-4261fe243c82",
+          "c91d6694-3604-422a-9fcd-4794100e05fb"
+        ],
+        [
+          "c91d6694-3604-422a-9fcd-4794100e05fb",
+          "f22163a7-2af8-4aa0-906c-b3b845120d74"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "c6d92483-11c7-4250-82c5-4261fe243c82",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "c91d6694-3604-422a-9fcd-4794100e05fb",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "f22163a7-2af8-4aa0-906c-b3b845120d74",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 0.8031000033952296,
+      "coord_drops": 18,
+      "uncoord_drops": 36,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 109,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "d4b77faa-2d25-492d-bb52-db93e434ad36",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "650bb4d5-d3bf-477a-91fe-788ba745c7e0",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "6da15eba-5a34-4f47-8b69-6a0cd378bc52",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "650bb4d5-d3bf-477a-91fe-788ba745c7e0",
+          "6da15eba-5a34-4f47-8b69-6a0cd378bc52"
+        ],
+        [
+          "650bb4d5-d3bf-477a-91fe-788ba745c7e0",
+          "d4b77faa-2d25-492d-bb52-db93e434ad36"
+        ],
+        [
+          "6da15eba-5a34-4f47-8b69-6a0cd378bc52",
+          "d4b77faa-2d25-492d-bb52-db93e434ad36"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "650bb4d5-d3bf-477a-91fe-788ba745c7e0",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "6da15eba-5a34-4f47-8b69-6a0cd378bc52",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "d4b77faa-2d25-492d-bb52-db93e434ad36",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        }
+      ],
+      "arbitration_latency_ms": 0.6409999914467335,
+      "coord_drops": 18,
+      "uncoord_drops": 18,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    },
+    {
+      "seed": 110,
+      "proposals_count": 3,
+      "proposals": [
+        {
+          "id": "2c0c062d-a554-46e6-9480-dc1aaabf1e00",
+          "ctrl": "ControllerType.ENERGY_SAVING",
+          "target": "cell_B",
+          "param": "ParameterType.SLEEP_STATE",
+          "req": 1.0
+        },
+        {
+          "id": "863bb783-3733-48a9-ba9a-e3bf6335c93b",
+          "ctrl": "ControllerType.LOAD_BALANCING",
+          "target": "cell_B",
+          "param": "ParameterType.OFFLOAD_RATIO",
+          "req": 0.4
+        },
+        {
+          "id": "58274de0-a3ba-425c-aa27-89e738567fe0",
+          "ctrl": "ControllerType.COVERAGE_CAPACITY",
+          "target": "cell_A",
+          "param": "ParameterType.TX_POWER_DBM",
+          "req": 46.0
+        }
+      ],
+      "conflict_edges": [
+        [
+          "2c0c062d-a554-46e6-9480-dc1aaabf1e00",
+          "58274de0-a3ba-425c-aa27-89e738567fe0"
+        ],
+        [
+          "2c0c062d-a554-46e6-9480-dc1aaabf1e00",
+          "863bb783-3733-48a9-ba9a-e3bf6335c93b"
+        ],
+        [
+          "58274de0-a3ba-425c-aa27-89e738567fe0",
+          "863bb783-3733-48a9-ba9a-e3bf6335c93b"
+        ]
+      ],
+      "decisions": [
+        {
+          "id": "2c0c062d-a554-46e6-9480-dc1aaabf1e00",
+          "action": "DELAY",
+          "value": null,
+          "reason": "NONE",
+          "hold": 1
+        },
+        {
+          "id": "58274de0-a3ba-425c-aa27-89e738567fe0",
+          "action": "MODIFY",
+          "value": 44.14589803375031,
+          "reason": "HEADROOM",
+          "hold": 0
+        },
+        {
+          "id": "863bb783-3733-48a9-ba9a-e3bf6335c93b",
+          "action": "MODIFY",
+          "value": 0.15278640450004205,
+          "reason": "HEADROOM",
+          "hold": 0
+        }
+      ],
+      "arbitration_latency_ms": 0.5712000129278749,
+      "coord_drops": 0,
+      "uncoord_drops": 18,
+      "coord_avg_power_w": 2157.875409892482,
+      "uncoord_avg_power_w": 1876.6858650441613
+    }
+  ],
+  "edge_cases": {
+    "emergency_bypass": {
+      "action": "APPROVE",
+      "reason": "EMERGENCY_OVERRIDE",
+      "bypassed": true,
+      "bypass_mechanism": "Immediate lane accept on submit; bypassed ladder evaluation and tick wait"
+    },
+    "hold_limit": {
+      "trail": [
+        {
+          "tick": 1,
+          "action": "DELAY",
+          "hold": 1,
+          "reason": "NONE"
+        },
+        {
+          "tick": 2,
+          "action": "DELAY",
+          "hold": 2,
+          "reason": "NONE"
+        },
+        {
+          "tick": 3,
+          "action": "DELAY",
+          "hold": 3,
+          "reason": "NONE"
+        },
+        {
+          "tick": 4,
+          "action": "REJECT",
+          "hold": 3,
+          "reason": "FLOOR_BREACH"
+        }
+      ],
+      "forced_final": true
+    },
+    "twin_timeout": {
+      "action": "REJECT",
+      "reason": "TWIN_TIMEOUT"
+    },
+    "invalid_rejection": true,
+    "flood_1000": {
+      "duration_sec": 5.788662299979478,
+      "decisions_count": 1000,
+      "status": "PASS"
+    },
+    "restart_persistence": {
+      "persisted": true,
+      "row": [
+        "c_persist_01",
+        32.0
+      ]
+    },
+    "non_collision_scenarios": {
+      "PEAK_HOUR": "SUCCESS",
+      "SURGE_EVENT": "SUCCESS"
+    }
+  },
+  "determinism": {
+    "deterministic": true,
+    "diff_ticks": 0
+  },
+  "physics": {
+    "distance_500m_standard_pl_db": 127.857,
+    "distance_500m_code_pl_db": 127.857,
+    "pl_diff_db": 0.0,
+    "pl_monotonic": true,
+    "sleeping_cell_power_w": 0.0
+  }
+}

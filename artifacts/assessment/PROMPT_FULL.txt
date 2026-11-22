@@ -1,0 +1,64 @@
+<USER_REQUEST>
+You are an independent technical judge for a hackathon (Bits2Wave, IEEE AP-S/ComSoc; problem SW-31 "Conflict-Resolution Referee for Mobile Network Controllers", software/simulation track). Assess project ARBITER in this repo as a skeptical, experienced telecom/software reviewer would. Windows: use `python`, `python -m pytest`. This is an ASSESSMENT task: do NOT modify, commit or push any project file. You may create throwaway scripts and write results ONLY under artifacts/assessment/ (report, raw outputs, benchmark scripts). Never touch main.
+
+SCORING RULES (follow strictly)
+- Every score is 0-10 with a one-line justification and EVIDENCE (command output, file:line, measured number). A score without evidence is capped at 5.
+- Score what actually runs on the default path. Mocks, fixtures, hard-coded numbers, features behind flags that are off, or things only shown in docs count as NOT implemented (list them).
+- Do not inflate. 5 = works but unremarkable, 7 = strong for a hackathon, 9 = exceptional and independently verifiable, 10 = production-grade. Passing unit tests do not by themselves earn more than a 6 for functionality; end-to-end behaviour does.
+- Separate MEASURED from CLAIMED from ASSUMED in every section. Anything not measured is written as an assumption.
+- Be specific about weaknesses. A report with no real criticisms is a failed report.
+
+PHASE 0: INVENTORY (read-only)
+1. Repo map: modules per branch/owner (simulator+controllers, queue+detector+engine, twin+actuator+storage, telemetry+api+dashboard+site+benchmarks), lines of code, test counts, endpoints (list routes), WebSocket channels, DB tables, CLIs, scripts.
+2. Requirement traceability: read the Branch spec PDFs and the SRS requirements (FR-1.1..1.6, FR-2.1..2.5, and the arbitration/twin/telemetry requirements, C-1, C-3, A-1 where present). For each, state implemented / partial / missing with file and test evidence.
+3. Default-path audit: grep for mock_, fixtures used at runtime, TODO(INTEGRATION), "DEMO DATA", hard-coded KPI numbers in api/dashboard/site; list everything that is not real.
+
+PHASE 1: FUNCTIONALITY (measure)
+1. Fresh venv, install, full tests with coverage (pytest --cov), flake8, mypy --strict: report pass counts, coverage per package, failures.
+2. Run the end-to-end 2 AM collision through the real pipeline (scripts\run_demo.ps1 or documented equivalent). Capture: the three proposals, the conflict edges detected, each decision (action, value, reason code, hold counts), plan steps, twin intervals, actuator commits in the DB, dropped users with ARBITER vs the uncoordinated counterfactual, energy impact. Repeat 10 seeds and report mean, min and max.
+3. Behavioural checks beyond the demo path: (a) PS emergency override bypass works; (b) hold-count limit (max 3) forces a final decision; (c) twin timeout path (inject a slow twin) produces the documented fallback; (d) invalid/out-of-range proposals are rejected cleanly; (e) a flood of 1,000 proposals in one window does not crash or deadlock; (f) restart persistence (commit_log survives a restart); (g) websocket reconnect; (h) the three non-collision scenarios (peak, surge) run without errors.
+4. Determinism: same seed gives identical decisions twice.
+5. Correctness spot-checks of the physics: path loss at 500 m, SINR monotonicity, sleeping cell radiates 0 W, drop criterion; report any formula deviations from the spec.
+6. List bugs found with severity and reproduction steps.
+
+PHASE 2: FEASIBILITY (real-world deployability)
+Assess with reasoning plus evidence from the code: (1) integration path to a real near-RT RIC / SMO (which interfaces would it need: E2/A1/R1/O1; what in the code maps to them; what is missing); (2) the 100 ms control window versus real near-RT RIC timing (10 ms to 1 s) and where ARBITER's measured decision latency sits; (3) digital-twin fidelity: how the twin is built and calibrated, measured MAPE/interval coverage versus the simulator, and the sim-to-real gap (what real networks have that the simulator lacks); (4) safety guarantees and failure modes (what happens if the arbiter or twin fails: fail-open or fail-safe); (5) data requirements and security (auth, input validation, rate limiting, multi-tenant trust); (6) team-size and time realism of the build; (7) licensing/third-party footprint (offline, free, no GPU).
+
+PHASE 3: SCALABILITY (measure, do not guess)
+Write benchmark scripts under artifacts/assessment/ and measure:
+1. Cluster size: 5, 19, 50, 100 and 200 cells (extend the grid generator in a throwaway script if needed, do not edit project code): decision latency per tick (p50/p95/p99), simulator step time, memory, conflict-detector time versus number of simultaneous proposals (10, 100, 1,000, 5,000), twin evaluation time.
+2. Users: 70, 350, 2,000, 10,000: simulator and telemetry throughput.
+3. API/WebSocket: frame size per tick, messages per second, number of concurrent dashboard clients (1, 10, 50) and the effect on tick latency.
+4. SQLite: write rate for commit_log/event_stream, DB size growth per hour of simulated time, query time on the 2D dashboard endpoints after 1 hour of data.
+5. Find the first bottleneck and the size at which the 100 ms budget breaks. Classify complexity empirically (fit the growth) and say what architecture change would be needed beyond that (sharding by cluster, async workers, a real broker, etc.).
+Output a table and, if feasible, a simple chart saved as a PNG.
+
+PHASE 4: IMPACT (quantified, assumptions labelled)
+1. From the measured results, compute: drops avoided, energy saved (kWh and %) versus the uncoordinated baseline in the scenario, and optimality gap. Show the arithmetic.
+2. Extrapolate to a realistic operator scale (for example 1,000 sites) ONLY with clearly labelled assumptions (tariff, emission factor, share of nights with conflicts); give a low/base/high range and mark it "extrapolation".
+3. Qualitative impact: who benefits (operators, NOC engineers, subscribers), what problem it removes, why now (AI-native RAN, agentic controllers), and risks of the solution itself.
+4. Novelty versus prior art: state what is established (O-RAN conflict taxonomy, CMF-style detection/resolution, digital-twin pre-checks, vendor SMO conflict management) and what ARBITER adds that is genuinely measured here (optimality gap, uncertainty-aware decisions, counterfactual audit trail, plan synthesis). Do not claim anything is "first" unless you searched and cite it; say "not verified" otherwise.
+
+PHASE 5: HACKATHON-READINESS
+Review: the demo flow (cold start from a fresh clone, time to first visible result, failure risks, offline behaviour), documentation (README quality, reproduce commands), UI/visual quality on the site, monitor, 2D and 3D pages (screenshots at 1440x900), honesty of labels (LIVE versus REPLAY, measured versus target, assumptions), repo hygiene (secrets, databases, large files, licenses), and presentation risks (what a judge could easily break or challenge).
+
+PHASE 6: THE REPORT (write artifacts/assessment/ARBITER_ASSESSMENT.md)
+Structure:
+1. Executive summary (5-8 lines) and the scorecard table:
+   | Dimension | Score /10 | Weight | Evidence | Biggest weakness |
+   Functionality 35%, Feasibility 20%, Scalability 20%, Impact 25%, plus a separate unweighted "Demo & presentation readiness" /10. Give the weighted total /10 and the equivalent /100.
+2. Per-dimension sections: what was measured, tables of numbers, what is real versus mock, bugs found.
+3. Requirement traceability table.
+4. Top 10 risks ranked by likelihood x severity for a live judging session, each with a concrete mitigation.
+5. A "judge's questions" list: the 12 hardest questions a telecom judge would ask, each with a short honest answer grounded in the measurements and a note when the honest answer is "we haven't verified this".
+6. Prioritised improvement plan: the 10 highest-value fixes ordered by score gain per hour, with estimated hours, owner (simulator, arbitration, twin/actuator, telemetry/dashboard) and which dimension score it raises.
+7. Appendix: raw benchmark outputs, commands run, versions, git sha, date.
+Then print the scorecard and the top 5 findings in the chat. Do not soften conclusions. If an expected feature is not on the default path, say so plainly.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-22T05:45:08+05:30.
+
+The user's current state is as follows:
+Active Document: a:\Bits2Wave\arbiter\shared\database_v2.py (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 1
+</ADDITIONAL_METADATA>

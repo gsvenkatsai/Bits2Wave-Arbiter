@@ -1,0 +1,465 @@
+{
+  "loc_summary": {
+    "Branch 1 (Sim & Controllers)": {
+      "python": 3806,
+      "javascript": 0,
+      "css": 0,
+      "html": 0,
+      "total": 3806
+    },
+    "Branch 2 (Queue, Detector, Engine)": {
+      "python": 4527,
+      "javascript": 0,
+      "css": 0,
+      "html": 0,
+      "total": 4527
+    },
+    "Branch 3 (Twin, Actuator, Storage, Shared)": {
+      "python": 2396,
+      "javascript": 0,
+      "css": 0,
+      "html": 0,
+      "total": 2396
+    },
+    "Branch 4 (Telemetry, API, Dashboard, Site, Benchmarks)": {
+      "python": 4081,
+      "javascript": 116229,
+      "css": 7088,
+      "html": 3499,
+      "total": 130897
+    }
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/3d"
+    },
+    {
+      "method": "GET",
+      "path": "/problem"
+    },
+    {
+      "method": "GET",
+      "path": "/how-it-works"
+    },
+    {
+      "method": "GET",
+      "path": "/results"
+    },
+    {
+      "method": "GET",
+      "path": "/monitor"
+    },
+    {
+      "method": "GET",
+      "path": "/team"
+    },
+    {
+      "method": "GET",
+      "path": "/404"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico"
+    }
+  ],
+  "tables": [
+    {
+      "table": "commit_log",
+      "file": "arbiter\\shared\\database.py"
+    },
+    {
+      "table": "event_stream",
+      "file": "arbiter\\shared\\database.py"
+    },
+    {
+      "table": "audit_decisions",
+      "file": "arbiter\\shared\\database.py"
+    },
+    {
+      "table": "v2_plans",
+      "file": "arbiter\\shared\\database_v2.py"
+    },
+    {
+      "table": "v2_counterfactuals",
+      "file": "arbiter\\shared\\database_v2.py"
+    },
+    {
+      "table": "v2_impact",
+      "file": "arbiter\\shared\\database_v2.py"
+    },
+    {
+      "table": "v2_calibration",
+      "file": "arbiter\\shared\\database_v2.py"
+    },
+    {
+      "table": "commit_log",
+      "file": "arbiter\\shared\\__pycache__\\database.cpython-313.pyc"
+    },
+    {
+      "table": "event_stream",
+      "file": "arbiter\\shared\\__pycache__\\database.cpython-313.pyc"
+    },
+    {
+      "table": "audit_decisions",
+      "file": "arbiter\\shared\\__pycache__\\database.cpython-313.pyc"
+    },
+    {
+      "table": "commit_log",
+      "file": "arbiter\\shared\\__pycache__\\database.cpython-314.pyc"
+    },
+    {
+      "table": "event_stream",
+      "file": "arbiter\\shared\\__pycache__\\database.cpython-314.pyc"
+    },
+    {
+      "table": "audit_decisions",
+      "file": "arbiter\\shared\\__pycache__\\database.cpython-314.pyc"
+    },
+    {
+      "table": "v2_plans",
+      "file": "arbiter\\shared\\__pycache__\\database_v2.cpython-314.pyc"
+    },
+    {
+      "table": "v2_counterfactuals",
+      "file": "arbiter\\shared\\__pycache__\\database_v2.cpython-314.pyc"
+    },
+    {
+      "table": "v2_impact",
+      "file": "arbiter\\shared\\__pycache__\\database_v2.cpython-314.pyc"
+    },
+    {
+      "table": "v2_calibration",
+      "file": "arbiter\\shared\\__pycache__\\database_v2.cpython-314.pyc"
+    }
+  ],
+  "audit_findings_count": 81,
+  "audit_findings_sample": [
+    {
+      "file": "arbiter\\api\\server.py",
+      "line": 34,
+      "keyword": "HARDCODED",
+      "snippet": "# CORS origins \u2014 from env (see .env.example) or hardcoded default."
+    },
+    {
+      "file": "arbiter\\dashboard\\app.js",
+      "line": 27,
+      "keyword": "mock_",
+      "snippet": "MOCK_TICK_CADENCE_MS: 600,"
+    },
+    {
+      "file": "arbiter\\dashboard\\app.js",
+      "line": 1179,
+      "keyword": "DEMO DATA",
+      "snippet": "DOM.mockBanner.textContent = \"DEMO DATA\";"
+    },
+    {
+      "file": "arbiter\\dashboard\\app.js",
+      "line": 1183,
+      "keyword": "DEMO DATA",
+      "snippet": "DOM.provenanceBadge.textContent = \"SYNTHETIC DEMO DATA\";"
+    },
+    {
+      "file": "arbiter\\dashboard\\app.js",
+      "line": 1185,
+      "keyword": "DEMO DATA",
+      "snippet": "updateConnectionStatus(\"connected\", \"DEMO DATA ACTIVE\");"
+    },
+    {
+      "file": "arbiter\\dashboard\\app.js",
+      "line": 1234,
+      "keyword": "mock_",
+      "snippet": "}, CONFIG.MOCK_TICK_CADENCE_MS);"
+    },
+    {
+      "file": "arbiter\\dashboard\\index.html",
+      "line": 53,
+      "keyword": "DEMO DATA",
+      "snippet": "<span id=\"mockBanner\" class=\"mock-pill\" style=\"display: none;\">DEMO DATA</span>"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 4316,
+      "keyword": "TODO",
+      "snippet": "// TODO lengthSquared?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 6286,
+      "keyword": "TODO",
+      "snippet": "//TODO: make this more efficient"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 9495,
+      "keyword": "TODO",
+      "snippet": "// TODO: Copied from Object3D.toJSON"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 14441,
+      "keyword": "TODO",
+      "snippet": "// TODO (abelnation): RectAreaLight BRDF data needs to be moved from example to main src"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 15429,
+      "keyword": "TODO",
+      "snippet": "// TODO Attribute may not be available on context restore"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 19805,
+      "keyword": "TODO",
+      "snippet": "// TODO Send this event to Three.js DevTools"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 21608,
+      "keyword": "TODO",
+      "snippet": "// TODO (abelnation): set RectAreaLight shadow uniforms"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 21791,
+      "keyword": "TODO",
+      "snippet": "// TODO : do it if required only"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 25248,
+      "keyword": "TODO",
+      "snippet": "// TODO: Uniformly handle mipmap definitions"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 27078,
+      "keyword": "TODO",
+      "snippet": "newRenderTarget.isXRRenderTarget = true; // TODO Remove this when possible, see #23278"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 27211,
+      "keyword": "TODO",
+      "snippet": "// TODO: Better way to apply this offset?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 28187,
+      "keyword": "TODO",
+      "snippet": "// TODO add integer and struct support"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 30086,
+      "keyword": "TODO",
+      "snippet": "// TODO (abelnation): add area lights shadow info to uniforms"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 32911,
+      "keyword": "TODO",
+      "snippet": "// @TODO: SkinnedMesh support?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 32912,
+      "keyword": "TODO",
+      "snippet": "// @TODO: geometry.groups support?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 32913,
+      "keyword": "TODO",
+      "snippet": "// @TODO: geometry.drawRange support?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 32914,
+      "keyword": "TODO",
+      "snippet": "// @TODO: geometry.morphAttributes support?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 32915,
+      "keyword": "TODO",
+      "snippet": "// @TODO: Support uniform parameter per geometry"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 32916,
+      "keyword": "TODO",
+      "snippet": "// @TODO: Add an \"optimize\" function to pack geometry and remove data gaps"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 33518,
+      "keyword": "TODO",
+      "snippet": "// @TODO: Map geometryId to index of the arrays because"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 36264,
+      "keyword": "TODO",
+      "snippet": "this.currentPoint.set( x, y ); // TODO consider referencing vectors instead of copying?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 38614,
+      "keyword": "TODO",
+      "snippet": "// TODO1 - have a .isClosed in spline?"
+    },
+    {
+      "file": "arbiter\\dashboard\\3d\\vendor\\three.module.js",
+      "line": 45037,
+      "keyword": "TODO",
+      "snippet": "this.intensity = json.intensity; // TODO: Move this bit to Light.fromJSON();"
+    }
+  ],
+  "pdf_reqs": {
+    "ARBITER_SRS_v0.1.pdf": [
+      "NFR-13\nScalability",
+      "FR-5.5\nIf a twin evaluation exceeds 100 ms the system",
+      "FR-5.7\nModel equations/parameters, energy model,",
+      "FR-8.1\nThe monitor SHALL ingest live SINR and drop",
+      "NFR-16\nSecurity/Privacy",
+      "NFR-11\nFairness",
+      "FR-4.4\nThe detector SHALL detect cyclic ping-pong",
+      "FR-3.1\nThe queue SHALL buffer proposals and release",
+      "NFR-9\nCorrectness",
+      "NFR-15\nMaintainability / Deployment",
+      "FR-5.4\nThe twin SHALL be recalibrated online from KPI",
+      "FR-7.3\nThe actuator SHALL record each commit in the",
+      "FR-3.2\nThe queue SHALL provide an emergency lane",
+      "FR-4.3\nThe system SHALL decompose the graph into",
+      "NFR-5\nEffectiveness",
+      "NFR-6\nEffectiveness",
+      "NFR-10\nSafety",
+      "C-2 Twin SHALL be analytical (no ML training, no black-box policy) (S3, S5)",
+      "NFR-7\nEffectiveness",
+      "FR-2.1\nThe system SHALL provide at least three",
+      "FR-4.2\nThe detector SHALL classify Direct, Indirect",
+      "NFR-1\nPerformance",
+      "FR-8.3\nIn shadow mode the system SHALL log",
+      "FR-7.2\nThe actuator SHALL roll back on error",
+      "FR-1.5\nThe simulator SHALL emit per-tick telemetry",
+      "FR-2.4\nA public-safety command source SHALL be",
+      "FR-5.1\nThe twin SHALL predict joint multi-cell KPIs",
+      "FR-5.2\nThe twin SHALL use the chain path-loss \u2192",
+      "FR-9.4\nBenchmarks SHALL use peak, quiet-night (2",
+      "NFR-2\nPerformance",
+      "FR-9.2\nThe system SHALL compare ARBITER against",
+      "NFR-3\nPerformance",
+      "FR-6.5\nCoverage and drop-rate floors SHALL remain",
+      "FR-6.2\nDefault weights SHALL be [0",
+      "FR-9.1\nThe dashboard SHALL display a live controller",
+      "A-3 The simulator provides the \u201clive\u02ee telemetry the twin calibrates against",
+      "A-2 Standards (3GPP TS 28",
+      "FR-2.3\nThe system SHALL reproduce the \u201c2 AM",
+      "FR-9.5\nThe system SHALL report: dropped users,",
+      "FR-4.1\nThe detector SHALL build a conflict graph per",
+      "FR-6.6\nUncertainty guard: if |\u0394U| < the current twin",
+      "A-1 Milan traces (Barlacchi et al",
+      "FR-1.4\nA representative configuration SHALL be 19",
+      "FR-7.1\nThe actuator SHALL apply approved/modified",
+      "FR-6.7\nEvery decision SHALL be logged with a reason",
+      "NFR-4\nAccuracy",
+      "C-3 Core demo is 5-cell, 3-controller",
+      "FR-6.4\nBinary commands (e",
+      "NFR-14\nReproducibility",
+      "FR-5.3\nTwin evaluation latency target SHALL be < 10",
+      "FR-6.8\nReason codes in the deck: ACTIVE_HO,",
+      "FR-3.4\nEmergency identification, emergency-vs-",
+      "NFR-17\nReliability on crash/restart",
+      "FR-1.3\nThe simulator SHALL generate dynamic user",
+      "FR-7.4\nError taxonomy and rollback scope: TBD [Q40]",
+      "FR-6.1\nThe engine SHALL compute U = w\u2081\u00b7Coverage \u2212",
+      "FR-1.2\nEach cell SHALL maintain state: transmit power,",
+      "NFR-12\nAuditability",
+      "FR-9.3\nThe system SHOULD support ablations: no-",
+      "FR-2.5\nCommand schema, parameter ranges,",
+      "FR-6.9\nTerm normalisation, floor values, \u0394U",
+      "NFR-8\nEffectiveness",
+      "FR-8.2\nThe monitor SHALL feed online calibration and",
+      "FR-1.6\nCell positions, adjacency, path-loss",
+      "FR-6.3\nThe engine SHALL evaluate the decision ladder",
+      "FR-4.5\nNeighbourhood hop radius for Indirect edges,",
+      "FR-2.2\nControllers SHALL emit command proposals",
+      "FR-3.3\nThe queue SHALL hold a delayed command for",
+      "FR-5.6\nThe system SHALL measure twin error (MAPE)",
+      "C-1 Stack fixed as above (S5)",
+      "FR-1.1\nThe system SHALL simulate a hexagonal RAN",
+      "FR-8.4\nWhether shadow mode is built in the MVP: TBD",
+      "C-4 Delivery window 24 hours"
+    ],
+    "Branch_1_RAN_Simulator_and_Controllers_Spec.pdf": [
+      "FR-2 (FR-2",
+      "FR-1.3\nGenerate dynamic user traffic from Milan-trace",
+      "A-1\nMilan traces provide load shape assigned by",
+      "FR-1.2\nEach cell maintains physical state: transmit power",
+      "FR-1.4\nSupport 350 active users across 19 cells, and 70",
+      "FR-1.5\nEmit per-tick telemetry (SINR distribution,",
+      "FR-2.1\nProvide at least three controllers: Energy Saving",
+      "FR-2.4\nSupport Public Safety emergency command",
+      "A-1\n1",
+      "FR-2.5\nCommand schemas, parameter boundaries, and",
+      "C-3\nPython, NumPy, NetworkX stack",
+      "FR-2.3\nReproduce exact \"2 AM collision\": ES proposes Cell",
+      "FR-2.2\nControllers emit command proposals targeting",
+      "FR-1 (FR-1",
+      "FR-1.1\nSimulate hexagonal RAN cluster of 5 cells (core",
+      "FR-1.6\nCell positions, adjacency graph, path-loss"
+    ],
+    "Branch_2_Arbitration_and_Decision_Engine_Spec.pdf": [
+      "FR-6.6\nUncertainty guard: if $|\\Delta U| < ext{MAPE}$, take",
+      "FR-3.1\nBuffer proposals and release them as batches on",
+      "FR-4.3\nDecompose graph into connected components and",
+      "FR-6.2\nDefault weights [0",
+      "NFR-12\n1",
+      "FR-6 (FR-6",
+      "FR-6.5\nCoverage and drop-rate floors SHALL remain strictly",
+      "FR-4.4\nDetect cyclic ping-pong handovers and enforce",
+      "FR-3.2\nEmergency lane that bypasses arbitration queue and",
+      "FR-4.2\nClassify Direct, Indirect, and Implicit (ping-pong)",
+      "NFR-3\nP95 decision latency < 100 ms",
+      "NFR-12\nBounded hold fairness (N",
+      "FR-4 (FR-4",
+      "FR-6.4\nBinary commands (e",
+      "FR-3 (FR-3",
+      "FR-3.3\nHold delayed commands for at most N=3 ticks",
+      "FR-4.1\nBuild conflict graph per batch (nodes = command",
+      "FR-6.1\nCompute joint utility $U = w_1 Coverage - w_2",
+      "FR-6.8\nLog every decision with reason code and $\\Delta U$",
+      "FR-6.3\nExecute 4-stage decision ladder: APPROVE, MODIFY"
+    ],
+    "Branch_3_Digital_Twin_and_Actuator_Spec.pdf": [
+      "NFR-2\nTwin evaluation latency target SHALL be < 10 ms",
+      "FR-5.2\nUse chain: path-loss",
+      "C-2\n1",
+      "FR-5.1\nPredict joint multi-cell KPIs for commanded cell",
+      "NFR-10\nFail-safe: If evaluation > 100 ms, system SHALL",
+      "NFR-4\nMeasure twin error (MAPE) online against",
+      "FR-7.1\nActuator SHALL apply approved/modified",
+      "FR-5 (FR-5",
+      "FR-7 (FR-7",
+      "C-2\nTwin SHALL be analytical (no ML training, no",
+      "FR-5.4\nTwin SHALL be recalibrated online from KPI",
+      "FR-7.2\nActuator SHALL roll back on error",
+      "NFR-12\nActuator SHALL record each commit in the SQLite"
+    ],
+    "Branch_4_Telemetry_Dashboard_and_Benchmarking_Spec.pdf": [
+      "FR-9 (FR-9",
+      "FR-8 (FR-8",
+      "FR-9.1\nLive \"2 AM Collision Monitor\" dashboard with",
+      "NFR-5 to NFR-9, NFR-14, C-4",
+      "FR-9.2\nCompare ARBITER against uncoordinated and static-",
+      "FR-9.3\nSupport ablations: no-twin and no-modify",
+      "NFR-14\nPeak, quiet night (2 AM), and surge benchmarks",
+      "FR-8.4\nAdvisory Shadow Mode: log recommendations,",
+      "FR-8.1\nIngest live SINR and drop telemetry",
+      "FR-8.2\nFeed live telemetry to online calibration and MAPE"
+    ],
+    "Merge_and_Integration_Playbook.pdf": [],
+    "Team_Quickstart_and_Branch_Guide.pdf": []
+  }
+}
