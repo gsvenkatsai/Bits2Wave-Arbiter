@@ -8,7 +8,6 @@ SRS traceability:
 """
 from __future__ import annotations
 
-from typing import Any
 from arbiter.benchmarks.runner import BenchmarkResult, BenchmarkRunner
 from arbiter.benchmarks.scenarios import (
     DEFAULT_SEEDS,

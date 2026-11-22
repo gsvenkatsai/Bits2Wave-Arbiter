@@ -24,7 +24,7 @@ Conforms strictly to the v3 frame message contract:
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Literal, Optional, Sequence
+from typing import Any, Dict, List, Literal, Optional, Sequence, cast
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -158,6 +158,9 @@ class FrameMessage(BaseModel):
     world: Literal["arbiter", "counterfactual"] = Field(
         default="arbiter", description="Execution path: 'arbiter' or 'counterfactual'"
     )
+    meta: Optional[Dict[str, Any]] = Field(
+        default=None, description="Simulation engine metadata"
+    )
     cells: List[CellFrame] = Field(default_factory=list, description="All cell states")
     users: List[UserFrame] = Field(default_factory=list, description="All active user states")
     proposals: List[ProposalFrame] = Field(default_factory=list, description="Ingress proposals")
@@ -181,46 +184,81 @@ def extract_engine_frame_components(engine: Any) -> Dict[str, Any]:
     Extract (cells, users, kpis) directly from a real SimulationEngine instance.
     Implements engine.frame() contract: {"cells": [...], "users": [...], "kpis": {...}}.
     """
-    active_users = engine.traffic_model.get_active_users(engine.tick)
-    loads = engine.get_cell_loads()
+    active_users: List[Any] = []
+    if hasattr(engine, "traffic_model") and hasattr(engine.traffic_model, "get_active_users"):
+        active_users = engine.traffic_model.get_active_users(getattr(engine, "tick", 0))
+    elif hasattr(engine, "users"):
+        active_users = getattr(engine, "users", [])
 
+    loads: Dict[str, float] = {}
+    if hasattr(engine, "get_cell_loads") and callable(getattr(engine, "get_cell_loads")):
+        loads = engine.get_cell_loads()
+
+    cells_dict = getattr(engine, "cells", {})
     cells: List[Dict[str, Any]] = []
-    for cid, cell in engine.cells.items():
-        attached_count = sum(1 for u in active_users if u.attached_cell_id == cid)
-        load = float(loads.get(cid, 0.0))
-        power_w = float(cell.energy_consumption_w())
-        cells.append({
-            "id": str(cid),
-            "x": round(float(cell.x_coord), 1),
-            "y": round(float(cell.y_coord), 1),
-            "tx_power_dbm": round(float(cell.current_tx_power_dbm), 2),
-            "tilt_deg": round(float(cell.antenna_tilt_deg), 2),
-            "is_sleeping": bool(cell.is_sleeping),
-            "active_users": int(attached_count),
-            "load_ratio": round(load, 4),
-            "energy_w": round(power_w, 2),
-        })
+    if isinstance(cells_dict, dict):
+        for cid, cell in cells_dict.items():
+            attached_count = sum(
+                1 for u in active_users if getattr(u, "attached_cell_id", None) == cid
+            )
+            load = float(loads.get(cid, 0.0))
+            power_w = (
+                float(cell.energy_consumption_w())
+                if hasattr(cell, "energy_consumption_w")
+                else 0.0
+            )
+            cells.append({
+                "id": str(cid),
+                "x": round(float(getattr(cell, "x_coord", 0.0)), 1),
+                "y": round(float(getattr(cell, "y_coord", 0.0)), 1),
+                "tx_power_dbm": round(float(getattr(cell, "current_tx_power_dbm", 43.0)), 2),
+                "tilt_deg": round(float(getattr(cell, "antenna_tilt_deg", 6.0)), 2),
+                "is_sleeping": bool(getattr(cell, "is_sleeping", False)),
+                "active_users": int(attached_count),
+                "load_ratio": round(load, 4),
+                "energy_w": round(power_w, 2),
+            })
 
     users: List[Dict[str, Any]] = []
     for u in active_users:
         users.append({
-            "id": str(u.ue_id),
-            "x": round(float(u.x_coord), 2),
-            "y": round(float(u.y_coord), 2),
-            "cell": str(u.attached_cell_id),
-            "sinr_db": round(float(u.sinr_db), 2),
-            "dropped": bool(u.is_dropped),
+            "id": str(getattr(u, "ue_id", getattr(u, "id", ""))),
+            "x": round(float(getattr(u, "x_coord", getattr(u, "x", 0.0))), 2),
+            "y": round(float(getattr(u, "y_coord", getattr(u, "y", 0.0))), 2),
+            "cell": str(getattr(u, "attached_cell_id", getattr(u, "cell", ""))),
+            "sinr_db": round(float(getattr(u, "sinr_db", 0.0)), 2),
+            "dropped": bool(getattr(u, "is_dropped", getattr(u, "dropped", False))),
         })
 
-    total_dropped = sum(1 for u in active_users if u.is_dropped)
-    mean_sinr = float(np.mean([u.sinr_db for u in active_users])) if active_users else 0.0
-    total_energy = sum(c.energy_consumption_w() for c in engine.cells.values())
+    total_dropped = sum(
+        1 for u in active_users if getattr(u, "is_dropped", getattr(u, "dropped", False))
+    )
+    mean_sinr = (
+        float(np.mean([getattr(u, "sinr_db", 0.0) for u in active_users]))
+        if active_users
+        else 0.0
+    )
+    total_energy = (
+        sum(
+            (c.energy_consumption_w() if hasattr(c, "energy_consumption_w") else 0.0)
+            for c in cells_dict.values()
+        )
+        if isinstance(cells_dict, dict)
+        else 0.0
+    )
 
     kpis: Dict[str, Any] = {
         "dropped_users": int(total_dropped),
         "mean_sinr_db": round(mean_sinr, 2),
         "energy_w": round(float(total_energy), 2),
     }
+    if hasattr(engine, "get_kpis") and callable(getattr(engine, "get_kpis")):
+        try:
+            extra = engine.get_kpis()
+            if isinstance(extra, dict):
+                kpis.update(extra)
+        except Exception:
+            pass
 
     return {
         "cells": cells,
@@ -229,23 +267,80 @@ def extract_engine_frame_components(engine: Any) -> Dict[str, Any]:
     }
 
 
-def ensure_engine_has_frame_method() -> None:
+def build_frame(
+    engine: Any,
+    *,
+    world: str = "arbiter",
+    tick: Optional[int] = None,
+    sim_time_ms: Optional[int] = None,
+    proposals: Optional[Sequence[Any]] = None,
+    decisions: Optional[Sequence[Any]] = None,
+    conflicts: Optional[Sequence[Any]] = None,
+    plans: Optional[Sequence[Any]] = None,
+    twin: Optional[Dict[str, Any]] = None,
+    meta: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """
-    Dynamically attaches .frame() to SimulationEngine if not already present.
-    Enables engine.frame() without editing frozen or unowned simulator files.
+    Build discrete frame dictionary without monkey-patching.
+    Calls engine.frame() when natively implemented (Contract C2),
+    otherwise extracts components directly from public accessors.
     """
-    try:
-        from arbiter.simulator.engine import SimulationEngine
-        if not hasattr(SimulationEngine, "frame"):
-            def _engine_frame(self: Any) -> Dict[str, Any]:
-                return extract_engine_frame_components(self)
-            SimulationEngine.frame = _engine_frame  # type: ignore[attr-defined]
-    except Exception:
-        pass
+    if hasattr(engine, "frame") and callable(getattr(engine, "frame")):
+        try:
+            native_frame = engine.frame(
+                world=world,
+                tick=tick,
+                sim_time_ms=sim_time_ms,
+                proposals=proposals,
+                decisions=decisions,
+                conflicts=conflicts,
+                plans=plans,
+                twin=twin,
+            )
+            if isinstance(native_frame, dict):
+                if meta and "meta" not in native_frame:
+                    native_frame["meta"] = meta
+                return cast(Dict[str, Any], native_frame)
+        except TypeError:
+            native_frame = engine.frame()
+            if isinstance(native_frame, dict):
+                if meta and "meta" not in native_frame:
+                    native_frame["meta"] = meta
+                return cast(Dict[str, Any], native_frame)
 
-
-# Dynamically attach on module import
-ensure_engine_has_frame_method()
+    comp = extract_engine_frame_components(engine)
+    frame_dict: Dict[str, Any] = {
+        "type": "frame",
+        "tick": (
+            tick
+            if tick is not None
+            else getattr(engine, "tick", getattr(engine, "current_tick", 0))
+        ),
+        "sim_time_ms": (
+            sim_time_ms
+            if sim_time_ms is not None
+            else getattr(
+                engine,
+                "simulated_epoch_ms",
+                int(getattr(engine, "sim_time_s", 0.0) * 1000),
+            )
+        ),
+        "scenario": getattr(engine, "scenario", "2am_collision"),
+        "world": world,
+        "cells": comp["cells"],
+        "users": comp["users"],
+        "proposals": list(proposals) if proposals else [],
+        "decisions": list(decisions) if decisions else [],
+        "conflicts": list(conflicts) if conflicts else [],
+        "plans": list(plans) if plans else [],
+        "twin": twin,
+        "kpis": comp["kpis"],
+    }
+    if meta is not None:
+        frame_dict["meta"] = meta
+    elif hasattr(engine, "meta"):
+        frame_dict["meta"] = getattr(engine, "meta")
+    return frame_dict
 
 
 def build_frame_message(
@@ -258,6 +353,7 @@ def build_frame_message(
     conflicts: Optional[Sequence[Any]] = None,
     plans: Optional[Sequence[Any]] = None,
     twin_prediction: Optional[Any] = None,
+    meta: Optional[Dict[str, Any]] = None,
 ) -> FrameMessage:
     """
     Construct a validated FrameMessage combining:
@@ -269,8 +365,11 @@ def build_frame_message(
     - twin intervals
     """
     # 1. Real engine telemetry (cells, users, kpis)
-    if hasattr(engine, "frame") and callable(engine.frame):
-        comp = engine.frame()
+    if hasattr(engine, "frame") and callable(getattr(engine, "frame")):
+        try:
+            comp = engine.frame()
+        except TypeError:
+            comp = extract_engine_frame_components(engine)
     else:
         comp = extract_engine_frame_components(engine)
 
@@ -398,11 +497,19 @@ def build_frame_message(
                 intervals=intervals_list,
             )
 
+    frame_meta = meta
+    if frame_meta is None:
+        if isinstance(comp, dict) and "meta" in comp:
+            frame_meta = comp["meta"]
+        elif hasattr(engine, "meta"):
+            frame_meta = getattr(engine, "meta")
+
     return FrameMessage(
         tick=int(engine.tick),
         sim_time_ms=int(engine.simulated_epoch_ms),
         scenario=str(scenario),
         world=world,
+        meta=frame_meta,
         cells=cells,
         users=users,
         proposals=prop_frames,

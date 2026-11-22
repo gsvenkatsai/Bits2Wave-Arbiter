@@ -53,14 +53,8 @@ const STATE = {
   prevKPIs: { drops: 0, power: 0, sinr: 0, mape: 0 },
   sparklineHistory: { drops: [], power: [], sinr: [] },
 
-  // 5-cell canonical topology coordinates & states
-  cells: [
-    { id: "cell_A", name: "Cell A (Core)",  x: 160, y: 110, tx: 43.0, tilt: 6.0, load: 0.88, users: 35, sleeping: false },
-    { id: "cell_B", name: "Cell B (East)",  x: 230, y: 110, tx: 43.0, tilt: 6.0, load: 0.10, users: 4,  sleeping: false },
-    { id: "cell_C", name: "Cell C (NE)",    x: 195, y: 50,  tx: 43.0, tilt: 6.0, load: 0.10, users: 4,  sleeping: false },
-    { id: "cell_D", name: "Cell D (NW)",    x: 125, y: 50,  tx: 43.0, tilt: 6.0, load: 0.15, users: 6,  sleeping: false },
-    { id: "cell_E", name: "Cell E (South)", x: 160, y: 170, tx: 43.0, tilt: 6.0, load: 0.12, users: 5,  sleeping: false }
-  ],
+  // 5-cell canonical topology coordinates & states (starts empty until ingested frame arrives)
+  cells: [],
   selectedCellId: "cell_A",
 
   history: {
@@ -90,6 +84,7 @@ STATE.isMockMode = urlParams.get("demo") === "1" || urlParams.get("mock") === "1
 
 const DOM = {
   mockBanner: document.getElementById("mockBanner"),
+  amberBanner: document.getElementById("amberBanner"),
   provenanceBadge: document.getElementById("provenanceBadge"),
   connectionStatus: document.getElementById("connectionStatus"),
   connectionText: document.getElementById("connectionText"),
@@ -322,10 +317,45 @@ function updateConnectionStatus(status, text) {
 
 
 // ---------------------------------------------------------------------------
-// TICK UPDATE HANDLER
+// TICK UPDATE HANDLER & AMBER BANNER
 // ---------------------------------------------------------------------------
 
+function updateAmberBanner(meta) {
+  if (!DOM.amberBanner) return;
+  if (!meta) {
+    DOM.amberBanner.style.display = "none";
+    return;
+  }
+  const parts = [];
+  if (meta.twin_kind === "scripted") {
+    parts.push("SCRIPTED TWIN (TEST MOCK)");
+  }
+  if (meta.sink === "mock") {
+    parts.push("MOCK PROPOSAL SINK");
+  }
+  if (parts.length > 0) {
+    DOM.amberBanner.textContent = parts.join(" • ");
+    DOM.amberBanner.style.display = "block";
+  } else {
+    DOM.amberBanner.style.display = "none";
+  }
+}
+
+function checkLatestFrameMeta() {
+  fetch("/api/v1/frame/latest")
+    .then((r) => r.json())
+    .then((frame) => {
+      if (frame && frame.meta) {
+        updateAmberBanner(frame.meta);
+      }
+    })
+    .catch(() => {});
+}
+
 function handleTickUpdate(msg) {
+  if (msg.meta) {
+    updateAmberBanner(msg.meta);
+  }
   if (msg.timestamp && DOM.clockDisplay) {
     DOM.clockDisplay.textContent = msg.timestamp;
   }
@@ -1009,6 +1039,20 @@ function renderHexTopology() {
   if (!DOM.hexTopologySvg) return;
   clearChildren(DOM.hexTopologySvg);
 
+  if (!STATE.cells || STATE.cells.length === 0) {
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", "160");
+    text.setAttribute("y", "110");
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("fill", "#64748b");
+    text.setAttribute("font-family", "monospace");
+    text.setAttribute("font-size", "12");
+    text.setAttribute("font-weight", "500");
+    text.textContent = "No engine data";
+    DOM.hexTopologySvg.appendChild(text);
+    return;
+  }
+
   const r = 28;
   STATE.cells.forEach((c) => {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -1059,32 +1103,60 @@ function renderHexTopology() {
 }
 
 function updateInspector(c) {
-  if (!c) return;
+  if (!c) {
+    if (DOM.inspectCellId) DOM.inspectCellId.textContent = "No Cell Selected";
+    if (DOM.inspectSleepBadge) {
+      DOM.inspectSleepBadge.textContent = "--";
+      DOM.inspectSleepBadge.className = "badge";
+    }
+    if (DOM.inspectTx) DOM.inspectTx.textContent = "-- dBm";
+    if (DOM.inspectTilt) DOM.inspectTilt.textContent = "--°";
+    if (DOM.inspectLoad) DOM.inspectLoad.textContent = "--%";
+    if (DOM.inspectUsers) DOM.inspectUsers.textContent = "--";
+    return;
+  }
   if (DOM.inspectCellId) DOM.inspectCellId.textContent = c.name;
   if (DOM.inspectSleepBadge) {
     DOM.inspectSleepBadge.textContent = c.sleeping ? "SLEEP" : "ACTIVE";
     DOM.inspectSleepBadge.className = "badge " + (c.sleeping ? "badge-delay" : "badge-approve");
   }
-  if (DOM.inspectTx) DOM.inspectTx.textContent = c.tx.toFixed(1) + " dBm";
-  if (DOM.inspectTilt) DOM.inspectTilt.textContent = c.tilt.toFixed(1) + "°";
-  if (DOM.inspectLoad) DOM.inspectLoad.textContent = Math.round(c.load * 100) + "%";
-  if (DOM.inspectUsers) DOM.inspectUsers.textContent = String(c.users);
+  if (DOM.inspectTx) DOM.inspectTx.textContent = (c.tx !== undefined ? c.tx.toFixed(1) : "--") + " dBm";
+  if (DOM.inspectTilt) DOM.inspectTilt.textContent = (c.tilt !== undefined ? c.tilt.toFixed(1) : "--") + "°";
+  if (DOM.inspectLoad) DOM.inspectLoad.textContent = c.load !== undefined ? Math.round(c.load * 100) + "%" : "--%";
+  if (DOM.inspectUsers) DOM.inspectUsers.textContent = c.users !== undefined ? String(c.users) : "--";
 }
 
 function fetchCellStates() {
   fetch("/api/v1/state/cells")
     .then((r) => r.json())
-    .then((cells) => {
-      if (!cells || cells.length === 0) return;
-      cells.forEach((sc) => {
-        const found = STATE.cells.find((c) => c.id === sc.cell_id);
-        if (found) {
-          found.tx = sc.tx_power_dbm;
-          found.tilt = sc.antenna_tilt_deg;
-          found.sleeping = sc.is_sleeping;
-          found.load = sc.load_ratio;
-          found.users = sc.active_users;
-        }
+    .then((data) => {
+      const cellsList = Array.isArray(data) ? data : (data && Array.isArray(data.cells) ? data.cells : []);
+      if (cellsList.length === 0) {
+        STATE.cells = [];
+        renderHexTopology();
+        updateInspector(null);
+        return;
+      }
+      const CANONICAL_COORDS = {
+        cell_A: { x: 160, y: 110, name: "Cell A (Core)" },
+        cell_B: { x: 230, y: 110, name: "Cell B (East)" },
+        cell_C: { x: 195, y: 50,  name: "Cell C (NE)" },
+        cell_D: { x: 125, y: 50,  name: "Cell D (NW)" },
+        cell_E: { x: 160, y: 170, name: "Cell E (South)" }
+      };
+      STATE.cells = cellsList.map((sc) => {
+        const meta = CANONICAL_COORDS[sc.cell_id] || { x: 160, y: 110, name: sc.cell_id };
+        return {
+          id: sc.cell_id,
+          name: meta.name,
+          x: meta.x,
+          y: meta.y,
+          tx: sc.tx_power_dbm !== undefined ? sc.tx_power_dbm : 43.0,
+          tilt: sc.antenna_tilt_deg !== undefined ? sc.antenna_tilt_deg : 6.0,
+          sleeping: Boolean(sc.is_sleeping),
+          load: sc.load_ratio !== undefined ? sc.load_ratio : 0.0,
+          users: sc.active_users !== undefined ? sc.active_users : 0
+        };
       });
       renderHexTopology();
       const current = STATE.cells.find((c) => c.id === STATE.selectedCellId) || STATE.cells[0];
@@ -1241,7 +1313,8 @@ function startMockGenerator() {
 
 document.addEventListener("DOMContentLoaded", () => {
   renderHexTopology();
-  updateInspector(STATE.cells[0]);
+  updateInspector(null);
+  checkLatestFrameMeta();
 
   // Tab switching in secondary column
   const tabButtons = document.querySelectorAll(".tab-btn");

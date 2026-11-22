@@ -180,32 +180,68 @@ class TestIngest:
 
 
 # ---------------------------------------------------------------------------
-# GET /api/v1/state/cells  — spec §4.1 page 5 — STUB: Branch 3 not merged
+# GET /api/v1/state/cells  — Contract C4 (Live state only, no invented numbers)
 # ---------------------------------------------------------------------------
 
 class TestCells:
 
-    def test_cells_returns_200(self, client):
-        """GET /api/v1/state/cells → 200. Source: spec §4.1 page 5."""
-        assert client.get("/api/v1/state/cells").status_code == 200
+    def test_cells_without_frame_returns_no_data(self, client):
+        """GET /api/v1/state/cells with no frame yet responds 200 with no_data (Contract C4)."""
+        import arbiter.api.routes as routes
+        old_frame = routes._latest_frame
+        try:
+            routes._latest_frame = None
+            resp = client.get("/api/v1/state/cells")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data == {"status": "no_data", "cells": []}
+        finally:
+            routes._latest_frame = old_frame
 
-    def test_cells_returns_list(self, client):
-        """Response is a JSON array (STUB: empty until Branch 3)."""
-        assert isinstance(client.get("/api/v1/state/cells").json(), list)
-
-    def test_cells_stub_returns_empty_list(self, client):
-        """
-        Confirms 5-cell cluster state is returned when Branch 3 integrates.
-        """
-        assert len(client.get("/api/v1/state/cells").json()) == 5
-    def test_cells_each_element_conforms_to_cell_state_schema(self, client):
-        """
-        Any returned element must deserialise as CellState (shared/models.py:72).
-        Passes vacuously while STUB returns []; will catch schema drift at integration.
-        """
-        body = client.get("/api/v1/state/cells").json()
-        for item in body:
-            CellState(**item)   # raises ValueError / ValidationError on mismatch
+    def test_cells_with_frame_returns_cell_states(self, client):
+        """GET /api/v1/state/cells with ingested frame derives response honestly from frame."""
+        import arbiter.api.routes as routes
+        old_frame = routes._latest_frame
+        try:
+            sample_cells = [
+                {
+                    "id": "cell_A",
+                    "x": 0.0,
+                    "y": 0.0,
+                    "tx_power_dbm": 43.0,
+                    "tilt_deg": 6.0,
+                    "is_sleeping": False,
+                    "active_users": 15,
+                    "load_ratio": 0.45,
+                    "neighbor_cell_ids": ["cell_B"]
+                },
+                {
+                    "id": "cell_B",
+                    "x": 200.0,
+                    "y": 0.0,
+                    "tx_power_dbm": 40.0,
+                    "tilt_deg": 4.0,
+                    "is_sleeping": True,
+                    "active_users": 0,
+                    "load_ratio": 0.0,
+                    "neighbor_cell_ids": ["cell_A"]
+                }
+            ]
+            routes._latest_frame = {"cells": sample_cells}
+            resp = client.get("/api/v1/state/cells")
+            assert resp.status_code == 200
+            body = resp.json()
+            assert isinstance(body, list)
+            assert len(body) == 2
+            for item in body:
+                cell_state = CellState(**item)
+                assert isinstance(cell_state, CellState)
+            assert body[0]["cell_id"] == "cell_A"
+            assert body[0]["active_users"] == 15
+            assert body[1]["cell_id"] == "cell_B"
+            assert body[1]["is_sleeping"] is True
+        finally:
+            routes._latest_frame = old_frame
 
 
 # ---------------------------------------------------------------------------
@@ -406,4 +442,116 @@ class TestDashboardStaticFiles:
         # Assert no innerHTML assignment exists
         matches = re.findall(r"\.innerHTML\s*=", js_content)
         assert len(matches) == 0, f"Found unsafe innerHTML assignment in app.js: {matches}"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/twin/intervals (Contract C3) & build_frame (Contract C2)
+# ---------------------------------------------------------------------------
+
+class TestTwinIntervals:
+
+    def test_intervals_without_evaluator(self, client):
+        """GET /api/v1/twin/intervals returns no_evaluator when none is registered."""
+        from arbiter.api.routes import get_twin_evaluator
+        app.dependency_overrides[get_twin_evaluator] = lambda: None
+        try:
+            resp = client.get("/api/v1/twin/intervals")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "no_evaluator"
+            assert data["calibrated"] is False
+            assert data["intervals"] == []
+        finally:
+            app.dependency_overrides.pop(get_twin_evaluator, None)
+
+    def test_intervals_with_evaluator_uncalibrated(self, client):
+        """GET /api/v1/twin/intervals with uncalibrated evaluator (Contract C3)."""
+        from arbiter.api.routes import get_twin_evaluator
+
+        class MockEvaluator:
+            def calibration_status(self):
+                return {
+                    "calibrated": False,
+                    "n_calibration": 12,
+                    "interval_halfwidth_db": None,
+                }
+
+            def predict_with_intervals(self, features=None):
+                return [{"cell_id": "cell_A", "lower": 1.0, "upper": 3.0}]
+
+        app.dependency_overrides[get_twin_evaluator] = lambda: MockEvaluator()
+        try:
+            resp = client.get("/api/v1/twin/intervals")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "ok"
+            assert data["calibrated"] is False
+            assert data["interval_halfwidth_db"] is None
+            assert len(data["intervals"]) == 1
+        finally:
+            app.dependency_overrides.pop(get_twin_evaluator, None)
+
+    def test_intervals_with_evaluator_calibrated(self, client):
+        """GET /api/v1/twin/intervals with calibrated evaluator (Contract C3)."""
+        from arbiter.api.routes import get_twin_evaluator
+
+        class MockEvaluator:
+            def calibration_status(self):
+                return {
+                    "calibrated": True,
+                    "n_calibration": 200,
+                    "interval_halfwidth_db": 0.28,
+                }
+
+            def predict_with_intervals(self, features=None):
+                return [{"cell_id": "cell_A", "lower": 2.0, "upper": 2.56}]
+
+        app.dependency_overrides[get_twin_evaluator] = lambda: MockEvaluator()
+        try:
+            resp = client.get("/api/v1/twin/intervals")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "ok"
+            assert data["calibrated"] is True
+            assert data["interval_halfwidth_db"] == 0.28
+            assert data["n_calibration"] == 200
+        finally:
+            app.dependency_overrides.pop(get_twin_evaluator, None)
+
+
+class TestBuildFrame:
+
+    def test_build_frame_calls_native_method_when_present(self):
+        """When engine implements frame natively (Aki Contract C2), build_frame delegates."""
+        from arbiter.telemetry.frame import build_frame
+
+        class NativeEngine:
+            def frame(self):
+                return {"tick": 42, "native": True}
+
+        engine = NativeEngine()
+        res = build_frame(engine)
+        assert res == {"tick": 42, "native": True}
+
+    def test_build_frame_without_native_method_does_not_mutate_class(self):
+        """build_frame builds from public accessors without monkey-patching SimulationEngine."""
+        from arbiter.telemetry.frame import build_frame
+
+        class CustomEngine:
+            def __init__(self):
+                self.sim_time_s = 1.5
+                self.current_tick = 15
+                self.cluster = None
+                self.users = []
+
+            def get_kpis(self):
+                return {"energy_w": 5000.0}
+
+        engine = CustomEngine()
+        assert not hasattr(CustomEngine, "frame")
+        res = build_frame(engine)
+        assert res["tick"] == 15
+        assert res["sim_time_ms"] == 1500
+        assert not hasattr(CustomEngine, "frame"), "build_frame must NEVER monkey-patch the class"
+
 

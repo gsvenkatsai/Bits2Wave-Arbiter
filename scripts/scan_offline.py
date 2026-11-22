@@ -5,6 +5,7 @@ Deep offline integrity check: ensures zero external HTTP/HTTPS URLs, CDN imports
 import re
 from pathlib import Path
 
+
 def main():
     site_dir = Path("arbiter/dashboard/site")
     url_pattern = re.compile(r'https?://(?!www\.w3\.org/)[\w.-]+')

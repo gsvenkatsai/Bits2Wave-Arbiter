@@ -5,7 +5,6 @@ Capture high-resolution screenshots of all 6 pages + 404 across 3 standard viewp
 - Desktop Standard: 1440x900
 - Desktop Widescreen: 1920x1080
 """
-import os
 import time
 from pathlib import Path
 from selenium import webdriver
@@ -29,6 +28,7 @@ VIEWPORTS = [
     ("1440", 1440, 900),
     ("1920", 1920, 1080),
 ]
+
 
 def main():
     options = Options()

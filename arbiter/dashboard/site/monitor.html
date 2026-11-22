@@ -75,6 +75,7 @@
           <span style="font-family: var(--font-mono); font-size: 11px; color: var(--gold);">REFRESH: 2.5s</span>
         </div>
       </div>
+      <div id="amber-mock-banner" class="amber-banner" style="display: none; margin-top: var(--space-12); background: #d97706; color: #ffffff; text-align: center; font-weight: 700; padding: 6px 12px; font-size: 11px; letter-spacing: 0.08em; border-radius: var(--radius-sm);"></div>
     </section>
 
     <!-- Section 3: Two Large Dashboard Cards -->
@@ -105,10 +106,6 @@
               <a href="/dashboard/" class="btn btn-gold" title="Open 2D NOC Console">
                 <span>Open 2D NOC Console</span>
                 <span data-icon="arrowRight"></span>
-              </a>
-              <a href="/dashboard/?replay=1" class="btn btn-outline" title="Start recorded 2 AM replay in 2D console">
-                <span class="stat-chip chip-measured" style="font-size: 9px; padding: 2px 6px;">REPLAY</span>
-                <span>Start a Replay</span>
               </a>
             </div>
           </div>
@@ -250,8 +247,8 @@
       <div class="footer-bottom">
         <div>&copy; 2026 Project ARBITER. All rights reserved. Self-hosted &amp; offline compliant.</div>
         <div style="display: flex; gap: var(--space-16);">
-          <span style="color: var(--ok);">● All 528 Tests Passing</span>
-          <span>Commit: <code style="color: var(--gold);">1cbfd2b</code></span>
+          <span id="footer-test-count" style="color: var(--ok);">● All -- Tests Passing</span>
+          <span id="footer-git-commit">Commit: <code id="footer-git-sha" style="color: var(--gold);">--</code></span>
         </div>
       </div>
     </div>

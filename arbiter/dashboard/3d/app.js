@@ -16,6 +16,7 @@ const DOM = {
   btnToggle2D: document.getElementById('btn-toggle-2d'),
   provenanceBadge: document.getElementById('provenance-badge'),
   connectionPill: document.getElementById('connection-pill'),
+  amberBanner: document.getElementById('amber-mock-banner'),
   worldToggle: document.getElementById('world-toggle'),
   worldIndicatorDot: document.getElementById('world-indicator-dot'),
   worldTitle: document.getElementById('world-title'),
@@ -385,6 +386,30 @@ function updateHUD(frame) {
   // Check empty cells: if cells exist, ensure NO LIVE DATA overlay is hidden
   if (cells.length > 0 && DOM.noLiveDataCard) {
     DOM.noLiveDataCard.style.display = 'none';
+  }
+
+  // Handle frame metadata: twin kind, sink, and persistent amber banner
+  if (frame.meta) {
+    const twinKind = frame.meta.twin_kind || 'unknown';
+    const sink = frame.meta.sink || 'unknown';
+    if (DOM.connectionPill) {
+      DOM.connectionPill.title = `Twin: ${twinKind} | Sink: ${sink}`;
+    }
+    if (DOM.amberBanner) {
+      const parts = [];
+      if (frame.meta.twin_kind === 'scripted') {
+        parts.push('SCRIPTED TWIN (TEST MOCK)');
+      }
+      if (frame.meta.sink === 'mock') {
+        parts.push('MOCK PROPOSAL SINK');
+      }
+      if (parts.length > 0) {
+        DOM.amberBanner.textContent = parts.join(' • ');
+        DOM.amberBanner.style.display = 'block';
+      } else {
+        DOM.amberBanner.style.display = 'none';
+      }
+    }
   }
 
   // Update Risk Dial Display

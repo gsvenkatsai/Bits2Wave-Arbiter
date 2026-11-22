@@ -10,7 +10,7 @@ Deterministic, seeded, no network, no GPU.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 from arbiter.shared.v2_contracts import RiskDial, SnapshotCapable
