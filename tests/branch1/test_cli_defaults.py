@@ -42,6 +42,9 @@ def test_cli_default_twin_real_raises_when_c1_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """CLI default --twin real fails loudly if C1 factory missing."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "arbiter.engine.default_twin", None)
     monkeypatch.setattr(
         "sys.argv",
         [
